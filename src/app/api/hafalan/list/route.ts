@@ -1,4 +1,4 @@
-// src/app/api/hafalan/list/route.ts
+﻿// src/app/api/hafalan/list/route.ts
 // GET: Ambil riwayat hafalan
 // - Filter by student_id (opsional) dan date range (opsional)
 // - Tim_Quran hanya bisa lihat hafalan siswa yang menjadi tanggung jawabnya
@@ -8,6 +8,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
+
+export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   // Verifikasi sesi

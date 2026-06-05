@@ -1,4 +1,4 @@
-// src/app/api/raport/tahfidz/route.ts
+﻿// src/app/api/raport/tahfidz/route.ts
 // GET  : list raport tahfidz (dengan detail surah)
 // POST : buat raport baru + detail surah
 // PUT  : update raport header + detail surah
@@ -9,6 +9,8 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
 
+export const dynamic = 'force-dynamic';
+
 const HEADER_SELECT = `
   id, student_id, teacher_id, periode, tahun_ajaran, juz, catatan,
   nama_guru_kelas, nama_kabid, nama_kepala_sekolah,
@@ -17,7 +19,7 @@ const HEADER_SELECT = `
   users ( id, name )
 `;
 
-// ── GET ──────────────────────────────────────────────────────────────────────
+// â”€â”€ GET â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export async function GET(request: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 });
@@ -72,7 +74,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// ── POST ─────────────────────────────────────────────────────────────────────
+// â”€â”€ POST â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export async function POST(request: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 });
@@ -168,7 +170,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// ── PUT ──────────────────────────────────────────────────────────────────────
+// â”€â”€ PUT â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export async function PUT(request: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 });
@@ -210,7 +212,7 @@ export async function PUT(request: NextRequest) {
 
     await supabase.from('raport_tahfidz').update(updateHeader).eq('id', id);
 
-    // Update detail surah — hapus lama, insert baru
+    // Update detail surah â€” hapus lama, insert baru
     if (Array.isArray(detail) && detail.length > 0) {
       await supabase.from('raport_tahfidz_detail').delete().eq('raport_id', id);
       const detailRows = detail.map((d: any, i: number) => ({
@@ -238,7 +240,7 @@ export async function PUT(request: NextRequest) {
   }
 }
 
-// ── DELETE ───────────────────────────────────────────────────────────────────
+// â”€â”€ DELETE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export async function DELETE(request: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 });

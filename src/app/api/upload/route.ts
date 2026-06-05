@@ -1,14 +1,16 @@
-// src/app/api/upload/route.ts
+﻿// src/app/api/upload/route.ts
 // POST: Upload gambar ke Supabase Storage
 // Query params:
 //   - bucket: nama bucket (default: "assets")
 //   - folder: subfolder dalam bucket (misal: "logo", "siswa", "artikel")
-// Returns: { url: string } — public URL gambar
+// Returns: { url: string } â€” public URL gambar
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
+
+export const dynamic = 'force-dynamic';
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
 const MAX_SIZE_MB = 5;
@@ -70,7 +72,7 @@ export async function POST(request: NextRequest) {
       // Jika bucket tidak ada, beri pesan yang jelas
       if (uploadError.message?.includes('not found') || uploadError.message?.includes('does not exist')) {
         return NextResponse.json({
-          message: `Bucket "${bucket}" tidak ditemukan. Buat bucket terlebih dahulu di Supabase Dashboard → Storage.`,
+          message: `Bucket "${bucket}" tidak ditemukan. Buat bucket terlebih dahulu di Supabase Dashboard â†’ Storage.`,
         }, { status: 500 });
       }
       return NextResponse.json({ message: 'Gagal mengunggah file.', detail: uploadError.message }, { status: 500 });

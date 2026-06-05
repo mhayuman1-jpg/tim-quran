@@ -1,4 +1,4 @@
-// src/app/api/pengaturan/password/route.ts
+﻿// src/app/api/pengaturan/password/route.ts
 // PUT: Verifikasi kata sandi lama dengan bcrypt, update ke hash baru
 // Return 400 jika kata sandi lama salah atau konfirmasi tidak cocok
 
@@ -7,6 +7,8 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
 import bcrypt from 'bcryptjs';
+
+export const dynamic = 'force-dynamic';
 
 export async function PUT(request: NextRequest) {
   try {

@@ -1,4 +1,4 @@
-// src/app/api/absensi/monitoring/route.ts
+﻿// src/app/api/absensi/monitoring/route.ts
 // GET: terima query params `from` dan `to` (YYYY-MM-DD).
 // Return array { date: string, count: number } untuk setiap hari dalam range.
 // Hari tanpa kehadiran tetap disertakan dengan count 0.
@@ -8,6 +8,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
+
+export const dynamic = 'force-dynamic';
 
 /**
  * Menghasilkan array semua tanggal (YYYY-MM-DD) antara from dan to (inklusif).
@@ -80,7 +82,7 @@ export async function GET(request: NextRequest) {
     const supabase = createServerClient();
 
     // Ambil semua records absensi 'Hadir' dalam rentang tanggal
-    // Hitung distinct santri per hari → count per hari
+    // Hitung distinct santri per hari â†’ count per hari
     let attendancesQuery = supabase
       .from('attendances')
       .select('santri_id, date')
@@ -99,7 +101,7 @@ export async function GET(request: NextRequest) {
       if (kelasIds.length > 0) {
         attendancesQuery = attendancesQuery.in('santri_id', kelasIds);
       } else {
-        // Tidak ada santri di kelas ini — return empty
+        // Tidak ada santri di kelas ini â€” return empty
         const allDates = generateDateRange(from, to);
         const data = allDates.map((date) => ({ date, count: 0 }));
         return NextResponse.json({ data, from, to }, { status: 200 });

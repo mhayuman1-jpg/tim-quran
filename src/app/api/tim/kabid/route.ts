@@ -1,6 +1,8 @@
-// GET: Ambil nama user dengan role Kabid (untuk tanda tangan raport)
+﻿// GET: Ambil nama user dengan role Kabid (untuk tanda tangan raport)
 import { NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
+
+export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {

@@ -1,4 +1,4 @@
-// src/app/api/pengaturan/photo/route.ts
+﻿// src/app/api/pengaturan/photo/route.ts
 // PUT: update photo_url untuk user yang sedang login
 // Body: { photo_url: string }
 // Auth: semua user yang sudah login (Kabid atau Tim_Quran)
@@ -7,6 +7,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
+
+export const dynamic = 'force-dynamic';
 
 export async function PUT(request: NextRequest) {
   const session = await getServerSession(authOptions);

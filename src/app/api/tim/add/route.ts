@@ -1,4 +1,4 @@
-// src/app/api/tim/add/route.ts
+﻿// src/app/api/tim/add/route.ts
 // POST: Buat akun Tim_Quran baru
 // - Hash password dengan bcrypt
 // - Kirim welcome email via Resend
@@ -10,6 +10,8 @@ import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
 import bcrypt from 'bcryptjs';
 import { sendWelcomeEmail } from '@/lib/email';
+
+export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
   try {
@@ -108,7 +110,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Kirim welcome email (non-blocking — error tidak gagalkan request)
+    // Kirim welcome email (non-blocking â€” error tidak gagalkan request)
     const loginUrl = `${process.env.NEXTAUTH_URL ?? 'http://localhost:3000'}/login`;
     try {
       await sendWelcomeEmail({

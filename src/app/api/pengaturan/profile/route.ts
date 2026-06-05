@@ -1,10 +1,12 @@
-// src/app/api/pengaturan/profile/route.ts
+﻿// src/app/api/pengaturan/profile/route.ts
 // PUT: Update nama lengkap user, return data terbaru
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
+
+export const dynamic = 'force-dynamic';
 
 export async function PUT(request: NextRequest) {
   try {

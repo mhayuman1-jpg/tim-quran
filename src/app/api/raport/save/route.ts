@@ -1,18 +1,20 @@
-// src/app/api/raport/save/route.ts
+﻿// src/app/api/raport/save/route.ts
 // POST: Simpan raport baru (insert)
 // PUT: Update raport yang sudah ada
 //
 // Logika duplikat:
 // - Cek apakah sudah ada raport untuk (student_id, periode)
-// - Jika sudah ada → return data existing dengan status 409
-// - Jika belum ada → insert baru
+// - Jika sudah ada â†’ return data existing dengan status 409
+// - Jika belum ada â†’ insert baru
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
 
-// ── Shared select string ─────────────────────────────────────────────────────
+export const dynamic = 'force-dynamic';
+
+// â”€â”€ Shared select string â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const RAPORT_SELECT = `
   id, student_id, teacher_id, periode,
   makhroj, tajwid, lancar, buku_surah, halaman, catatan,
@@ -21,7 +23,7 @@ const RAPORT_SELECT = `
   users ( id, name )
 `;
 
-// ── POST: Insert raport baru ─────────────────────────────────────────────────
+// â”€â”€ POST: Insert raport baru â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export async function POST(request: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session || !session.user) {
@@ -35,7 +37,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { student_id, periode, makhroj, tajwid, lancar, buku_surah, halaman, catatan } = body;
 
-    // ── Validasi field wajib ─────────────────────────────────────────────────
+    // â”€â”€ Validasi field wajib â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if (!student_id || typeof student_id !== 'string' || student_id.trim() === '') {
       return NextResponse.json({ message: 'student_id wajib diisi.' }, { status: 400 });
     }
@@ -58,7 +60,7 @@ export async function POST(request: NextRequest) {
 
     const supabase = createServerClient();
 
-    // ── RBAC: Tim_Quran hanya bisa simpan raport untuk siswa tanggung jawabnya
+    // â”€â”€ RBAC: Tim_Quran hanya bisa simpan raport untuk siswa tanggung jawabnya
     if (session.user.role === 'Tim_Quran') {
       const { data: santri, error: santriError } = await supabase
         .from('santri')
@@ -78,7 +80,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // ── Cek duplikat (student_id, periode) ──────────────────────────────────
+    // â”€â”€ Cek duplikat (student_id, periode) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const { data: existing, error: checkError } = await supabase
       .from('raport_quran')
       .select(RAPORT_SELECT)
@@ -94,7 +96,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Jika sudah ada → return 409 dengan data existing
+    // Jika sudah ada â†’ return 409 dengan data existing
     if (existing) {
       return NextResponse.json(
         {
@@ -106,7 +108,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // ── Insert raport baru ───────────────────────────────────────────────────
+    // â”€â”€ Insert raport baru â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const insertData: Record<string, unknown> = {
       student_id: student_id.trim(),
       teacher_id: session.user.id,
@@ -171,7 +173,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// ── PUT: Update raport (by id) ───────────────────────────────────────────────
+// â”€â”€ PUT: Update raport (by id) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export async function PUT(request: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session || !session.user) {

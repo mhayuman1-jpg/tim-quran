@@ -1,4 +1,4 @@
-// src/app/api/pengumuman/update/route.ts
+﻿// src/app/api/pengumuman/update/route.ts
 // PUT: Update pengumuman, catat updated_at
 // Keduanya Kabid dan Tim_Quran dapat mengedit pengumuman
 
@@ -7,6 +7,8 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
 import type { AnnouncementTarget } from '@/types';
+
+export const dynamic = 'force-dynamic';
 
 const VALID_TARGETS: AnnouncementTarget[] = ['Guru', 'Siswa', 'Orang Tua', 'Semua'];
 

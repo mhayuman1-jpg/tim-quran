@@ -1,4 +1,4 @@
-// src/app/api/hafalan/update/route.ts
+﻿// src/app/api/hafalan/update/route.ts
 // PUT: Update catatan hafalan berdasarkan id
 // - Bisa update: tanggal, surah_juz, halaman, catatan
 // - Jika surah_juz berubah DAN update_juz_terakhir=true, update juz_terakhir di tabel santri
@@ -8,6 +8,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
+
+export const dynamic = 'force-dynamic';
 
 export async function PUT(request: NextRequest) {
   // Verifikasi sesi
@@ -77,7 +79,7 @@ export async function PUT(request: NextRequest) {
       }
     }
 
-    // Bangun object update — hanya field yang diberikan
+    // Bangun object update â€” hanya field yang diberikan
     const updateData: Record<string, unknown> = {};
     if (tanggal) updateData.tanggal = tanggal;
     if (surah_juz && typeof surah_juz === 'string' && surah_juz.trim() !== '') {

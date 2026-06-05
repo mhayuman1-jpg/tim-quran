@@ -1,10 +1,12 @@
-// src/app/api/tim/toggle-status/route.ts
+﻿// src/app/api/tim/toggle-status/route.ts
 // PUT: Toggle status Aktif/Nonaktif akun Tim_Quran
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
+
+export const dynamic = 'force-dynamic';
 
 export async function PUT(request: NextRequest) {
   try {

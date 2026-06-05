@@ -1,4 +1,4 @@
-// src/app/api/hafalan/add/route.ts
+﻿// src/app/api/hafalan/add/route.ts
 // POST: Simpan catatan hafalan baru
 // - teacher_id otomatis dari session
 // - Validasi field wajib: student_id, tanggal, surah_juz, halaman
@@ -8,6 +8,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
+
+export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
   // Verifikasi sesi

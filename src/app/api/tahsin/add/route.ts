@@ -1,4 +1,4 @@
-// src/app/api/tahsin/add/route.ts
+﻿// src/app/api/tahsin/add/route.ts
 // POST: Simpan catatan tahsin baru
 // - teacher_id otomatis dari session
 // - Validasi field wajib: student_id, tanggal, metode, buku, halaman
@@ -9,6 +9,8 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
 import type { TahsinMetode } from '@/types';
+
+export const dynamic = 'force-dynamic';
 
 const VALID_METODE: TahsinMetode[] = ['Wafa', 'IWR', 'Al-Quran'];
 

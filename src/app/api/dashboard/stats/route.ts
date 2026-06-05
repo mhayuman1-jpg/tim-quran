@@ -1,7 +1,7 @@
-// src/app/api/dashboard/stats/route.ts
+﻿// src/app/api/dashboard/stats/route.ts
 // GET: return statistik dashboard dalam satu response:
 //   - total santri aktif
-//   - persentase kehadiran hari ini (hadir/total aktif × 100, boleh >100%)
+//   - persentase kehadiran hari ini (hadir/total aktif Ã— 100, boleh >100%)
 //   - ringkasan juz (count per juz_terakhir)
 //   - jumlah Tim_Quran aktif
 
@@ -9,6 +9,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
+
+export const dynamic = 'force-dynamic';
 
 export async function GET(_request: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -54,7 +56,7 @@ export async function GET(_request: NextRequest) {
       );
     }
 
-    // Hitung persentase kehadiran — tampilkan apa adanya meski >100%
+    // Hitung persentase kehadiran â€” tampilkan apa adanya meski >100%
     const hadirHariIni = totalHadir ?? 0;
     const persentaseKehadiran =
       totalAktif > 0

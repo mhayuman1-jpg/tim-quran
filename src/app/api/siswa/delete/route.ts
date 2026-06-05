@@ -1,10 +1,12 @@
-// src/app/api/siswa/delete/route.ts
+﻿// src/app/api/siswa/delete/route.ts
 // DELETE: Hapus santri berdasarkan id
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
+
+export const dynamic = 'force-dynamic';
 
 export async function DELETE(request: NextRequest) {
   try {

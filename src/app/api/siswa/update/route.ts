@@ -1,4 +1,4 @@
-// src/app/api/siswa/update/route.ts
+﻿// src/app/api/siswa/update/route.ts
 // PUT: Update data santri berdasarkan id
 // - Validasi field yang diterima
 // - Return data santri terbaru setelah update
@@ -7,6 +7,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
+
+export const dynamic = 'force-dynamic';
 
 export async function PUT(request: NextRequest) {
   try {

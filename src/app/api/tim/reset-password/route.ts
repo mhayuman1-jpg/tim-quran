@@ -1,10 +1,12 @@
-// src/app/api/tim/reset-password/route.ts
+﻿// src/app/api/tim/reset-password/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
 import bcrypt from 'bcryptjs';
 import { sendResetPasswordEmail } from '@/lib/email';
+
+export const dynamic = 'force-dynamic';
 
 function generatePassword(length = 10): string {
   const chars = 'abcdefghijkmnpqrstuvwxyz23456789';

@@ -1,4 +1,4 @@
-// src/app/api/raport/list/route.ts
+﻿// src/app/api/raport/list/route.ts
 // GET: Ambil daftar raport
 // - Filter by student_id dan/atau periode (opsional)
 // - Tim_Quran hanya bisa lihat raport siswa yang menjadi tanggung jawabnya
@@ -8,6 +8,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
+
+export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   // Verifikasi sesi

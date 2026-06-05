@@ -1,4 +1,4 @@
-// src/app/api/siswa/add/route.ts
+﻿// src/app/api/siswa/add/route.ts
 // POST: Tambah santri baru
 // - Validasi semua field wajib
 // - Generate UUID untuk qr_code via crypto.randomUUID()
@@ -8,6 +8,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
+
+export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
   try {

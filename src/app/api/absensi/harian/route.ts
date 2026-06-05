@@ -1,4 +1,4 @@
-// src/app/api/absensi/harian/route.ts
+﻿// src/app/api/absensi/harian/route.ts
 // GET: terima query param `date` (YYYY-MM-DD), return daftar semua santri
 // beserta status hadir/tidak hadir pada tanggal tersebut.
 // Tim_Quran hanya melihat siswa yang menjadi tanggung jawabnya.
@@ -7,6 +7,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
+
+export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   // Verifikasi sesi
@@ -80,7 +82,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // 3. Buat map santri_id → status hadir
+    // 3. Buat map santri_id â†’ status hadir
     const hadir = new Set<string>(
       (attendances ?? [])
         .filter((a: any) => a.status === 'Hadir')
@@ -93,7 +95,7 @@ export async function GET(request: NextRequest) {
       nisn: s.nisn,
       nama: s.nama,
       gender: s.gender,
-      kelas: s.classes?.name ?? '—',
+      kelas: s.classes?.name ?? 'â€”',
       status: hadir.has(s.id) ? 'Hadir' : 'Tidak Hadir',
     }));
 

@@ -1,4 +1,4 @@
-// src/app/api/tahsin/update/route.ts
+﻿// src/app/api/tahsin/update/route.ts
 // PUT: Update catatan tahsin berdasarkan id
 // - Bisa update: tanggal, metode, buku, halaman, catatan
 // - Tim_Quran hanya bisa update tahsin milik siswa tanggung jawabnya
@@ -8,6 +8,8 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
 import type { TahsinMetode } from '@/types';
+
+export const dynamic = 'force-dynamic';
 
 const VALID_METODE: TahsinMetode[] = ['Wafa', 'IWR', 'Al-Quran'];
 
@@ -87,7 +89,7 @@ export async function PUT(request: NextRequest) {
       }
     }
 
-    // Bangun object update — hanya field yang diberikan
+    // Bangun object update â€” hanya field yang diberikan
     const updateData: Record<string, unknown> = {};
     if (tanggal) updateData.tanggal = tanggal;
     if (metode && VALID_METODE.includes(metode as TahsinMetode)) {

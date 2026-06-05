@@ -1,4 +1,4 @@
-// src/app/api/absensi/scan/route.ts
+﻿// src/app/api/absensi/scan/route.ts
 // POST: terima qr_code, cari siswa di tabel santri, cek duplikat absensi hari ini,
 // insert ke tabel attendances, return nama siswa.
 
@@ -7,8 +7,10 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
-  // Verifikasi sesi — hanya pengguna terautentikasi
+  // Verifikasi sesi â€” hanya pengguna terautentikasi
   const session = await getServerSession(authOptions);
   if (!session) {
     return NextResponse.json({ message: 'Tidak terautentikasi.' }, { status: 401 });
@@ -78,7 +80,7 @@ export async function POST(request: NextRequest) {
       });
 
     if (insertError) {
-      // Fallback: constraint UNIQUE violation (code 23505) — race condition
+      // Fallback: constraint UNIQUE violation (code 23505) â€” race condition
       if (insertError.code === '23505') {
         return NextResponse.json(
           { message: 'Siswa sudah absen hari ini.' },
@@ -92,7 +94,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 5. Berhasil — kembalikan nama siswa
+    // 5. Berhasil â€” kembalikan nama siswa
     return NextResponse.json(
       { message: 'Absen berhasil!', siswa: siswa.nama },
       { status: 200 }
