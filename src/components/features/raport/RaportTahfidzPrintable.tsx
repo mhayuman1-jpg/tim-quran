@@ -284,7 +284,7 @@ PrintContent.displayName = 'PrintContent';
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export default function RaportTahfidzPrintable({ raport }: { raport: RaportTahfidzData }) {
+export default function RaportTahfidzPrintable({ raport, hideButtons }: { raport: RaportTahfidzData; hideButtons?: boolean }) {
   const printRef = useRef<HTMLDivElement>(null);
   const [profil, setProfil] = useState<ProfilData>({});
   const detail = (raport.raport_tahfidz_detail ?? []).sort((a, b) => a.urutan - b.urutan);
@@ -304,11 +304,13 @@ export default function RaportTahfidzPrintable({ raport }: { raport: RaportTahfi
   return (
     <div className="space-y-4">
       {/* Tombol cetak */}
-      <div className="flex justify-end">
-        <Button variant="primary" leftIcon={<Printer size={16} />} onClick={() => handlePrint()}>
-          Cetak Raport
-        </Button>
-      </div>
+      {!hideButtons && (
+        <div className="flex justify-end">
+          <Button variant="primary" leftIcon={<Printer size={16} />} onClick={() => handlePrint()}>
+            Cetak Raport
+          </Button>
+        </div>
+      )}
 
       {/* Preview */}
       <div className="rounded-xl border border-slate-200 overflow-hidden shadow-sm bg-white">

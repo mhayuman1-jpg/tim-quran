@@ -1,19 +1,17 @@
 'use client';
 
 // src/app/(dashboard)/raport/page.tsx
-// Halaman Raport Tahfidz
-// - Daftar raport per siswa per periode
-// - Form input: pilih siswa, periode, tabel surah per baris (nilai ✓/A/B/C/D + WAFA)
-// - Preview & cetak format resmi (mirip contoh raport sekolah)
+// Halaman Raport Tahfidz — tampilkan preview langsung + inline edit
 
-import React, { useState, useCallback } from 'react';
-import { FileText, Plus, Search, Eye, Edit2, ClipboardList, Trash2 } from 'lucide-react';
+import React, { useState, useCallback, useRef } from 'react';
+import { Plus, Search, Edit2, ClipboardList, Trash2, Printer, ChevronLeft } from 'lucide-react';
+import { useReactToPrint } from 'react-to-print';
 import Modal from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
-import DataTable, { type ColumnDef } from '@/components/shared/DataTable';
 import RaportTahfidzForm, { type RaportTahfidzFormData } from '@/components/features/raport/RaportTahfidzForm';
 import RaportTahfidzPrintable, { type RaportTahfidzData } from '@/components/features/raport/RaportTahfidzPrintable';
 import { useRole } from '@/hooks/useRole';
+import { getNilaiColor } from '@/lib/surahData';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -23,6 +21,9 @@ interface RaportRow {
   tahun_ajaran: string;
   juz?: number | null;
   catatan?: string | null;
+  nama_guru_kelas?: string | null;
+  nama_kabid?: string | null;
+  nama_kepala_sekolah?: string | null;
   created_at?: string;
   santri?: {
     id: string;
@@ -38,15 +39,20 @@ interface RaportRow {
 
 export default function RaportPage() {
   const { isKabid } = useRole();
+  const printRef = useRef<HTMLDivElement>(null);
 
-  // ── List state ───────────────────────────────────────────────────────────
+  // ── States ────────────────────────────────────────────────────────────────
   const [raportList, setRaportList] = useState<RaportRow[]>([]);
   const [listLoading, setListLoading] = useState(false);
   const [listError, setListError] = useState<string | null>(null);
   const [searched, setSearched] = useState(false);
   const [filterPeriode, setFilterPeriode] = useState('');
 
-  // ── Form modal ───────────────────────────────────────────────────────────
+  // Selected raport for preview
+  const [selected, setSelected] = useState<RaportRow | null>(null);
+  const [selectedLoading, setSelectedLoading] = useState(false);
+
+  // Form modal
   const [formOpen, setFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingData, setEditingData] = useState<Partial<RaportTahfidzFormData> | null>(null);
@@ -54,20 +60,26 @@ export default function RaportPage() {
   const [formError, setFormError] = useState<string | null>(null);
   const [formSuccess, setFormSuccess] = useState<string | null>(null);
 
-  // ── Preview modal ────────────────────────────────────────────────────────
-  const [previewOpen, setPreviewOpen] = useState(false);
-  const [previewData, setPreviewData] = useState<RaportTahfidzData | null>(null);
-  const [previewLoading, setPreviewLoading] = useState(false);
-
-  // ── Delete ───────────────────────────────────────────────────────────────
+  // Delete confirm
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
-  // ── Fetch list ───────────────────────────────────────────────────────────
+  // ── Print ─────────────────────────────────────────────────────────────────
+  const handlePrint = useReactToPrint({
+    contentRef: printRef,
+    documentTitle: `Raport_${selected?.santri?.nama ?? 'Siswa'}_${selected?.periode ?? ''}`,
+    pageStyle: `
+      @page { size: A4 portrait; margin: 12mm; }
+      @media print { body { margin: 0; } * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; } }
+    `,
+  });
+
+  // ── Fetch list ─────────────────────────────────────────────────────────────
   const fetchRaport = useCallback(async () => {
     setListLoading(true);
     setListError(null);
     setSearched(true);
+    setSelected(null);
     try {
       const params = new URLSearchParams();
       if (filterPeriode.trim()) params.set('periode', filterPeriode.trim());
@@ -83,22 +95,26 @@ export default function RaportPage() {
     }
   }, [filterPeriode]);
 
-  // ── Open add ─────────────────────────────────────────────────────────────
-  const handleAdd = () => {
-    setEditingId(null);
-    setEditingData(null);
-    setFormError(null);
-    setFormOpen(true);
+  // ── Select raport (load full detail) ────────────────────────────────────────
+  const handleSelect = async (row: RaportRow) => {
+    setSelectedLoading(true);
+    try {
+      const res = await fetch(`/api/raport/tahfidz?id=${row.id}`);
+      const json = await res.json();
+      setSelected(json.data ?? row);
+    } catch {
+      setSelected(row);
+    } finally {
+      setSelectedLoading(false);
+    }
   };
 
-  // ── Open edit (fetch detail dulu) ────────────────────────────────────────
+  // ── Edit ──────────────────────────────────────────────────────────────────
   const handleEdit = async (row: RaportRow) => {
     setFormError(null);
-    // Fetch detail surah
     const res = await fetch(`/api/raport/tahfidz?id=${row.id}`);
     const json = await res.json();
     const full = json.data ?? row;
-
     setEditingId(row.id);
     setEditingData({
       student_id: full.santri?.id ?? '',
@@ -123,23 +139,7 @@ export default function RaportPage() {
     setFormOpen(true);
   };
 
-  // ── Preview ──────────────────────────────────────────────────────────────
-  const handlePreview = async (row: RaportRow) => {
-    setPreviewLoading(true);
-    try {
-      const res = await fetch(`/api/raport/tahfidz?id=${row.id}`);
-      const json = await res.json();
-      setPreviewData(json.data ?? row);
-      setPreviewOpen(true);
-    } catch {
-      setPreviewData(row as RaportTahfidzData);
-      setPreviewOpen(true);
-    } finally {
-      setPreviewLoading(false);
-    }
-  };
-
-  // ── Submit form ──────────────────────────────────────────────────────────
+  // ── Submit ────────────────────────────────────────────────────────────────
   const handleFormSubmit = async (data: RaportTahfidzFormData, id?: string) => {
     setFormSubmitting(true);
     setFormError(null);
@@ -156,18 +156,24 @@ export default function RaportPage() {
         setFormError('Raport periode ini sudah ada. Gunakan tombol Edit untuk mengubahnya.');
         return;
       }
-      if (!res.ok) { setFormError(json.message ?? 'Gagal menyimpan raport.'); return; }
+      if (!res.ok) { setFormError(json.message ?? 'Gagal menyimpan.'); return; }
       setFormSuccess(id ? 'Raport berhasil diperbarui.' : 'Raport berhasil disimpan.');
       setFormOpen(false);
       fetchRaport();
+      // Jika sedang preview, reload
+      if (selected && id === selected.id) {
+        const r = await fetch(`/api/raport/tahfidz?id=${id}`);
+        const j = await r.json();
+        setSelected(j.data ?? selected);
+      }
     } catch {
-      setFormError('Terjadi kesalahan. Silakan coba lagi.');
+      setFormError('Terjadi kesalahan.');
     } finally {
       setFormSubmitting(false);
     }
   };
 
-  // ── Delete ───────────────────────────────────────────────────────────────
+  // ── Delete ────────────────────────────────────────────────────────────────
   const handleDelete = async () => {
     if (!deleteId) return;
     setDeleteLoading(true);
@@ -177,158 +183,166 @@ export default function RaportPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: deleteId }),
       });
-      const json = await res.json();
-      if (!res.ok) { alert(json.message); return; }
+      if (!res.ok) { const j = await res.json(); alert(j.message); return; }
+      if (selected?.id === deleteId) setSelected(null);
       setDeleteId(null);
       fetchRaport();
     } catch {
-      alert('Gagal menghapus raport.');
+      alert('Gagal menghapus.');
     } finally {
       setDeleteLoading(false);
     }
   };
 
-  // ─── Kolom tabel ─────────────────────────────────────────────────────────
-  const columns: ColumnDef<RaportRow>[] = [
-    {
-      key: 'siswa', header: 'Siswa',
-      render: row => (
-        <div>
-          <p className="font-medium text-slate-800">{row.santri?.nama ?? '—'}</p>
-          <p className="text-xs text-slate-400">{row.santri?.nisn ?? '—'}</p>
-        </div>
-      ),
-    },
-    {
-      key: 'kelas', header: 'Kelas',
-      render: row => row.santri?.classes?.name ?? '—',
-    },
-    {
-      key: 'periode', header: 'Periode',
-      render: row => (
-        <div>
-          <p className="font-medium text-slate-700">{row.periode}</p>
-          <p className="text-xs text-slate-400">{row.tahun_ajaran}</p>
-        </div>
-      ),
-    },
-    {
-      key: 'juz', header: 'Juz', align: 'center',
-      render: row => row.juz ? (
-        <span className="inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700">
-          Juz {row.juz}
-        </span>
-      ) : <span className="text-slate-300 text-xs">—</span>,
-    },
-    {
-      key: 'guru', header: 'Guru',
-      render: row => <span className="text-sm text-slate-600">{row.users?.name ?? '—'}</span>,
-    },
-    {
-      key: 'aksi', header: 'Aksi', align: 'center',
-      render: row => (
-        <div className="flex justify-center gap-1">
-          <button
-            onClick={() => handlePreview(row)}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-colors"
-            title="Preview & Cetak"
-          >
-            <Eye size={15} />
-          </button>
-          <button
-            onClick={() => handleEdit(row)}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
-            title="Edit"
-          >
-            <Edit2 size={15} />
-          </button>
-          {isKabid() && (
-            <button
-              onClick={() => setDeleteId(row.id)}
-              className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
-              title="Hapus"
-            >
-              <Trash2 size={15} />
-            </button>
-          )}
-        </div>
-      ),
-    },
-  ];
+  const detail = (selected?.raport_tahfidz_detail ?? []).sort((a: any, b: any) => a.urutan - b.urutan);
 
+  // ─────────────────────────────────────────────────────────────────────────
   return (
-    <div className="space-y-6">
-      {/* ── Header ──────────────────────────────────────────────────────────── */}
+    <div className="space-y-5">
+      {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
             <ClipboardList size={24} className="text-emerald-600" />
             Raport Tahfidz
           </h1>
-          <p className="text-slate-500 text-sm mt-1">
-            Penilaian hafalan Al-Qur&apos;an per surah — format resmi siap cetak.
-          </p>
+          <p className="text-slate-500 text-sm mt-0.5">Penilaian hafalan Al-Qur'an per surah — format resmi siap cetak.</p>
         </div>
-        <Button variant="primary" leftIcon={<Plus size={16} />} onClick={handleAdd}>
+        <Button variant="primary" leftIcon={<Plus size={16} />}
+          onClick={() => { setEditingId(null); setEditingData(null); setFormError(null); setFormOpen(true); }}>
           Buat Raport
         </Button>
       </div>
 
-      {/* ── Sukses notification ──────────────────────────────────────────────── */}
       {formSuccess && (
-        <div className="rounded-lg bg-emerald-50 border border-emerald-200 px-4 py-3 text-sm text-emerald-700 flex justify-between items-center">
+        <div className="rounded-lg bg-emerald-50 border border-emerald-200 px-4 py-3 text-sm text-emerald-700 flex justify-between">
           <span>{formSuccess}</span>
-          <button onClick={() => setFormSuccess(null)} className="ml-4 text-emerald-500 hover:text-emerald-700">✕</button>
+          <button onClick={() => setFormSuccess(null)}>✕</button>
         </div>
       )}
 
-      {/* ── Filter ───────────────────────────────────────────────────────────── */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-        <h2 className="text-sm font-semibold text-slate-700 mb-3">Filter Raport</h2>
-        <div className="flex flex-col sm:flex-row gap-3">
-          <input
-            type="text"
-            value={filterPeriode}
-            onChange={e => setFilterPeriode(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && fetchRaport()}
-            placeholder="Filter periode, misal: Semester I"
-            className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-          />
-          <Button variant="primary" leftIcon={<Search size={15} />} onClick={fetchRaport} loading={listLoading}>
-            Tampilkan
-          </Button>
+      {/* Layout: list kiri + preview kanan */}
+      <div className="flex gap-5 items-start">
+
+        {/* ── KIRI: Daftar Raport ── */}
+        <div className="w-80 shrink-0 space-y-3">
+          {/* Filter */}
+          <div className="bg-white rounded-xl border border-slate-200 p-4 space-y-3">
+            <input
+              type="text"
+              value={filterPeriode}
+              onChange={e => setFilterPeriode(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && fetchRaport()}
+              placeholder="Filter periode..."
+              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            />
+            <Button variant="primary" leftIcon={<Search size={14} />} onClick={fetchRaport} loading={listLoading} className="w-full justify-center">
+              Tampilkan
+            </Button>
+            {listError && <p className="text-xs text-red-600">{listError}</p>}
+          </div>
+
+          {/* List */}
+          {searched && (
+            <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+              {listLoading ? (
+                <div className="p-4 space-y-2">
+                  {[1,2,3].map(i => <div key={i} className="h-16 bg-slate-100 rounded-lg animate-pulse" />)}
+                </div>
+              ) : raportList.length === 0 ? (
+                <p className="text-center text-slate-400 text-sm py-8">Tidak ada raport ditemukan.</p>
+              ) : (
+                <div className="divide-y divide-slate-100">
+                  {raportList.map(row => {
+                    const isActive = selected?.id === row.id;
+                    return (
+                      <div key={row.id}
+                        onClick={() => handleSelect(row)}
+                        className={`p-3 cursor-pointer transition-colors hover:bg-emerald-50 ${isActive ? 'bg-emerald-50 border-l-2 border-emerald-500' : ''}`}>
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-slate-800 truncate">{row.santri?.nama ?? '—'}</p>
+                            <p className="text-xs text-slate-500">{row.santri?.classes?.name ?? '—'} · {row.periode}</p>
+                            <p className="text-xs text-slate-400">{row.tahun_ajaran}{row.juz ? ` · Juz ${row.juz}` : ''}</p>
+                          </div>
+                          <div className="flex gap-1 shrink-0">
+                            <button onClick={e => { e.stopPropagation(); handleEdit(row); }}
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors" title="Edit">
+                              <Edit2 size={13} />
+                            </button>
+                            {isKabid() && (
+                              <button onClick={e => { e.stopPropagation(); setDeleteId(row.id); }}
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors" title="Hapus">
+                                <Trash2 size={13} />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {!searched && (
+            <div className="bg-white rounded-xl border border-slate-200 p-8 text-center">
+              <ClipboardList size={36} className="text-slate-200 mx-auto mb-3" />
+              <p className="text-slate-400 text-sm">Tekan Tampilkan untuk melihat raport.</p>
+              <Button variant="secondary" className="mt-3" onClick={fetchRaport}>Tampilkan Semua</Button>
+            </div>
+          )}
         </div>
-        {listError && <p className="mt-2 text-sm text-red-600">{listError}</p>}
+
+        {/* ── KANAN: Preview Raport ── */}
+        <div className="flex-1 min-w-0">
+          {selectedLoading ? (
+            <div className="bg-white rounded-xl border border-slate-200 p-16 flex items-center justify-center">
+              <span className="w-8 h-8 border-2 border-emerald-200 border-t-emerald-600 rounded-full animate-spin" />
+            </div>
+          ) : selected ? (
+            <div className="space-y-4">
+              {/* Action bar */}
+              <div className="bg-white rounded-xl border border-slate-200 px-4 py-3 flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <button onClick={() => setSelected(null)}
+                    className="flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700 transition-colors">
+                    <ChevronLeft size={16} /> Kembali
+                  </button>
+                  <div className="w-px h-5 bg-slate-200" />
+                  <p className="text-sm font-semibold text-slate-700">
+                    {selected.santri?.nama} — {selected.periode}
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="secondary" leftIcon={<Edit2 size={14} />} onClick={() => handleEdit(selected)}>
+                    Edit
+                  </Button>
+                  <Button variant="primary" leftIcon={<Printer size={14} />} onClick={() => handlePrint()}>
+                    Cetak
+                  </Button>
+                </div>
+              </div>
+
+              {/* Preview card — this is also the print target */}
+              <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+                <div ref={printRef}>
+                  <RaportTahfidzPrintable raport={selected as any} hideButtons />
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-white rounded-xl border border-slate-200 p-16 text-center">
+              <ClipboardList size={48} className="text-slate-200 mx-auto mb-4" />
+              <p className="text-slate-500 font-medium">Pilih raport dari daftar di kiri</p>
+              <p className="text-slate-400 text-sm mt-1">Preview akan tampil di sini secara langsung.</p>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* ── Tabel ────────────────────────────────────────────────────────────── */}
-      {searched ? (
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-sm font-semibold text-slate-700">
-              Daftar Raport
-              {filterPeriode && <span className="text-slate-400 font-normal text-xs ml-2">— {filterPeriode}</span>}
-            </h2>
-            <span className="text-xs text-slate-400">{raportList.length} data</span>
-          </div>
-          <DataTable
-            columns={columns}
-            data={raportList}
-            rowKey={r => r.id}
-            loading={listLoading}
-            emptyMessage="Tidak ada raport ditemukan."
-            emptyIcon={<FileText size={32} className="text-slate-300" />}
-          />
-        </div>
-      ) : (
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-12 text-center">
-          <FileText size={48} className="text-slate-200 mx-auto mb-4" />
-          <p className="text-slate-500 text-sm">Gunakan filter atau tekan Tampilkan untuk melihat semua raport.</p>
-          <Button variant="secondary" className="mt-4" onClick={fetchRaport}>Tampilkan Semua</Button>
-        </div>
-      )}
-
-      {/* ── Modal Form ───────────────────────────────────────────────────────── */}
+      {/* Modal Form */}
       <Modal
         open={formOpen}
         onClose={() => { if (!formSubmitting) { setFormOpen(false); setEditingId(null); setEditingData(null); setFormError(null); } }}
@@ -337,9 +351,7 @@ export default function RaportPage() {
         closeOnBackdrop={!formSubmitting}
       >
         {formError && (
-          <div className="mb-4 rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-700">
-            {formError}
-          </div>
+          <div className="mb-4 rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-700">{formError}</div>
         )}
         <RaportTahfidzForm
           editingId={editingId}
@@ -350,42 +362,13 @@ export default function RaportPage() {
         />
       </Modal>
 
-      {/* ── Modal Preview ─────────────────────────────────────────────────────── */}
-      <Modal
-        open={previewOpen}
-        onClose={() => { setPreviewOpen(false); setPreviewData(null); }}
-        title="Preview & Cetak Raport"
-        size="xl"
-      >
-        {previewLoading ? (
-          <div className="flex items-center justify-center py-16">
-            <span className="w-8 h-8 border-2 border-emerald-200 border-t-emerald-600 rounded-full animate-spin" />
-          </div>
-        ) : previewData ? (
-          <RaportTahfidzPrintable raport={previewData} />
-        ) : null}
-      </Modal>
-
-      {/* ── Konfirmasi Hapus ──────────────────────────────────────────────────── */}
-      <Modal
-        open={Boolean(deleteId)}
-        onClose={() => { if (!deleteLoading) setDeleteId(null); }}
-        title="Hapus Raport"
-        size="sm"
-      >
-        <p className="text-sm text-slate-600 mb-5">
-          Yakin ingin menghapus raport ini? Semua data penilaian surah akan ikut terhapus dan tidak bisa dikembalikan.
-        </p>
+      {/* Konfirmasi Hapus */}
+      <Modal open={Boolean(deleteId)} onClose={() => { if (!deleteLoading) setDeleteId(null); }} title="Hapus Raport" size="sm">
+        <p className="text-sm text-slate-600 mb-5">Yakin ingin menghapus raport ini? Semua data surah akan ikut terhapus.</p>
         <div className="flex justify-end gap-2">
           <Button variant="secondary" onClick={() => setDeleteId(null)} disabled={deleteLoading}>Batal</Button>
-          <Button
-            variant="primary"
-            loading={deleteLoading}
-            onClick={handleDelete}
-            className="!bg-red-600 hover:!bg-red-700"
-          >
-            Hapus
-          </Button>
+          <Button variant="primary" loading={deleteLoading} onClick={handleDelete}
+            className="!bg-red-600 hover:!bg-red-700">Hapus</Button>
         </div>
       </Modal>
     </div>
