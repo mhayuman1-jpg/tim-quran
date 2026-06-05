@@ -11,24 +11,40 @@ import {
   MapPin, Clock, Calendar, Heart, Shield,
   Phone, Mail, AtSign, PlayCircle, Globe, TrendingUp,
 } from 'lucide-react';
-import { createServerClient } from '@/lib/supabase/server';
+
+// Helper: query Supabase via REST API (tidak perlu import library di server component publik)
+async function supabaseQuery(table: string, params: Record<string, string> = {}) {
+  const url = new URL(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/${table}`);
+  Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
+  const res = await fetch(url.toString(), {
+    headers: {
+      apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      Authorization: `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!}`,
+      'Content-Type': 'application/json',
+    },
+    cache: 'no-store',
+  });
+  if (!res.ok) return null;
+  return res.json();
+}
 
 async function getPageData() {
   try {
-    const supabase = createServerClient();
     const today = new Date().toISOString().split('T')[0];
-    const [profilRes, programRes, agendaRes, pengumumanRes, artikelRes, galeriRes, statsRes] = await Promise.all([
-      supabase.from('profil_website').select('*').single(),
-      supabase.from('program').select('*').eq('is_active', true).order('urutan'),
-      supabase.from('agenda').select('*').eq('is_published', true).gte('tanggal', today).order('tanggal').limit(5),
-      supabase.from('pengumuman').select('*').order('created_at', { ascending: false }).limit(4),
-      supabase.from('artikel').select('id, judul, slug, cover_url, published_at').eq('is_published', true).order('published_at', { ascending: false }).limit(3),
-      supabase.from('galeri').select('*').eq('is_published', true).order('urutan').limit(8),
-      supabase.from('santri').select('id, juz_terakhir', { count: 'exact' }).eq('status', 'Aktif'),
+
+    const [profilArr, programs, agendas, pengumumans, artikels, galeris, santriStats] = await Promise.all([
+      supabaseQuery('profil_website', { select: '*', limit: '1' }),
+      supabaseQuery('program', { select: '*', is_active: 'eq.true', order: 'urutan.asc' }),
+      supabaseQuery('agenda', { select: '*', is_published: 'eq.true', tanggal: `gte.${today}`, order: 'tanggal.asc', limit: '5' }),
+      supabaseQuery('pengumuman', { select: '*', order: 'created_at.desc', limit: '4' }),
+      supabaseQuery('artikel', { select: 'id,judul,slug,cover_url,published_at', is_published: 'eq.true', order: 'published_at.desc', limit: '3' }),
+      supabaseQuery('galeri', { select: '*', is_published: 'eq.true', order: 'urutan.asc', limit: '8' }),
+      supabaseQuery('santri', { select: 'id,juz_terakhir', status: 'eq.Aktif', limit: '500' }),
     ]);
 
-    const santriData = statsRes.data ?? [];
-    const totalSantri = statsRes.count ?? 0;
+    const profil = Array.isArray(profilArr) && profilArr.length > 0 ? profilArr[0] : null;
+    const santriData: { juz_terakhir?: number }[] = Array.isArray(santriStats) ? santriStats : [];
+    const totalSantri = santriData.length;
 
     const juzGroups = [
       { label: 'Juz 1\u20135', min: 1, max: 5, count: 0 },
@@ -39,19 +55,19 @@ async function getPageData() {
       { label: 'Juz 26\u201330', min: 26, max: 30, count: 0 },
     ];
 
-    for (const s of santriData as { juz_terakhir?: number }[]) {
+    for (const s of santriData) {
       const juz = s.juz_terakhir ?? 1;
       const group = juzGroups.find(g => juz >= g.min && juz <= g.max);
       if (group) group.count++;
     }
 
     return {
-      profil: profilRes.data ?? null,
-      programs: programRes.data ?? [],
-      agendas: agendaRes.data ?? [],
-      pengumumans: pengumumanRes.data ?? [],
-      artikels: artikelRes.data ?? [],
-      galeris: galeriRes.data ?? [],
+      profil,
+      programs: Array.isArray(programs) ? programs : [],
+      agendas: Array.isArray(agendas) ? agendas : [],
+      pengumumans: Array.isArray(pengumumans) ? pengumumans : [],
+      artikels: Array.isArray(artikels) ? artikels : [],
+      galeris: Array.isArray(galeris) ? galeris : [],
       totalSantri,
       juzGroups,
     };

@@ -1,18 +1,23 @@
 // Server component — fetch profil di sini lalu pass ke navbar
 import { ReactNode } from 'react';
 import PublicNavbar from '@/components/layout/PublicNavbar';
-import { createServerClient } from '@/lib/supabase/server';
 
-export const revalidate = 0; // always fresh
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 async function getProfil() {
   try {
-    const supabase = createServerClient();
-    const { data } = await supabase
-      .from('profil_website')
-      .select('nama_lembaga, logo_url, logo_sekolah_url, nama_sekolah')
-      .single();
-    return data;
+    const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/profil_website?select=nama_lembaga,logo_url,logo_sekolah_url,nama_sekolah&limit=1`;
+    const res = await fetch(url, {
+      headers: {
+        apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        Authorization: `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!}`,
+      },
+      cache: 'no-store',
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return Array.isArray(data) && data.length > 0 ? data[0] : null;
   } catch {
     return null;
   }
