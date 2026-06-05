@@ -1,5 +1,9 @@
 // src/app/(public)/page.tsx — Landing Page Tim Qur'an
 // Tema: Warm Gold/Amber — berbeda dari dashboard hijau/biru
+
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 import Image from 'next/image';
 import Link from 'next/link';
 import {
