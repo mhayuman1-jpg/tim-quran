@@ -1,6 +1,6 @@
 "use client";
 import { signIn } from "next-auth/react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { BookOpen, Eye, EyeOff, LogIn, AlertCircle, ArrowLeft } from "lucide-react";
@@ -11,7 +11,18 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   const router = useRouter();
+
+  // Load remembered email on mount
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const saved = localStorage.getItem('tq_remembered_email');
+    if (saved) {
+      setEmail(saved);
+      setRememberMe(true);
+    }
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -21,7 +32,18 @@ export default function LoginPage() {
     const res = await signIn("credentials", { email, password, redirect: false });
     setLoading(false);
     if (res?.error) { setError("Email atau kata sandi tidak valid."); }
-    else { router.push("/dashboard"); router.refresh(); }
+    else {
+      // Save or remove remembered email based on rememberMe state
+      if (rememberMe) {
+        localStorage.setItem('tq_remembered_email', email.trim());
+      } else {
+        localStorage.removeItem('tq_remembered_email');
+      }
+      // Defensive cleanup — ensure password is never persisted
+      localStorage.removeItem('tq_password');
+      sessionStorage.removeItem('tq_password');
+      router.push("/dashboard"); router.refresh();
+    }
   };
 
   return (
@@ -30,11 +52,11 @@ export default function LoginPage() {
 
       {/* Background blobs */}
       <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
-        <div className="absolute -top-48 -left-48 w-96 h-96 rounded-full blur-3xl opacity-30"
+        <div className="absolute -top-48 -left-48 w-96 h-96 rounded-full blur-3xl opacity-30 animate-blob"
           style={{background: 'radial-gradient(circle, #6366f1, transparent)'}} />
-        <div className="absolute -bottom-48 -right-48 w-96 h-96 rounded-full blur-3xl opacity-25"
+        <div className="absolute -bottom-48 -right-48 w-96 h-96 rounded-full blur-3xl opacity-25 animate-blob animation-delay-2000"
           style={{background: 'radial-gradient(circle, #8b5cf6, transparent)'}} />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full blur-3xl opacity-10"
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full blur-3xl opacity-10 animate-blob animation-delay-4000"
           style={{background: 'radial-gradient(circle, #06b6d4, transparent)'}} />
         {/* Grid dots */}
         <div className="absolute inset-0 opacity-[0.06]"
@@ -60,7 +82,7 @@ export default function LoginPage() {
               style={{background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', boxShadow: '0 8px 32px rgba(99,102,241,0.5)'}}>
               <BookOpen size={28} className="text-white" />
             </div>
-            <h1 className="text-2xl font-bold text-white mb-1">Selamat Datang</h1>
+            <h1 className="text-3xl font-bold text-white mb-1">Selamat Datang</h1>
             <p className="text-indigo-200/60 text-sm">Masuk ke dashboard Tim Qur&apos;an</p>
           </div>
 
@@ -73,7 +95,7 @@ export default function LoginPage() {
 
           {/* Error */}
           {error && (
-            <div className="mb-5 flex items-center gap-3 rounded-xl px-4 py-3 text-sm"
+            <div role="alert" className="mb-5 flex items-center gap-3 rounded-xl px-4 py-3 text-sm"
               style={{background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', color: '#fca5a5'}}>
               <AlertCircle size={16} className="shrink-0" />
               {error}
@@ -101,11 +123,26 @@ export default function LoginPage() {
                   className="w-full rounded-xl px-4 py-3 pr-11 text-sm text-white placeholder-white/25 transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
                   style={{background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)'}} />
                 <button type="button" onClick={() => setShowPassword(p => !p)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/70 transition-colors" tabIndex={-1}
+                  disabled={loading}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/70 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" tabIndex={-1}
                   aria-label={showPassword ? 'Sembunyikan kata sandi' : 'Tampilkan kata sandi'}>
                   {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
                 </button>
               </div>
+            </div>
+
+            {/* Remember Me */}
+            <div className="flex items-center gap-3 py-1">
+              <label className="flex items-center gap-2.5 cursor-pointer min-h-[44px] min-w-[44px] select-none">
+                <input
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  disabled={loading}
+                  className="w-4 h-4 rounded border-white/20 bg-white/10 text-indigo-500 focus:ring-indigo-500/50 focus:ring-2 cursor-pointer"
+                />
+                <span className="text-sm text-indigo-100/70">Ingat Saya</span>
+              </label>
             </div>
 
             <button type="submit" disabled={loading}

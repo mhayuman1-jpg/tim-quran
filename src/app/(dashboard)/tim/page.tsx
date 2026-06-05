@@ -8,13 +8,15 @@
 // - Tombol reset password
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { Plus, UserX, UserCheck, KeyRound } from 'lucide-react';
+import Image from 'next/image';
+import { Plus, UserX, UserCheck, KeyRound, Camera } from 'lucide-react';
 
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Modal from '@/components/ui/Modal';
 import Badge from '@/components/ui/Badge';
 import ConfirmDialog from '@/components/shared/ConfirmDialog';
+import ImageUpload from '@/components/shared/ImageUpload';
 import { useToast } from '@/lib/toast';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -25,6 +27,37 @@ interface TimMember {
   email: string;
   status: 'Aktif' | 'Nonaktif';
   created_at: string;
+  photo_url?: string | null;
+}
+
+// ─── Helpers ────────────────────────────────────────────────────────────────
+
+const getInitials = (name: string) =>
+  name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase();
+
+// ─── Sub-components ─────────────────────────────────────────────────────────
+
+function MemberAvatar({ member, size = 40 }: { member: TimMember; size?: number }) {
+  return (
+    <div
+      style={{ width: size, height: size }}
+      className="rounded-full overflow-hidden ring-2 ring-slate-200 bg-indigo-100 flex items-center justify-center shrink-0"
+    >
+      {member.photo_url ? (
+        <Image
+          src={member.photo_url}
+          alt={member.name}
+          width={size}
+          height={size}
+          className="object-cover w-full h-full"
+        />
+      ) : (
+        <span className="text-indigo-700 font-semibold text-xs">
+          {getInitials(member.name)}
+        </span>
+      )}
+    </div>
+  );
 }
 
 // ─── Page ───────────────────────────────────────────────────────────────────
@@ -53,6 +86,10 @@ export default function TimPage() {
   // ── Reset password confirmation
   const [resetTarget, setResetTarget] = useState<TimMember | null>(null);
   const [resetLoading, setResetLoading] = useState(false);
+
+  // ── Photo upload (task 3.3 will add handler + modal)
+  const [photoTarget, setPhotoTarget] = useState<TimMember | null>(null);
+  const [photoLoading, setPhotoLoading] = useState(false);
 
   // ── Fetch tim members
   const fetchTimMembers = useCallback(async () => {
@@ -194,6 +231,35 @@ export default function TimPage() {
     }
   };
 
+  // ── Photo upload
+  const handlePhotoUploaded = async (url: string) => {
+    if (!photoTarget) return;
+    setPhotoLoading(true);
+    try {
+      const res = await fetch('/api/tim/update-photo', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: photoTarget.id, photo_url: url }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        toast.error(json.message ?? 'Gagal memperbarui foto.');
+        return;
+      }
+
+      // Update local state tanpa refetch
+      setData(prev => prev.map(m =>
+        m.id === photoTarget.id ? { ...m, photo_url: url } : m
+      ));
+      setPhotoTarget(prev => prev ? { ...prev, photo_url: url } : prev);
+      toast.success('Foto profil berhasil diperbarui.');
+    } catch {
+      toast.error('Terjadi kesalahan saat memperbarui foto.');
+    } finally {
+      setPhotoLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* ── Page header */}
@@ -220,6 +286,9 @@ export default function TimPage() {
           <table className="w-full">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  Foto
+                </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
                   Nama
                 </th>
@@ -240,6 +309,9 @@ export default function TimPage() {
                 Array.from({ length: 3 }).map((_, i) => (
                   <tr key={i}>
                     <td className="px-4 py-3">
+                      <div className="w-10 h-10 bg-slate-200 rounded-full animate-pulse"></div>
+                    </td>
+                    <td className="px-4 py-3">
                       <div className="h-5 bg-slate-200 rounded animate-pulse w-32"></div>
                     </td>
                     <td className="px-4 py-3">
@@ -256,7 +328,7 @@ export default function TimPage() {
               ) : data.length === 0 ? (
                 // Empty state
                 <tr>
-                  <td colSpan={4} className="px-4 py-8 text-center text-sm text-slate-500">
+                  <td colSpan={5} className="px-4 py-8 text-center text-sm text-slate-500">
                     Belum ada anggota Tim Qur&apos;an yang terdaftar.
                   </td>
                 </tr>
@@ -264,6 +336,14 @@ export default function TimPage() {
                 // Data rows
                 data.map((member) => (
                   <tr key={member.id} className="hover:bg-slate-50 transition-colors">
+                    <td className="px-4 py-3">
+                      <button onClick={() => setPhotoTarget(member)} className="group relative">
+                        <MemberAvatar member={member} />
+                        <div className="absolute inset-0 rounded-full bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                          <Camera size={12} className="text-white" />
+                        </div>
+                      </button>
+                    </td>
                     <td className="px-4 py-3">
                       <span className="text-sm font-medium text-slate-800">{member.name}</span>
                     </td>
@@ -422,6 +502,28 @@ export default function TimPage() {
         confirmLabel="Kirim Email"
         loading={resetLoading}
       />
+
+      {/* ── Photo upload modal */}
+      <Modal
+        open={Boolean(photoTarget)}
+        onClose={() => { if (!photoLoading) setPhotoTarget(null); }}
+        title={`Foto Profil — ${photoTarget?.name}`}
+        size="sm"
+      >
+        <div className="space-y-4">
+          <div className="w-32 h-32 mx-auto">
+            <ImageUpload
+              value={photoTarget?.photo_url}
+              onUpload={handlePhotoUploaded}
+              bucket="profile-photos"
+              folder={`tim/${photoTarget?.id}`}
+              shape="circle"
+              helperText="JPG, PNG, WebP · maks 5MB"
+              disabled={photoLoading}
+            />
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

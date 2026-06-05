@@ -1,33 +1,29 @@
 'use client';
 
 // src/app/(dashboard)/raport/page.tsx
-// Halaman Raport Qur'an:
-// - Daftar raport siswa dengan filter periode
-// - Form penilaian (modal) — tambah atau edit
-// - Deteksi duplikat otomatis → switch ke mode edit
-// - Preview dan cetak raport (modal)
+// Halaman Raport Tahfidz
+// - Daftar raport per siswa per periode
+// - Form input: pilih siswa, periode, tabel surah per baris (nilai ✓/A/B/C/D + WAFA)
+// - Preview & cetak format resmi (mirip contoh raport sekolah)
 
 import React, { useState, useCallback } from 'react';
-import { FileText, Plus, Search, Eye, Edit2, ClipboardList } from 'lucide-react';
+import { FileText, Plus, Search, Eye, Edit2, ClipboardList, Trash2 } from 'lucide-react';
 import Modal from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
 import DataTable, { type ColumnDef } from '@/components/shared/DataTable';
-import RaportForm, { type RaportFormData } from '@/components/features/raport/RaportForm';
-import RaportPrintable, { type RaportData } from '@/components/features/raport/RaportPrintable';
+import RaportTahfidzForm, { type RaportTahfidzFormData } from '@/components/features/raport/RaportTahfidzForm';
+import RaportTahfidzPrintable, { type RaportTahfidzData } from '@/components/features/raport/RaportTahfidzPrintable';
+import { useRole } from '@/hooks/useRole';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 interface RaportRow {
   id: string;
   periode: string;
-  makhroj?: number | null;
-  tajwid?: number | null;
-  lancar?: number | null;
-  buku_surah?: string | null;
-  halaman?: number | null;
+  tahun_ajaran: string;
+  juz?: number | null;
   catatan?: string | null;
   created_at?: string;
-  updated_at?: string;
   santri?: {
     id: string;
     nama: string;
@@ -35,78 +31,49 @@ interface RaportRow {
     classes?: { id: string; name: string } | null;
   } | null;
   users?: { id: string; name: string } | null;
-}
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-function avgScore(row: RaportRow): number | null {
-  const scores = [row.makhroj, row.tajwid, row.lancar].filter(
-    (v): v is number => v !== undefined && v !== null
-  );
-  if (scores.length === 0) return null;
-  return Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
-}
-
-function ScoreBadge({ value }: { value?: number | null }) {
-  if (value === undefined || value === null) {
-    return <span className="text-slate-400 text-sm">—</span>;
-  }
-  const cls =
-    value >= 80
-      ? 'bg-emerald-100 text-emerald-700'
-      : value >= 60
-      ? 'bg-yellow-100 text-yellow-700'
-      : 'bg-red-100 text-red-600';
-  return (
-    <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${cls}`}>
-      {value}
-    </span>
-  );
+  raport_tahfidz_detail?: any[];
 }
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function RaportPage() {
-  // ── State: list ─────────────────────────────────────────────────────────
+  const { isKabid } = useRole();
+
+  // ── List state ───────────────────────────────────────────────────────────
   const [raportList, setRaportList] = useState<RaportRow[]>([]);
   const [listLoading, setListLoading] = useState(false);
   const [listError, setListError] = useState<string | null>(null);
   const [searched, setSearched] = useState(false);
-
-  // ── State: filter ───────────────────────────────────────────────────────
   const [filterPeriode, setFilterPeriode] = useState('');
 
-  // ── State: modal form tambah/edit ────────────────────────────────────────
-  const [formModalOpen, setFormModalOpen] = useState(false);
+  // ── Form modal ───────────────────────────────────────────────────────────
+  const [formOpen, setFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editingInitialData, setEditingInitialData] = useState<Partial<RaportFormData> | null>(null);
+  const [editingData, setEditingData] = useState<Partial<RaportTahfidzFormData> | null>(null);
   const [formSubmitting, setFormSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [formSuccess, setFormSuccess] = useState<string | null>(null);
 
-  // ── State: modal preview/print ───────────────────────────────────────────
-  const [printModalOpen, setPrintModalOpen] = useState(false);
-  const [printingRaport, setPrintingRaport] = useState<RaportData | null>(null);
+  // ── Preview modal ────────────────────────────────────────────────────────
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewData, setPreviewData] = useState<RaportTahfidzData | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
 
-  // ── Fetch raport list ────────────────────────────────────────────────────
+  // ── Delete ───────────────────────────────────────────────────────────────
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
+  // ── Fetch list ───────────────────────────────────────────────────────────
   const fetchRaport = useCallback(async () => {
     setListLoading(true);
     setListError(null);
     setSearched(true);
-
     try {
       const params = new URLSearchParams();
       if (filterPeriode.trim()) params.set('periode', filterPeriode.trim());
-
-      const res = await fetch(`/api/raport/list?${params.toString()}`);
+      const res = await fetch(`/api/raport/tahfidz?${params}`);
       const json = await res.json();
-
-      if (!res.ok) {
-        setListError(json.message ?? 'Gagal mengambil data raport.');
-        setRaportList([]);
-        return;
-      }
-
+      if (!res.ok) { setListError(json.message ?? 'Gagal memuat data.'); setRaportList([]); return; }
       setRaportList(json.data ?? []);
     } catch {
       setListError('Terjadi kesalahan. Silakan coba lagi.');
@@ -116,123 +83,83 @@ export default function RaportPage() {
     }
   }, [filterPeriode]);
 
-  // ── Buka modal tambah ────────────────────────────────────────────────────
-  const handleOpenAdd = () => {
+  // ── Open add ─────────────────────────────────────────────────────────────
+  const handleAdd = () => {
     setEditingId(null);
-    setEditingInitialData(null);
+    setEditingData(null);
     setFormError(null);
-    setFormModalOpen(true);
+    setFormOpen(true);
   };
 
-  // ── Buka modal edit ──────────────────────────────────────────────────────
-  const handleOpenEdit = (row: RaportRow) => {
+  // ── Open edit (fetch detail dulu) ────────────────────────────────────────
+  const handleEdit = async (row: RaportRow) => {
+    setFormError(null);
+    // Fetch detail surah
+    const res = await fetch(`/api/raport/tahfidz?id=${row.id}`);
+    const json = await res.json();
+    const full = json.data ?? row;
+
     setEditingId(row.id);
-    setEditingInitialData({
-      student_id: row.santri?.id ?? '',
-      periode: row.periode,
-      makhroj: row.makhroj ?? '',
-      tajwid: row.tajwid ?? '',
-      lancar: row.lancar ?? '',
-      buku_surah: row.buku_surah ?? '',
-      halaman: row.halaman ?? '',
-      catatan: row.catatan ?? '',
+    setEditingData({
+      student_id: full.santri?.id ?? '',
+      periode: full.periode ?? '',
+      tahun_ajaran: full.tahun_ajaran ?? '',
+      juz: full.juz ?? null,
+      catatan: full.catatan ?? '',
+      nama_guru_kelas: full.nama_guru_kelas ?? '',
+      nama_kabid: full.nama_kabid ?? '',
+      nama_kepala_sekolah: full.nama_kepala_sekolah ?? '',
+      detail: (full.raport_tahfidz_detail ?? [])
+        .sort((a: any, b: any) => a.urutan - b.urutan)
+        .map((d: any) => ({
+          nama_surah: d.nama_surah ?? '',
+          makhroj: d.makhroj ?? '',
+          tajwid: d.tajwid ?? '',
+          lancar: d.lancar ?? '',
+          wafa_buku: d.wafa_buku ?? '',
+          wafa_halaman: d.wafa_halaman ?? '',
+        })),
     });
-    setFormError(null);
-    setFormModalOpen(true);
+    setFormOpen(true);
   };
 
-  // ── Tutup modal form ─────────────────────────────────────────────────────
-  const handleCloseForm = () => {
-    if (formSubmitting) return;
-    setFormModalOpen(false);
-    setEditingId(null);
-    setEditingInitialData(null);
-    setFormError(null);
-  };
-
-  // ── Duplikat terdeteksi → switch ke mode edit ────────────────────────────
-  const handleDuplicateDetected = (existingId: string, existingData: any) => {
-    setEditingId(existingId);
-    setEditingInitialData({
-      student_id: existingData.santri?.id ?? existingData.student_id ?? '',
-      periode: existingData.periode ?? '',
-      makhroj: existingData.makhroj ?? '',
-      tajwid: existingData.tajwid ?? '',
-      lancar: existingData.lancar ?? '',
-      buku_surah: existingData.buku_surah ?? '',
-      halaman: existingData.halaman ?? '',
-      catatan: existingData.catatan ?? '',
-    });
+  // ── Preview ──────────────────────────────────────────────────────────────
+  const handlePreview = async (row: RaportRow) => {
+    setPreviewLoading(true);
+    try {
+      const res = await fetch(`/api/raport/tahfidz?id=${row.id}`);
+      const json = await res.json();
+      setPreviewData(json.data ?? row);
+      setPreviewOpen(true);
+    } catch {
+      setPreviewData(row as RaportTahfidzData);
+      setPreviewOpen(true);
+    } finally {
+      setPreviewLoading(false);
+    }
   };
 
   // ── Submit form ──────────────────────────────────────────────────────────
-  const handleFormSubmit = async (formData: RaportFormData, id?: string) => {
+  const handleFormSubmit = async (data: RaportTahfidzFormData, id?: string) => {
     setFormSubmitting(true);
     setFormError(null);
-
     try {
-      if (id) {
-        // Mode edit → PUT /api/raport/save
-        const res = await fetch('/api/raport/save', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            id,
-            makhroj: formData.makhroj !== '' ? formData.makhroj : null,
-            tajwid: formData.tajwid !== '' ? formData.tajwid : null,
-            lancar: formData.lancar !== '' ? formData.lancar : null,
-            buku_surah: formData.buku_surah || null,
-            halaman: formData.halaman !== '' ? formData.halaman : null,
-            catatan: formData.catatan || null,
-          }),
-        });
-
-        const json = await res.json();
-        if (!res.ok) {
-          setFormError(json.message ?? 'Gagal memperbarui raport.');
-          return;
-        }
-
-        setFormSuccess('Raport berhasil diperbarui.');
-        setFormModalOpen(false);
-        fetchRaport();
-      } else {
-        // Mode tambah → POST /api/raport/save
-        const res = await fetch('/api/raport/save', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            student_id: formData.student_id,
-            periode: formData.periode,
-            makhroj: formData.makhroj !== '' ? formData.makhroj : null,
-            tajwid: formData.tajwid !== '' ? formData.tajwid : null,
-            lancar: formData.lancar !== '' ? formData.lancar : null,
-            buku_surah: formData.buku_surah || null,
-            halaman: formData.halaman !== '' ? formData.halaman : null,
-            catatan: formData.catatan || null,
-          }),
-        });
-
-        const json = await res.json();
-
-        // 409 = duplikat → switch ke edit mode otomatis
-        if (res.status === 409 && json.duplicate && json.data) {
-          handleDuplicateDetected(json.data.id, json.data);
-          setFormError(
-            'Raport untuk siswa dan periode ini sudah ada. Form telah beralih ke mode edit.'
-          );
-          return;
-        }
-
-        if (!res.ok) {
-          setFormError(json.message ?? 'Gagal menyimpan raport.');
-          return;
-        }
-
-        setFormSuccess('Raport berhasil disimpan.');
-        setFormModalOpen(false);
-        fetchRaport();
+      const method = id ? 'PUT' : 'POST';
+      const body = id ? { id, ...data } : data;
+      const res = await fetch('/api/raport/tahfidz', {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const json = await res.json();
+      if (res.status === 409 && json.duplicate) {
+        setFormError('Raport periode ini sudah ada. Gunakan tombol Edit untuk mengubahnya.');
+        return;
       }
+      if (!res.ok) { setFormError(json.message ?? 'Gagal menyimpan raport.'); return; }
+      setFormSuccess(id ? 'Raport berhasil diperbarui.' : 'Raport berhasil disimpan.');
+      setFormOpen(false);
+      fetchRaport();
     } catch {
       setFormError('Terjadi kesalahan. Silakan coba lagi.');
     } finally {
@@ -240,18 +167,32 @@ export default function RaportPage() {
     }
   };
 
-  // ── Preview / cetak raport ───────────────────────────────────────────────
-  const handlePreview = (row: RaportRow) => {
-    setPrintingRaport(row as RaportData);
-    setPrintModalOpen(true);
+  // ── Delete ───────────────────────────────────────────────────────────────
+  const handleDelete = async () => {
+    if (!deleteId) return;
+    setDeleteLoading(true);
+    try {
+      const res = await fetch('/api/raport/tahfidz', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: deleteId }),
+      });
+      const json = await res.json();
+      if (!res.ok) { alert(json.message); return; }
+      setDeleteId(null);
+      fetchRaport();
+    } catch {
+      alert('Gagal menghapus raport.');
+    } finally {
+      setDeleteLoading(false);
+    }
   };
 
-  // ─── Kolom tabel ──────────────────────────────────────────────────────────
+  // ─── Kolom tabel ─────────────────────────────────────────────────────────
   const columns: ColumnDef<RaportRow>[] = [
     {
-      key: 'siswa',
-      header: 'Siswa',
-      render: (row) => (
+      key: 'siswa', header: 'Siswa',
+      render: row => (
         <div>
           <p className="font-medium text-slate-800">{row.santri?.nama ?? '—'}</p>
           <p className="text-xs text-slate-400">{row.santri?.nisn ?? '—'}</p>
@@ -259,61 +200,57 @@ export default function RaportPage() {
       ),
     },
     {
-      key: 'kelas',
-      header: 'Kelas',
-      render: (row) => row.santri?.classes?.name ?? '—',
+      key: 'kelas', header: 'Kelas',
+      render: row => row.santri?.classes?.name ?? '—',
     },
     {
-      key: 'periode',
-      header: 'Periode',
-      render: (row) => (
-        <span className="font-medium text-slate-700">{row.periode}</span>
+      key: 'periode', header: 'Periode',
+      render: row => (
+        <div>
+          <p className="font-medium text-slate-700">{row.periode}</p>
+          <p className="text-xs text-slate-400">{row.tahun_ajaran}</p>
+        </div>
       ),
     },
     {
-      key: 'makhroj',
-      header: 'Makhroj',
-      align: 'center',
-      render: (row) => <ScoreBadge value={row.makhroj} />,
+      key: 'juz', header: 'Juz', align: 'center',
+      render: row => row.juz ? (
+        <span className="inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700">
+          Juz {row.juz}
+        </span>
+      ) : <span className="text-slate-300 text-xs">—</span>,
     },
     {
-      key: 'tajwid',
-      header: 'Tajwid',
-      align: 'center',
-      render: (row) => <ScoreBadge value={row.tajwid} />,
+      key: 'guru', header: 'Guru',
+      render: row => <span className="text-sm text-slate-600">{row.users?.name ?? '—'}</span>,
     },
     {
-      key: 'lancar',
-      header: 'Kelancaran',
-      align: 'center',
-      render: (row) => <ScoreBadge value={row.lancar} />,
-    },
-    {
-      key: 'rata',
-      header: 'Rata-rata',
-      align: 'center',
-      render: (row) => <ScoreBadge value={avgScore(row)} />,
-    },
-    {
-      key: 'aksi',
-      header: 'Aksi',
-      align: 'center',
-      render: (row) => (
-        <div className="flex justify-center gap-2">
+      key: 'aksi', header: 'Aksi', align: 'center',
+      render: row => (
+        <div className="flex justify-center gap-1">
           <button
             onClick={() => handlePreview(row)}
             className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-colors"
-            title="Lihat & Cetak"
+            title="Preview & Cetak"
           >
-            <Eye size={16} />
+            <Eye size={15} />
           </button>
           <button
-            onClick={() => handleOpenEdit(row)}
+            onClick={() => handleEdit(row)}
             className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
             title="Edit"
           >
-            <Edit2 size={16} />
+            <Edit2 size={15} />
           </button>
+          {isKabid() && (
+            <button
+              onClick={() => setDeleteId(row.id)}
+              className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+              title="Hapus"
+            >
+              <Trash2 size={15} />
+            </button>
+          )}
         </div>
       ),
     },
@@ -321,120 +258,82 @@ export default function RaportPage() {
 
   return (
     <div className="space-y-6">
-      {/* ── Header halaman ──────────────────────────────────────────────────── */}
+      {/* ── Header ──────────────────────────────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
             <ClipboardList size={24} className="text-emerald-600" />
-            Raport Qur'an
+            Raport Tahfidz
           </h1>
           <p className="text-slate-500 text-sm mt-1">
-            Penilaian capaian siswa per periode.
+            Penilaian hafalan Al-Qur&apos;an per surah — format resmi siap cetak.
           </p>
         </div>
-        <Button
-          variant="primary"
-          leftIcon={<Plus size={16} />}
-          onClick={handleOpenAdd}
-        >
+        <Button variant="primary" leftIcon={<Plus size={16} />} onClick={handleAdd}>
           Buat Raport
         </Button>
       </div>
 
-      {/* ── Notifikasi sukses ────────────────────────────────────────────────── */}
+      {/* ── Sukses notification ──────────────────────────────────────────────── */}
       {formSuccess && (
         <div className="rounded-lg bg-emerald-50 border border-emerald-200 px-4 py-3 text-sm text-emerald-700 flex justify-between items-center">
           <span>{formSuccess}</span>
-          <button
-            onClick={() => setFormSuccess(null)}
-            className="ml-4 text-emerald-500 hover:text-emerald-700 font-medium"
-          >
-            ✕
-          </button>
+          <button onClick={() => setFormSuccess(null)} className="ml-4 text-emerald-500 hover:text-emerald-700">✕</button>
         </div>
       )}
 
-      {/* ── Filter & Search ──────────────────────────────────────────────────── */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-4">
-        <h2 className="text-base font-semibold text-slate-800">Cari Raport</h2>
-
+      {/* ── Filter ───────────────────────────────────────────────────────────── */}
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+        <h2 className="text-sm font-semibold text-slate-700 mb-3">Filter Raport</h2>
         <div className="flex flex-col sm:flex-row gap-3">
-          <div className="flex-1">
-            <input
-              type="text"
-              value={filterPeriode}
-              onChange={(e) => setFilterPeriode(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && fetchRaport()}
-              placeholder="Filter periode, misal: Semester 1 2024"
-              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-            />
-          </div>
-          <Button
-            variant="primary"
-            leftIcon={<Search size={16} />}
-            onClick={fetchRaport}
-            loading={listLoading}
-          >
+          <input
+            type="text"
+            value={filterPeriode}
+            onChange={e => setFilterPeriode(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && fetchRaport()}
+            placeholder="Filter periode, misal: Semester I"
+            className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+          />
+          <Button variant="primary" leftIcon={<Search size={15} />} onClick={fetchRaport} loading={listLoading}>
             Tampilkan
           </Button>
         </div>
-
-        {listError && (
-          <p className="text-sm text-red-600">{listError}</p>
-        )}
+        {listError && <p className="mt-2 text-sm text-red-600">{listError}</p>}
       </div>
 
-      {/* ── Tabel raport ────────────────────────────────────────────────────── */}
-      {searched && (
+      {/* ── Tabel ────────────────────────────────────────────────────────────── */}
+      {searched ? (
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-base font-semibold text-slate-800">
+            <h2 className="text-sm font-semibold text-slate-700">
               Daftar Raport
-              {filterPeriode && (
-                <span className="text-slate-400 font-normal text-sm ml-2">
-                  — {filterPeriode}
-                </span>
-              )}
+              {filterPeriode && <span className="text-slate-400 font-normal text-xs ml-2">— {filterPeriode}</span>}
             </h2>
-            <span className="text-xs text-slate-400">
-              {raportList.length} data
-            </span>
+            <span className="text-xs text-slate-400">{raportList.length} data</span>
           </div>
-
           <DataTable
             columns={columns}
             data={raportList}
-            rowKey={(row) => row.id}
+            rowKey={r => r.id}
             loading={listLoading}
-            emptyMessage="Tidak ada raport yang ditemukan."
+            emptyMessage="Tidak ada raport ditemukan."
             emptyIcon={<FileText size={32} className="text-slate-300" />}
           />
         </div>
-      )}
-
-      {/* ── Empty state sebelum search ───────────────────────────────────────── */}
-      {!searched && (
+      ) : (
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-12 text-center">
           <FileText size={48} className="text-slate-200 mx-auto mb-4" />
-          <p className="text-slate-500 text-sm">
-            Gunakan filter di atas untuk menampilkan raport, atau tekan "Tampilkan" untuk melihat semua.
-          </p>
-          <Button
-            variant="secondary"
-            className="mt-4"
-            onClick={fetchRaport}
-          >
-            Tampilkan Semua
-          </Button>
+          <p className="text-slate-500 text-sm">Gunakan filter atau tekan Tampilkan untuk melihat semua raport.</p>
+          <Button variant="secondary" className="mt-4" onClick={fetchRaport}>Tampilkan Semua</Button>
         </div>
       )}
 
-      {/* ── Modal form tambah/edit ───────────────────────────────────────────── */}
+      {/* ── Modal Form ───────────────────────────────────────────────────────── */}
       <Modal
-        open={formModalOpen}
-        onClose={handleCloseForm}
-        title={editingId ? 'Edit Raport' : 'Buat Raport Baru'}
-        size="lg"
+        open={formOpen}
+        onClose={() => { if (!formSubmitting) { setFormOpen(false); setEditingId(null); setEditingData(null); setFormError(null); } }}
+        title={editingId ? 'Edit Raport Tahfidz' : 'Buat Raport Tahfidz Baru'}
+        size="xl"
         closeOnBackdrop={!formSubmitting}
       >
         {formError && (
@@ -442,26 +341,52 @@ export default function RaportPage() {
             {formError}
           </div>
         )}
-        <RaportForm
+        <RaportTahfidzForm
           editingId={editingId}
-          initialData={editingInitialData}
+          initialData={editingData}
           loading={formSubmitting}
           onSubmit={handleFormSubmit}
-          onCancel={handleCloseForm}
-          onDuplicateDetected={handleDuplicateDetected}
+          onCancel={() => { setFormOpen(false); setEditingId(null); setEditingData(null); setFormError(null); }}
         />
       </Modal>
 
-      {/* ── Modal preview / cetak ────────────────────────────────────────────── */}
+      {/* ── Modal Preview ─────────────────────────────────────────────────────── */}
       <Modal
-        open={printModalOpen}
-        onClose={() => { setPrintModalOpen(false); setPrintingRaport(null); }}
-        title="Preview Raport"
-        size="lg"
+        open={previewOpen}
+        onClose={() => { setPreviewOpen(false); setPreviewData(null); }}
+        title="Preview & Cetak Raport"
+        size="xl"
       >
-        {printingRaport && (
-          <RaportPrintable raport={printingRaport} />
-        )}
+        {previewLoading ? (
+          <div className="flex items-center justify-center py-16">
+            <span className="w-8 h-8 border-2 border-emerald-200 border-t-emerald-600 rounded-full animate-spin" />
+          </div>
+        ) : previewData ? (
+          <RaportTahfidzPrintable raport={previewData} />
+        ) : null}
+      </Modal>
+
+      {/* ── Konfirmasi Hapus ──────────────────────────────────────────────────── */}
+      <Modal
+        open={Boolean(deleteId)}
+        onClose={() => { if (!deleteLoading) setDeleteId(null); }}
+        title="Hapus Raport"
+        size="sm"
+      >
+        <p className="text-sm text-slate-600 mb-5">
+          Yakin ingin menghapus raport ini? Semua data penilaian surah akan ikut terhapus dan tidak bisa dikembalikan.
+        </p>
+        <div className="flex justify-end gap-2">
+          <Button variant="secondary" onClick={() => setDeleteId(null)} disabled={deleteLoading}>Batal</Button>
+          <Button
+            variant="primary"
+            loading={deleteLoading}
+            onClick={handleDelete}
+            className="!bg-red-600 hover:!bg-red-700"
+          >
+            Hapus
+          </Button>
+        </div>
       </Modal>
     </div>
   );

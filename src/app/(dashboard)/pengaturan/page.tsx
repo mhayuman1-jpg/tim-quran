@@ -5,15 +5,22 @@
 // Both Kabid and Tim_Quran can access this page
 
 import { useState, useEffect, FormEvent } from 'react';
+import { useRouter } from 'next/navigation';
 import { useSession } from '@/hooks/useSession';
 import { useSession as useNextAuthSession } from 'next-auth/react';
 import Input from '@/components/ui/Input';
 import Button from '@/components/ui/Button';
-import { User, Lock, AlertCircle, CheckCircle } from 'lucide-react';
+import ImageUpload from '@/components/shared/ImageUpload';
+import { User, Lock, AlertCircle, CheckCircle, Camera } from 'lucide-react';
 
 export default function PengaturanPage() {
   const { session, isLoading: sessionLoading, userName, userEmail } = useSession();
   const { update: updateSession } = useNextAuthSession();
+  const router = useRouter();
+
+  // ── State untuk foto profil ──
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [photoSaving, setPhotoSaving] = useState(false);
 
   // ── State untuk form profil ──
   const [profileName, setProfileName] = useState('');
@@ -39,6 +46,13 @@ export default function PengaturanPage() {
       setProfileName(userName);
     }
   }, [userName]);
+
+  // Load photo_url dari session saat mount
+  useEffect(() => {
+    if (session?.user?.photo_url) {
+      setPhotoUrl(session.user.photo_url);
+    }
+  }, [session]);
 
   // ── Handler: Update Profil ──
   const handleProfileSubmit = async (e: FormEvent) => {
@@ -70,8 +84,14 @@ export default function PengaturanPage() {
 
       setProfileSuccess('Profil berhasil diperbarui');
 
+      // Update local state langsung agar UI langsung berubah tanpa reload
+      setProfileName(data.data.name);
+
       // Trigger session refresh untuk update nama di seluruh UI
       await updateSession({ name: data.data.name });
+
+      // Force re-render navbar/layout yang menampilkan nama
+      router.refresh();
 
       // Clear success message setelah 3 detik
       setTimeout(() => setProfileSuccess(''), 3000);
@@ -154,6 +174,37 @@ export default function PengaturanPage() {
     }
   };
 
+  // ── Handler: Upload Foto Profil ──
+  const handlePhotoUploaded = async (url: string) => {
+    setPhotoSaving(true);
+    try {
+      const res = await fetch('/api/pengaturan/photo', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ photo_url: url }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setProfileError(data.message ?? 'Gagal menyimpan foto.');
+        return;
+      }
+
+      setPhotoUrl(url);
+      setProfileSuccess('Foto profil berhasil diperbarui.');
+      // Refresh session agar photo_url baru tersedia di seluruh app
+      try {
+        await updateSession({ photo_url: url });
+      } catch {
+        setProfileError('Foto tersimpan, tapi sesi gagal diperbarui. Silakan refresh halaman.');
+      }
+      setTimeout(() => setProfileSuccess(''), 3000);
+    } catch {
+      setProfileError('Terjadi kesalahan saat menyimpan foto.');
+    } finally {
+      setPhotoSaving(false);
+    }
+  };
+
   // ── Loading state ──
   if (sessionLoading) {
     return (
@@ -190,6 +241,40 @@ export default function PengaturanPage() {
         <p className="text-sm text-gray-500 mt-1">
           Kelola informasi profil dan keamanan akun Anda
         </p>
+      </div>
+
+      {/* ══════════════════════════════════════════════════════════════════════
+          SEKSI: Foto Profil
+        ══════════════════════════════════════════════════════════════════════ */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="flex items-center justify-center h-10 w-10 rounded-lg bg-purple-50">
+            <Camera className="h-5 w-5 text-purple-600" />
+          </div>
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900">Foto Profil</h2>
+            <p className="text-xs text-gray-500">Foto akan ditampilkan di ID Card</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-6">
+          <div className="w-24 h-24 shrink-0">
+            <ImageUpload
+              value={photoUrl}
+              onUpload={handlePhotoUploaded}
+              bucket="profile-photos"
+              folder={`${session?.user?.role?.toLowerCase()}/${session?.user?.id}`}
+              shape="circle"
+              disabled={photoSaving}
+              helperText="Maks 5MB"
+            />
+          </div>
+          <div>
+            <p className="text-sm font-medium text-gray-700">{userName}</p>
+            <p className="text-xs text-gray-400 mt-0.5">{userEmail}</p>
+            <p className="text-xs text-slate-400 mt-2">JPG, PNG, WebP, GIF · Maks 5MB</p>
+          </div>
+        </div>
       </div>
 
       {/* ══════════════════════════════════════════════════════════════════════

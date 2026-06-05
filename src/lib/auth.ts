@@ -23,7 +23,7 @@ export const authOptions: NextAuthOptions = {
         // Ambil user dari tabel 'users'
         const { data: user, error } = await supabase
           .from('users')
-          .select('id, email, name, role, status, password_hash')
+          .select('id, email, name, role, status, password_hash, photo_url')
           .eq('email', credentials.email)
           .single();
 
@@ -45,6 +45,7 @@ export const authOptions: NextAuthOptions = {
           email: user.email,
           name: user.name,
           role: user.role as UserRole,
+          photo_url: user.photo_url ?? null,
         };
       },
     }),
@@ -55,6 +56,7 @@ export const authOptions: NextAuthOptions = {
       if (user) {
         token.id = user.id;
         token.role = user.role as UserRole;
+        token.photo_url = user.photo_url;
       }
       return token;
     },
@@ -63,6 +65,7 @@ export const authOptions: NextAuthOptions = {
       if (session.user) {
         session.user.id = token.id;
         session.user.role = token.role;
+        session.user.photo_url = token.photo_url;
       }
       return session;
     },

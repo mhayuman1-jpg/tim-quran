@@ -30,7 +30,7 @@ export async function GET() {
     // Ambil semua user dengan role Tim_Quran
     const { data: timQuran, error } = await supabase
       .from('users')
-      .select('id, name, email, status, created_at')
+      .select('id, name, email, status, created_at, photo_url')
       .eq('role', 'Tim_Quran')
       .order('name', { ascending: true });
 

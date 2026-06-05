@@ -1,7 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Users, CheckCircle, UserCheck, BookOpen, Activity } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { useSession } from "next-auth/react";
+import { Users, CheckCircle, UserCheck, BookOpen, Activity, FileImage, FileText, CreditCard, Repeat, TrendingUp, Megaphone, Newspaper, ArrowRight } from "lucide-react";
+import Link from "next/link";
+import StaffIDCard from "@/components/shared/StaffIDCard";
+import { useToast } from "@/lib/toast";
 
 interface JuzSummary { juz: number; count: number; }
 interface DashboardStats {
@@ -142,13 +146,25 @@ function JuzChart({ data, loading }: { data: JuzSummary[]; loading: boolean }) {
 }
 
 export default function DashboardPage() {
+  const { data: session } = useSession();
+  const cardRef = useRef<HTMLDivElement>(null);
+  const [downloading, setDownloading] = useState<'png' | 'pdf' | null>(null);
+  const [profilData, setProfilData] = useState<{ nama_lembaga?: string; logo_url?: string; nama_sekolah?: string; logo_sekolah_url?: string } | null>(null);
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const { toast } = useToast();
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("error") === "forbidden") setErrorMessage("Akses tidak diizinkan.");
+  }, []);
+
+  useEffect(() => {
+    fetch('/api/website/profil')
+      .then(r => r.json())
+      .then(d => setProfilData(d.data))
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -168,6 +184,49 @@ export default function DashboardPage() {
   const today = new Date().toLocaleDateString("id-ID", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
   const hour = new Date().getHours();
   const greeting = hour < 11 ? 'Selamat Pagi' : hour < 15 ? 'Selamat Siang' : hour < 18 ? 'Selamat Sore' : 'Selamat Malam';
+
+  const sanitizeName = (name: string) =>
+    name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+
+  const handleDownloadPng = async () => {
+    if (!cardRef.current || downloading) return;
+    setDownloading('png');
+    try {
+      const { toPng } = await import('html-to-image');
+      const dataUrl = await toPng(cardRef.current, { pixelRatio: 3 });
+      const link = document.createElement('a');
+      link.href = dataUrl;
+      link.download = `idcard-${sanitizeName(session?.user?.name ?? 'staff')}.png`;
+      link.click();
+      toast.success('ID Card berhasil diunduh.');
+    } catch {
+      toast.error('Gagal mengunduh ID Card.');
+    } finally {
+      setDownloading(null);
+    }
+  };
+
+  const handleDownloadPdf = async () => {
+    if (!cardRef.current || downloading) return;
+    setDownloading('pdf');
+    try {
+      const { toPng } = await import('html-to-image');
+      const { default: jsPDF } = await import('jspdf');
+      const dataUrl = await toPng(cardRef.current, { pixelRatio: 3 });
+      const pdf = new jsPDF({
+        orientation: 'landscape',
+        unit: 'mm',
+        format: [85.6, 54],
+      });
+      pdf.addImage(dataUrl, 'PNG', 0, 0, 85.6, 54);
+      pdf.save(`idcard-${sanitizeName(session?.user?.name ?? 'staff')}.pdf`);
+      toast.success('ID Card PDF berhasil diunduh.');
+    } catch {
+      toast.error('Gagal mengunduh ID Card PDF.');
+    } finally {
+      setDownloading(null);
+    }
+  };
 
   return (
     <div className="space-y-6 max-w-5xl">
@@ -229,6 +288,94 @@ export default function DashboardPage() {
 
       {/* Juz chart */}
       <JuzChart data={stats?.ringkasanJuz ?? []} loading={loading} />
+
+      {/* ID Card Section — Kabid & Tim_Quran */}
+      {session?.user && (session.user.role === 'Tim_Quran' || session.user.role === 'Kabid') && (
+        <div className="rounded-2xl p-6" style={{background: 'white', border: '1px solid #f1f5f9', boxShadow: '0 2px 16px rgba(0,0,0,0.04)'}}>
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center"
+              style={{background: 'linear-gradient(135deg, #6366f1, #8b5cf6)'}}>
+              <CreditCard size={16} className="text-white" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-slate-800">ID Card Saya</p>
+              <p className="text-xs text-slate-400">Unduh kartu identitas digital</p>
+            </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
+            {/* Preview — wrapped in cardRef div */}
+            <div ref={cardRef} className="shrink-0">
+              <StaffIDCard
+                name={session.user.name}
+                role={session.user.role as 'Kabid' | 'Tim_Quran'}
+                photoUrl={session.user.photo_url}
+                namaLembaga={profilData?.nama_lembaga ?? "Tim Qur'an"}
+                logoUrl={profilData?.logo_url}
+                namaSekolah={profilData?.nama_sekolah}
+                logoSekolahUrl={profilData?.logo_sekolah_url}
+                cardId="staff-id-card"
+              />
+            </div>
+
+            {/* Actions */}
+            <div className="space-y-3">
+              <p className="text-sm text-slate-600">
+                Unduh ID Card dalam format gambar atau PDF siap cetak.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <button onClick={handleDownloadPng} disabled={downloading !== null}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all disabled:opacity-60"
+                  style={{background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', color: 'white'}}>
+                  {downloading === 'png' ? (
+                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  ) : <FileImage size={15} />}
+                  Unduh PNG
+                </button>
+                <button onClick={handleDownloadPdf} disabled={downloading !== null}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium border border-slate-200 text-slate-700 hover:bg-slate-50 transition-all disabled:opacity-60">
+                  {downloading === 'pdf' ? (
+                    <span className="w-4 h-4 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin" />
+                  ) : <FileText size={15} />}
+                  Unduh PDF
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Shortcut cards — Sekretaris */}
+      {session?.user?.role === 'Sekretaris' && (
+        <div className="rounded-2xl p-6" style={{background: 'white', border: '1px solid #f1f5f9', boxShadow: '0 2px 16px rgba(0,0,0,0.04)'}}>
+          <div className="flex items-center justify-between mb-4">
+            <p className="text-sm font-semibold text-slate-700">Akses Cepat</p>
+            <span className="flex items-center gap-1 text-xs text-emerald-600 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-full">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              Dalam pantauan Kabid
+            </span>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            {[
+              { href: '/siswa',          icon: <Users size={18} />,       label: 'Data Siswa',     color: '#3b82f6' },
+              { href: '/rekap',          icon: <Repeat size={18} />,      label: 'Rekap Bulanan',  color: '#10b981' },
+              { href: '/laporan',        icon: <TrendingUp size={18} />,  label: 'Laporan',        color: '#f59e0b' },
+              { href: '/pengumuman',     icon: <Megaphone size={18} />,   label: 'Pengumuman',     color: '#8b5cf6' },
+              { href: '/kelola-artikel', icon: <Newspaper size={18} />,   label: 'Artikel',        color: '#ec4899' },
+            ].map(item => (
+              <Link key={item.href} href={item.href}
+                className="flex items-center gap-3 p-4 rounded-xl border border-slate-100 hover:border-slate-200 hover:shadow-sm transition-all group">
+                <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
+                  style={{background: `${item.color}15`, color: item.color}}>
+                  {item.icon}
+                </div>
+                <span className="text-sm font-medium text-slate-700 group-hover:text-slate-900">{item.label}</span>
+                <ArrowRight size={14} className="ml-auto text-slate-300 group-hover:text-slate-500 transition-colors" />
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

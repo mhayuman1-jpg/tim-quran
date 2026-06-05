@@ -1,7 +1,7 @@
 // src/types/index.ts
 // Semua TypeScript types untuk Tim Qur'an Website
 
-export type UserRole = 'Kabid' | 'Tim_Quran';
+export type UserRole = 'Kabid' | 'Tim_Quran' | 'Sekretaris';
 export type UserStatus = 'Aktif' | 'Nonaktif';
 export type Gender = 'Laki-laki' | 'Perempuan';
 export type AttendanceStatus = 'Hadir' | 'Tidak Hadir' | 'Izin' | 'Sakit';

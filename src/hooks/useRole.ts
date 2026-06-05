@@ -1,5 +1,5 @@
 // src/hooks/useRole.ts
-// Hook yang mengembalikan role user dari session beserta helper isKabid() dan isTimQuran()
+// Hook yang mengembalikan role user dari session beserta helper per role
 
 import { useSession } from './useSession';
 import type { UserRole } from '@/types';
@@ -9,26 +9,25 @@ export interface UseRoleReturn {
   isLoading: boolean;
   isKabid: () => boolean;
   isTimQuran: () => boolean;
+  isSekretaris: () => boolean;
+  /** Kabid atau Sekretaris — punya akses manajemen konten */
+  isManajemen: () => boolean;
 }
 
-/**
- * Hook untuk membaca role user dari session.
- * Menyediakan helper isKabid() dan isTimQuran() untuk pengecekan role yang mudah.
- *
- * @example
- * const { role, isKabid, isTimQuran } = useRole();
- * if (isKabid()) { ... }
- */
 export function useRole(): UseRoleReturn {
   const { userRole, isLoading } = useSession();
 
   const isKabid = (): boolean => userRole === 'Kabid';
   const isTimQuran = (): boolean => userRole === 'Tim_Quran';
+  const isSekretaris = (): boolean => userRole === 'Sekretaris';
+  const isManajemen = (): boolean => userRole === 'Kabid' || userRole === 'Sekretaris';
 
   return {
     role: userRole,
     isLoading,
     isKabid,
     isTimQuran,
+    isSekretaris,
+    isManajemen,
   };
 }
