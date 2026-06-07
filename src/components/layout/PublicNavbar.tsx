@@ -43,33 +43,30 @@ export default function PublicNavbar({
   const [scrolled, setScrolled] = useState(false);
   const [hasLogoError, setHasLogoError] = useState(false);
   const [, setNavLoading] = useState(true);
-  const [navLinks, setNavLinks] = useState<Array<{ label: string; href: string }>>(() => {
-    if (navigationItems && navigationItems.length > 0) {
-      return navigationItems
-        .filter((item) => item.is_active ?? true)
-        .map((item) => ({ label: item.label, href: normalizeHref(item.href) }));
-    }
-    return [
-      { label: 'Beranda',    href: '/' },
-      { label: 'Profil',     href: '/profil' },
-      { label: 'Program',    href: '/program' },
-      { label: 'Galeri',     href: '/galeri' },
-      { label: 'Pengumuman', href: '/pengumuman' },
-      { label: 'Artikel',    href: '/artikel' },
-      { label: 'Agenda',     href: '/agenda' },
-      { label: 'Daftar Tasmi', href: 'https://tasmi-alquran-app.firebaseapp.com/' },
-    ];
-  });
+
+  // Default navigation items (always include)
+  const defaultNavLinks = [
+    { label: 'Beranda',    href: '/' },
+    { label: 'Profil',     href: '/profil' },
+    { label: 'Program',    href: '/program' },
+    { label: 'Galeri',     href: '/galeri' },
+    { label: 'Pengumuman', href: '/pengumuman' },
+    { label: 'Artikel',    href: '/artikel' },
+    { label: 'Agenda',     href: '/agenda' },
+    { label: 'Daftar Tasmi', href: 'https://tasmi-alquran-app.firebaseapp.com/' },
+  ];
+
+  const [navLinks, setNavLinks] = useState<Array<{ label: string; href: string }>>(defaultNavLinks);
 
 
   // Fetch navigation items from API
   useEffect(() => {
     if (navigationItems && navigationItems.length > 0) {
-      setNavLinks(
-        navigationItems
-          .filter((item) => item.is_active ?? true)
-          .map((item) => ({ label: item.label, href: normalizeHref(item.href) }))
-      );
+      const items = navigationItems
+        .filter((item) => item.is_active ?? true)
+        .map((item) => ({ label: item.label, href: normalizeHref(item.href) }));
+      // Merge with default items, but API items take precedence for ordering/customization
+      setNavLinks(items.length > 0 ? items : defaultNavLinks);
       setNavLoading(false);
       return;
     }
@@ -79,11 +76,19 @@ export default function PublicNavbar({
         const res = await fetch('/api/website/navigation');
         const json = await res.json();
         if (json.data && Array.isArray(json.data) && json.data.length > 0) {
-          setNavLinks(json.data.map((item: any) => ({ label: item.label, href: normalizeHref(item.href) })));
+          const apiItems = json.data.map((item: any) => ({ label: item.label, href: normalizeHref(item.href) }));
+          // Merge: Keep API items in their order, but add missing default items at the end
+          const apiLabels = new Set(apiItems.map(i => i.label.toLowerCase()));
+          const missingDefaults = defaultNavLinks.filter(d => !apiLabels.has(d.label.toLowerCase()));
+          setNavLinks([...apiItems, ...missingDefaults]);
+        } else {
+          // Use default navLinks if API returns empty
+          setNavLinks(defaultNavLinks);
         }
       } catch (err) {
         console.error('[PublicNavbar] Failed to fetch navigation:', err);
         // Use default navLinks if fetch fails
+        setNavLinks(defaultNavLinks);
       } finally {
         setNavLoading(false);
       }
