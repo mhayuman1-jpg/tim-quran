@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { student_id, tanggal, surah_juz, halaman, catatan } = body;
+    const { student_id, tanggal, surah_juz, halaman, catatan, makhroj, tajwid, lancar, buku } = body;
 
     // Validasi field wajib
     if (!student_id || typeof student_id !== 'string' || student_id.trim() === '') {
@@ -59,6 +59,28 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = createServerClient();
+    const teacherId = session.user.id;
+
+    if (!teacherId) {
+      return NextResponse.json(
+        { message: 'Akun guru tidak valid, silakan login ulang.' },
+        { status: 401 }
+      );
+    }
+
+    const { data: teacher, error: teacherError } = await supabase
+      .from('users')
+      .select('id, role, status')
+      .eq('id', teacherId)
+      .single();
+
+    if (teacherError || !teacher) {
+      console.error('[hafalan/add] Teacher lookup failed:', teacherError);
+      return NextResponse.json(
+        { message: 'Akun guru tidak ditemukan di database.' },
+        { status: 500 }
+      );
+    }
 
     // RBAC: Tim_Quran hanya bisa tambah hafalan untuk siswa tanggung jawabnya
     if (session.user.role === 'Tim_Quran') {
@@ -75,7 +97,7 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      if (santri.assigned_teacher_id !== session.user.id) {
+      if (santri.assigned_teacher_id !== teacherId) {
         return NextResponse.json(
           { message: 'Anda tidak memiliki akses untuk siswa ini.' },
           { status: 403 }
@@ -85,7 +107,7 @@ export async function POST(request: NextRequest) {
 
     const insertData: Record<string, unknown> = {
       student_id: student_id.trim(),
-      teacher_id: session.user.id,
+      teacher_id: teacherId,
       tanggal,
       surah_juz: surah_juz.trim(),
       halaman: halamanNum,
@@ -93,6 +115,18 @@ export async function POST(request: NextRequest) {
 
     if (catatan && typeof catatan === 'string' && catatan.trim() !== '') {
       insertData.catatan = catatan.trim();
+    }
+    if (makhroj && typeof makhroj === 'string') {
+      insertData.makhroj = makhroj.trim();
+    }
+    if (tajwid && typeof tajwid === 'string') {
+      insertData.tajwid = tajwid.trim();
+    }
+    if (lancar && typeof lancar === 'string') {
+      insertData.lancar = lancar.trim();
+    }
+    if (buku && typeof buku === 'string' && buku.trim() !== '') {
+      insertData.buku = buku.trim();
     }
 
     const { data, error } = await supabase

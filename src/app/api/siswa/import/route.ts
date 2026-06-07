@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 // src/app/api/siswa/import/route.ts
 // POST: Terima file Excel, parse dengan xlsx, validasi setiap baris,
 //        insert batch ke database, return ringkasan berhasil/gagal beserta alasan

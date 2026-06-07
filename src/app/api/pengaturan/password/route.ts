@@ -3,7 +3,7 @@
 // Return 400 jika kata sandi lama salah atau konfirmasi tidak cocok
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
+import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
 import bcrypt from 'bcryptjs';

@@ -15,6 +15,13 @@ CREATE TABLE IF NOT EXISTS raport_tahfidz (
   nama_guru_kelas      TEXT,
   nama_kabid           TEXT,
   nama_kepala_sekolah  TEXT,
+  tahsin_metode        TEXT,
+  tahsin_buku          TEXT,
+  tahsin_halaman       TEXT,
+  tahsin_makhroj       TEXT,
+  tahsin_kelancaran    TEXT,
+  tahsin_adab          TEXT,
+  tahsin_catatan       TEXT,
   created_at    TIMESTAMPTZ DEFAULT NOW(),
   updated_at    TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE(student_id, periode)

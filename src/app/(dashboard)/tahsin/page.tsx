@@ -1,195 +1,328 @@
 'use client';
 
 // src/app/(dashboard)/tahsin/page.tsx
-// Halaman pencatatan tahsin harian
-// - Form input tahsin (modal): siswa, metode, buku, halaman, catatan
-// - Riwayat tahsin dengan filter tanggal
+// Halaman jurnal hafalan & tahsin gabungan dengan ringkasan riwayat.
 
-import React, { useState } from 'react';
-import { Plus, BookOpenCheck } from 'lucide-react';
+import React, { useState, useCallback } from 'react';
+import { Plus, BookOpenCheck, Users, XCircle } from 'lucide-react';
 import Modal from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
-import TahsinForm, { type TahsinFormData } from '@/components/features/tahsin/TahsinForm';
+import SearchInput from '@/components/shared/SearchInput';
+import JurnalHafalanTahsinForm from '@/components/features/tahsin/JurnalHafalanTahsinForm';
 import TahsinHistory from '@/components/features/tahsin/TahsinHistory';
-import type { Tahsin } from '@/types';
+import HafalanHistory from '@/components/features/hafalan/HafalanHistory';
+
+interface StudentOption {
+  id: string;
+  nama: string;
+  nisn?: string | null;
+  gender?: string | null;
+  tanggal_lahir?: string | null;
+  juz_terakhir?: number | null;
+  status?: string | null;
+  photo_url?: string | null;
+  classes?: { id: string; name: string } | null;
+}
 
 export default function TahsinPage() {
-  // State modal tambah/edit
   const [modalOpen, setModalOpen] = useState(false);
-  const [editingTahsin, setEditingTahsin] = useState<Tahsin | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitSuccess, setSubmitSuccess] = useState<string | null>(null);
-
-  // Trigger refresh history setelah add/edit
   const [refreshKey, setRefreshKey] = useState(0);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [studentList, setStudentList] = useState<StudentOption[]>([]);
+  const [studentOptions, setStudentOptions] = useState<StudentOption[]>([]);
+  const [studentLoading, setStudentLoading] = useState(false);
+  const [studentError, setStudentError] = useState<string | null>(null);
+  const [selectedStudent, setSelectedStudent] = useState<StudentOption | null>(null);
+  const [studentModalOpen, setStudentModalOpen] = useState(false);
 
-  // ── Buka modal tambah
   const handleOpenAdd = () => {
-    setEditingTahsin(null);
     setSubmitError(null);
     setSubmitSuccess(null);
     setModalOpen(true);
   };
 
-  // ── Buka modal edit dari TahsinHistory
-  const handleOpenEdit = (tahsin: any) => {
-    const mapped: Tahsin = {
-      id: tahsin.id,
-      student_id: tahsin.student_id,
-      teacher_id: tahsin.teacher_id,
-      tanggal: tahsin.tanggal,
-      metode: tahsin.metode,
-      buku: tahsin.buku ?? undefined,
-      halaman: tahsin.halaman ?? undefined,
-      catatan: tahsin.catatan ?? undefined,
-      created_at: tahsin.created_at,
-    };
-    setEditingTahsin(mapped);
-    setSubmitError(null);
-    setSubmitSuccess(null);
-    setModalOpen(true);
-  };
-
-  // ── Tutup modal
   const handleCloseModal = () => {
     if (submitting) return;
     setModalOpen(false);
-    setEditingTahsin(null);
     setSubmitError(null);
   };
 
-  // ── Submit form (add atau edit)
-  const handleSubmit = async (formData: TahsinFormData) => {
-    setSubmitting(true);
-    setSubmitError(null);
-    setSubmitSuccess(null);
+  const fetchStudents = useCallback(async (query = '') => {
+    setStudentError(null);
+    setStudentLoading(true);
 
     try {
-      if (editingTahsin) {
-        // Mode edit — panggil API update
-        const res = await fetch('/api/tahsin/update', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            id: editingTahsin.id,
-            tanggal: formData.tanggal,
-            metode: formData.metode,
-            buku: formData.buku,
-            halaman: formData.halaman,
-            catatan: formData.catatan || null,
-          }),
-        });
+      const url = query.trim().length >= 2
+        ? `/api/siswa/list?search=${encodeURIComponent(query.trim())}`
+        : '/api/siswa/list';
+      const res = await fetch(url);
+      const json = await res.json();
 
-        const json = await res.json();
-
-        if (!res.ok) {
-          setSubmitError(json.message ?? 'Gagal memperbarui tahsin.');
-          return;
-        }
-
-        setSubmitSuccess(json.message ?? 'Tahsin berhasil diperbarui.');
-        setRefreshKey((k) => k + 1);
-        setModalOpen(false);
-        setEditingTahsin(null);
+      if (!res.ok) {
+        setStudentError(json.message ?? 'Gagal mengambil data siswa.');
+        setStudentOptions([]);
+        if (!query.trim()) setStudentList([]);
       } else {
-        // Mode tambah — panggil API add
-        const res = await fetch('/api/tahsin/add', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            student_id: formData.student_id,
-            tanggal: formData.tanggal,
-            metode: formData.metode,
-            buku: formData.buku,
-            halaman: formData.halaman,
-            catatan: formData.catatan || null,
-          }),
-        });
-
-        const json = await res.json();
-
-        if (!res.ok) {
-          setSubmitError(json.message ?? 'Gagal menyimpan tahsin.');
-          return;
+        const students = Array.isArray(json.data) ? json.data as StudentOption[] : [];
+        if (query.trim().length >= 2) {
+          setStudentOptions(students.slice(0, 50));
+        } else {
+          setStudentList(students.slice(0, 50));
         }
-
-        setSubmitSuccess(json.message ?? 'Tahsin berhasil disimpan.');
-        setRefreshKey((k) => k + 1);
-        setModalOpen(false);
       }
     } catch {
-      setSubmitError('Terjadi kesalahan. Silakan coba lagi.');
+      setStudentError('Terjadi kesalahan saat memuat data siswa.');
+      setStudentOptions([]);
+      if (!query.trim()) setStudentList([]);
     } finally {
-      setSubmitting(false);
+      setStudentLoading(false);
     }
+  }, []);
+
+  const handleSearchStudents = useCallback(async (value: string) => {
+    setSearchQuery(value);
+    if (value.trim().length >= 2) {
+      await fetchStudents(value);
+    }
+  }, [fetchStudents]);
+
+  const openStudentDetail = (student: StudentOption) => {
+    setSelectedStudent(student);
+    setStudentModalOpen(true);
   };
+
+  const clearSelectedStudent = () => {
+    setSelectedStudent(null);
+    setStudentOptions([]);
+    setSearchQuery('');
+    setStudentError(null);
+  };
+
+  React.useEffect(() => {
+    fetchStudents();
+  }, [fetchStudents]);
+
+  const displayedStudents = searchQuery.trim().length >= 2 ? studentOptions : studentList;
 
   return (
     <div className="space-y-6">
-      {/* Header halaman */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
             <BookOpenCheck size={24} className="text-emerald-600" />
-            Jurnal Tahsin
+            Jurnal Hafalan & Tahsin
           </h1>
           <p className="text-slate-500 text-sm mt-1">
-            Pencatatan progres perbaikan bacaan (Wafa / IWR / Al-Quran) santri.
+            Pilih satu siswa untuk melihat detail hafalan dan tahsin secara terfokus.
           </p>
         </div>
-        <Button
-          variant="primary"
-          leftIcon={<Plus size={16} />}
-          onClick={handleOpenAdd}
-        >
-          Tambah Tahsin
+        <Button variant="primary" leftIcon={<Plus size={16} />} onClick={handleOpenAdd}>
+          Tambah Jurnal
         </Button>
       </div>
 
-      {/* Notifikasi sukses */}
       {submitSuccess && (
         <div className="rounded-lg bg-emerald-50 border border-emerald-200 px-4 py-3 text-sm text-emerald-700 flex justify-between items-center">
           <span>{submitSuccess}</span>
-          <button
-            onClick={() => setSubmitSuccess(null)}
-            className="ml-4 text-emerald-500 hover:text-emerald-700 font-medium"
-          >
+          <button onClick={() => setSubmitSuccess(null)} className="ml-4 text-emerald-500 hover:text-emerald-700 font-medium">
             ✕
           </button>
         </div>
       )}
 
-      {/* Riwayat tahsin */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-        <h2 className="text-base font-semibold text-slate-800 mb-4">
-          Riwayat Tahsin
-        </h2>
-        <TahsinHistory
-          onEdit={handleOpenEdit}
-          refreshKey={refreshKey}
-        />
+      <div className="grid gap-6 xl:grid-cols-[minmax(280px,360px)_1fr]">
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-5">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h2 className="text-base font-semibold text-slate-800">Cari Nama Siswa</h2>
+              <p className="text-slate-500 text-sm">Cari nama siswa untuk melihat riwayat detail.</p>
+            </div>
+            {selectedStudent && (
+              <button
+                type="button"
+                onClick={clearSelectedStudent}
+                className="inline-flex items-center gap-2 text-slate-500 hover:text-emerald-600"
+              >
+                <XCircle size={16} />
+                Reset
+              </button>
+            )}
+          </div>
+
+          <SearchInput
+            defaultValue={searchQuery}
+            onSearch={handleSearchStudents}
+            placeholder="Cari nama siswa..."
+            disabled={studentLoading}
+          />
+
+          {studentError && (
+            <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-600">
+              {studentError}
+            </div>
+          )}
+
+          <div className="space-y-3">
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+              Cari siswa dengan mengetik nama, atau pilih langsung dari daftar di bawah.
+              Klik nama siswa untuk membuka detail popup.
+            </div>
+
+            {studentLoading ? (
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
+                Memuat daftar siswa...
+              </div>
+            ) : displayedStudents.length > 0 ? (
+              <div className="space-y-2">
+                {displayedStudents.map((student) => (
+                  <button
+                    key={student.id}
+                    type="button"
+                    onClick={() => openStudentDetail(student)}
+                    className={[
+                      'w-full text-left rounded-2xl border px-4 py-3 text-slate-800 transition',
+                      selectedStudent?.id === student.id
+                        ? 'border-emerald-400 bg-emerald-50'
+                        : 'border-slate-200 hover:border-emerald-300 hover:bg-emerald-50',
+                    ].join(' ')}
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <span>{student.nama}</span>
+                      <span className="text-xs text-slate-500">{student.nisn ?? ''}</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            ) : searchQuery.trim().length >= 2 ? (
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
+                Tidak ditemukan siswa dengan nama tersebut.
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
+                Belum ada siswa yang tersedia.
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="space-y-6">
+          {selectedStudent ? (
+            <>
+              <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+                <h2 className="text-base font-semibold text-slate-800 mb-4">Riwayat Hafalan</h2>
+                <HafalanHistory studentId={selectedStudent.id} refreshKey={refreshKey} onSelectStudent={setSelectedStudent} />
+              </div>
+              <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+                <h2 className="text-base font-semibold text-slate-800 mb-4">Riwayat Tahsin</h2>
+                <TahsinHistory studentId={selectedStudent.id} refreshKey={refreshKey} onSelectStudent={setSelectedStudent} />
+              </div>
+            </>
+          ) : (
+            <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-10 text-center text-slate-500">
+              <Users size={36} className="mx-auto mb-4 text-slate-400" />
+              <p className="text-base font-semibold">Pilih siswa untuk melihat riwayat detail.</p>
+              <p className="text-sm mt-2">Riwayat hafalan dan tahsin akan tampil setelah nama siswa diklik.</p>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Modal tambah/edit tahsin */}
+      <Modal
+        open={studentModalOpen}
+        onClose={() => setStudentModalOpen(false)}
+        title={selectedStudent ? `Detail Siswa: ${selectedStudent.nama}` : 'Detail Siswa'}
+        size="md"
+        closeOnBackdrop
+      >
+        {selectedStudent ? (
+          <div className="space-y-4">
+            <div className="flex items-center gap-4">
+              {selectedStudent.photo_url ? (
+                <img src={selectedStudent.photo_url} alt={selectedStudent.nama} className="h-20 w-20 rounded-2xl object-cover" />
+              ) : (
+                <div className="h-20 w-20 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-400">
+                  Siswa
+                </div>
+              )}
+              <div>
+                <p className="text-lg font-semibold text-slate-900">{selectedStudent.nama}</p>
+                <p className="text-sm text-slate-500">NISN: {selectedStudent.nisn ?? '-'}</p>
+                <p className="text-sm text-slate-500">Kelas: {selectedStudent.classes?.name ?? '-'}</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 text-sm text-slate-600">
+              <div>
+                <p className="font-medium text-slate-800">Jenis Kelamin</p>
+                <p>{selectedStudent.gender ?? '-'}</p>
+              </div>
+              <div>
+                <p className="font-medium text-slate-800">Tanggal Lahir</p>
+                <p>{selectedStudent.tanggal_lahir ?? '-'}</p>
+              </div>
+              <div>
+                <p className="font-medium text-slate-800">Status</p>
+                <p>{selectedStudent.status ?? '-'}</p>
+              </div>
+              <div>
+                <p className="font-medium text-slate-800">Juz Terakhir</p>
+                <p>{selectedStudent.juz_terakhir ?? '-'}</p>
+              </div>
+            </div>
+
+            <div className="text-right">
+              <Button variant="secondary" onClick={() => setStudentModalOpen(false)}>
+                Tutup
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <p className="text-sm text-slate-500">Pilih siswa terlebih dahulu untuk melihat detail.</p>
+        )}
+      </Modal>
+
       <Modal
         open={modalOpen}
         onClose={handleCloseModal}
-        title={editingTahsin ? 'Edit Catatan Tahsin' : 'Tambah Catatan Tahsin'}
-        size="md"
+        title="Tambah Jurnal Hafalan & Tahsin"
+        size="xl"
         closeOnBackdrop={!submitting}
       >
-        {/* Error di dalam modal */}
         {submitError && (
           <div className="mb-4 rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-600">
             {submitError}
           </div>
         )}
 
-        <TahsinForm
-          initialData={editingTahsin}
+        <JurnalHafalanTahsinForm
           loading={submitting}
-          onSubmit={handleSubmit}
+          onSubmit={async (data) => {
+            setSubmitting(true);
+            setSubmitError(null);
+            setSubmitSuccess(null);
+            try {
+              const res = await fetch('/api/jurnal-hafalan-tahsin/add', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data),
+              });
+              const json = await res.json();
+              if (!res.ok) {
+                setSubmitError(json.error ? `${json.message} (${json.error})` : json.message ?? 'Gagal menyimpan jurnal.');
+                return;
+              }
+              setSubmitSuccess(json.message ?? 'Jurnal berhasil disimpan.');
+              setRefreshKey((prev) => prev + 1);
+              setModalOpen(false);
+            } catch {
+              setSubmitError('Terjadi kesalahan. Silakan coba lagi.');
+            } finally {
+              setSubmitting(false);
+            }
+          }}
           onCancel={handleCloseModal}
         />
       </Modal>

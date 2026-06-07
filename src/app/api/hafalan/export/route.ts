@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 // src/app/api/hafalan/export/route.ts
 // GET: Export hafalan ke Excel
 // Query: month=YYYY-MM (opsional), student_id (opsional)

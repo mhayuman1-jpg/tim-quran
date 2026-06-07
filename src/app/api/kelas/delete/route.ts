@@ -1,10 +1,11 @@
+export const dynamic = 'force-dynamic';
 // src/app/api/kelas/delete/route.ts
 // DELETE: Hapus kelas
 // - Return jumlah siswa terdampak sebelum hapus
 // - Siswa dengan class_id ke kelas ini akan di-SET NULL (ON DELETE SET NULL)
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
+import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
 

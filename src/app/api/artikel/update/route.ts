@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 // src/app/api/artikel/update/route.ts
 // PUT (Kabid only): Update artikel, toggle is_published (set/unset published_at)
 
@@ -53,7 +54,7 @@ export async function PUT(request: NextRequest) {
     }
 
     // Bangun payload update — hanya field yang disertakan dalam request
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     const updatePayload: Record<string, any> = {
       updated_at: new Date().toISOString(),
     };

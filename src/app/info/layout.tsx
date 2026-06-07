@@ -1,22 +1,26 @@
 import { ReactNode } from 'react';
 import PublicNavbar from '@/components/layout/PublicNavbar';
+import { createServerClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
 
 async function getProfil() {
   try {
-    const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/profil_website?select=nama_lembaga,logo_url&limit=1`;
-    const res = await fetch(url, {
-      headers: {
-        apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        Authorization: `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!}`,
-      },
-      cache: 'no-store',
-    });
-    if (!res.ok) return null;
-    const data = await res.json();
-    return Array.isArray(data) && data.length > 0 ? data[0] : null;
-  } catch {
+    const supabase = createServerClient();
+    const { data, error } = await supabase
+      .from('profil_website')
+      .select('nama_lembaga,logo_url,nama_sekolah')
+      .limit(1)
+      .maybeSingle();
+
+    if (error) {
+      console.error('[InfoLayout] Supabase error:', error.message);
+      return null;
+    }
+
+    return data ?? null;
+  } catch (error) {
+    console.error('[InfoLayout] Fetch error:', error);
     return null;
   }
 }
@@ -24,10 +28,11 @@ async function getProfil() {
 export default async function PengumumanLayout({ children }: { children: ReactNode }) {
   const profil = await getProfil();
   return (
-    <div className="min-h-screen flex flex-col bg-white">
+    <div className="min-h-screen flex flex-col bg-slate-950 text-slate-100">
       <PublicNavbar
         logoUrl={profil?.logo_url ?? null}
         namaLembaga={profil?.nama_lembaga ?? "Tim Qur'an"}
+        namaSekolah={profil?.nama_sekolah ?? undefined}
       />
       <main className="flex-1 pt-16">{children}</main>
       <footer className="bg-stone-900">

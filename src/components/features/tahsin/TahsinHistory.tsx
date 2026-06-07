@@ -22,6 +22,9 @@ interface TahsinRow {
   metode: TahsinMetode;
   buku?: string | null;
   halaman?: number | null;
+  makhroj?: string | null;
+  kelancaran?: string | null;
+  adab?: string | null;
   catatan?: string | null;
   created_at?: string;
   santri?: { id: string; nama: string } | null;
@@ -33,6 +36,8 @@ interface TahsinHistoryProps {
   studentId?: string;
   /** Callback saat tombol edit diklik */
   onEdit?: (tahsin: TahsinRow) => void;
+  /** Callback saat nama siswa diklik */
+  onSelectStudent?: (student: { id: string; nama: string }) => void;
   /** Key untuk trigger refetch dari parent */
   refreshKey?: number;
 }
@@ -64,6 +69,7 @@ function metodeVariant(metode: TahsinMetode): 'green' | 'blue' | 'red' {
 export default function TahsinHistory({
   studentId,
   onEdit,
+  onSelectStudent,
   refreshKey = 0,
 }: TahsinHistoryProps) {
   const [data, setData] = useState<TahsinRow[]>([]);
@@ -117,15 +123,34 @@ export default function TahsinHistory({
         </span>
       ),
     },
-    {
+  ];
+
+  if (!studentId) {
+    columns.push({
       key: 'nama_siswa',
       header: 'Nama Siswa',
-      render: (row) => (
-        <span className="font-medium text-slate-800">
-          {row.santri?.nama ?? '—'}
-        </span>
-      ),
-    },
+      render: (row) => {
+        const name = row.santri?.nama ?? '—';
+        if (row.santri?.id && onSelectStudent) {
+          return (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onSelectStudent({ id: row.santri!.id, nama: row.santri!.nama });
+              }}
+              className="text-left font-medium text-slate-800 hover:text-emerald-600 transition-colors"
+            >
+              {name}
+            </button>
+          );
+        }
+        return <span className="font-medium text-slate-800">{name}</span>;
+      },
+    });
+  }
+
+  columns.push(
     {
       key: 'metode',
       header: 'Metode',
@@ -134,6 +159,33 @@ export default function TahsinHistory({
         <Badge variant={metodeVariant(row.metode)}>
           {row.metode}
         </Badge>
+      ),
+    },
+    {
+      key: 'makhroj',
+      header: 'Makhroj',
+      align: 'center',
+      width: '90px',
+      render: (row) => (
+        <span className="text-slate-600">{row.makhroj || '—'}</span>
+      ),
+    },
+    {
+      key: 'kelancaran',
+      header: 'Kelancaran',
+      align: 'center',
+      width: '90px',
+      render: (row) => (
+        <span className="text-slate-600">{row.kelancaran || '—'}</span>
+      ),
+    },
+    {
+      key: 'adab',
+      header: 'Adab',
+      align: 'center',
+      width: '90px',
+      render: (row) => (
+        <span className="text-slate-600">{row.adab || '—'}</span>
       ),
     },
     {
@@ -164,7 +216,7 @@ export default function TahsinHistory({
         </span>
       ),
     },
-  ];
+  );
 
   // Tambahkan kolom aksi jika ada callback edit
   if (onEdit) {

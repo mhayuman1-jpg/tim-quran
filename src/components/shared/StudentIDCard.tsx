@@ -86,7 +86,8 @@ export function StudentIDCard({
             display: "flex", alignItems: "center", justifyContent: "center",
           }}>
             <Image src={logoSekolahUrl} alt={namaSekolah ?? "Sekolah"} width={26} height={26}
-              style={{ objectFit: "contain", width: "100%", height: "100%" }} />
+              style={{ objectFit: "contain", width: "100%", height: "100%" }}
+              unoptimized />
           </div>
         ) : (
           /* Placeholder jika tidak ada logo sekolah */
@@ -121,7 +122,8 @@ export function StudentIDCard({
             display: "flex", alignItems: "center", justifyContent: "center",
           }}>
             <Image src={logoUrl} alt={namaLembaga} width={26} height={26}
-              style={{ objectFit: "contain", width: "100%", height: "100%" }} />
+              style={{ objectFit: "contain", width: "100%", height: "100%" }}
+              unoptimized />
           </div>
         ) : (
           <div style={{
@@ -152,7 +154,8 @@ export function StudentIDCard({
         }}>
           {student.photo_url ? (
             <Image src={student.photo_url} alt={student.nama} width={60} height={76}
-              style={{ objectFit: "cover", width: "100%", height: "100%" }} />
+              style={{ objectFit: "cover", width: "100%", height: "100%" }}
+              unoptimized />
           ) : (
             <svg viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" strokeWidth="1.5" width="30" height="30">
               <path strokeLinecap="round" strokeLinejoin="round"
@@ -208,7 +211,7 @@ export function StudentIDCard({
         {/* QR Code */}
         <div style={{ flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "center", gap: "3px" }}>
           {qrDataUrl ? (
-            /* eslint-disable-next-line @next/next/no-img-element */
+             
             <img src={qrDataUrl} alt="QR Code" style={{ width: "68px", height: "68px", borderRadius: "4px" }} />
           ) : (
             <div style={{ width: "68px", height: "68px", background: "#f1f5f9", borderRadius: "4px" }} />

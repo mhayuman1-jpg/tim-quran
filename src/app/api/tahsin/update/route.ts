@@ -4,7 +4,7 @@
 // - Tim_Quran hanya bisa update tahsin milik siswa tanggung jawabnya
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
+import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
 import type { TahsinMetode } from '@/types';
@@ -25,7 +25,7 @@ export async function PUT(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { id, tanggal, metode, buku, halaman, catatan } = body;
+    const { id, tanggal, metode, buku, halaman, catatan, makhroj, kelancaran, adab } = body;
 
     // Validasi field id
     if (!id || typeof id !== 'string' || id.trim() === '') {
@@ -101,10 +101,26 @@ export async function PUT(request: NextRequest) {
     if (halaman !== undefined && halaman !== null) {
       updateData.halaman = Number(halaman);
     }
+
     // catatan boleh dikosongkan (null)
     if (catatan !== undefined) {
       updateData.catatan = typeof catatan === 'string' && catatan.trim() !== ''
         ? catatan.trim()
+        : null;
+    }
+    if (makhroj !== undefined) {
+      updateData.makhroj = typeof makhroj === 'string' && makhroj.trim() !== ''
+        ? makhroj.trim()
+        : null;
+    }
+    if (kelancaran !== undefined) {
+      updateData.kelancaran = typeof kelancaran === 'string' && kelancaran.trim() !== ''
+        ? kelancaran.trim()
+        : null;
+    }
+    if (adab !== undefined) {
+      updateData.adab = typeof adab === 'string' && adab.trim() !== ''
+        ? adab.trim()
         : null;
     }
 
@@ -121,7 +137,7 @@ export async function PUT(request: NextRequest) {
       .update(updateData)
       .eq('id', id.trim())
       .select(
-        `id, student_id, teacher_id, tanggal, metode, buku, halaman, catatan, created_at,
+        `id, student_id, teacher_id, tanggal, metode, buku, halaman, makhroj, kelancaran, adab, catatan, created_at,
          santri ( id, nama ),
          users ( id, name )`
       )

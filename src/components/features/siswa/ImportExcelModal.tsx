@@ -3,7 +3,7 @@
 import React, { useRef, useState } from 'react';
 import {
   Upload, Download, CheckCircle2, XCircle,
-  FileSpreadsheet, AlertTriangle, Filter, X,
+  FileSpreadsheet, AlertTriangle, X,
 } from 'lucide-react';
 import Modal from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';

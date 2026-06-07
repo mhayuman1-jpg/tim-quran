@@ -20,7 +20,30 @@ export const authOptions: NextAuthOptions = {
 
         const supabase = createServerClient();
 
-        // Ambil user dari tabel 'users'
+        // Prefer RPC-based verification using pgcrypto if available.
+        try {
+          const { data, error } = await supabase.rpc('auth_user', {
+            p_email: credentials.email,
+            p_password: credentials.password,
+          });
+
+          if (!error && Array.isArray(data) && data.length > 0) {
+            const user = data[0] as any;
+            if (user.status === 'Nonaktif') return null;
+            return {
+              id: user.id,
+              email: user.email,
+              name: user.name,
+              role: user.role as UserRole,
+              photo_url: user.photo_url ?? null,
+            };
+          }
+        } catch (err) {
+          // ignore and fallback to bcrypt verification below
+          console.warn('auth.rpc failed, falling back to bcrypt verification', err);
+        }
+
+        // Fallback: fetch user and compare bcrypt hash (for deployments that store bcrypt hashes)
         const { data: user, error } = await supabase
           .from('users')
           .select('id, email, name, role, status, password_hash, photo_url')
@@ -28,16 +51,12 @@ export const authOptions: NextAuthOptions = {
           .single();
 
         if (error || !user) return null;
-
-        // Tolak akun yang nonaktif
         if (user.status === 'Nonaktif') return null;
 
-        // Verifikasi password dengan bcrypt
         const passwordMatch = await bcrypt.compare(
           credentials.password,
           user.password_hash
         );
-
         if (!passwordMatch) return null;
 
         return {
@@ -57,15 +76,30 @@ export const authOptions: NextAuthOptions = {
         token.id = user.id;
         token.role = user.role as UserRole;
         token.photo_url = user.photo_url;
+        token.name = user.name;
+      } else if (token.id) {
+        const supabase = createServerClient();
+        const { data, error } = await supabase
+          .from('users')
+          .select('id, name, role, photo_url')
+          .eq('id', token.id)
+          .single();
+
+        if (!error && data) {
+          token.role = data.role as UserRole;
+          token.photo_url = data.photo_url;
+          token.name = data.name;
+        }
       }
       return token;
     },
     async session({ session, token }) {
-      // Salin id dan role dari token ke session.user
+      // Salin id, role, nama, dan photo_url dari token ke session.user
       if (session.user) {
         session.user.id = token.id;
         session.user.role = token.role;
         session.user.photo_url = token.photo_url;
+        session.user.name = token.name ?? session.user.name;
       }
       return session;
     },

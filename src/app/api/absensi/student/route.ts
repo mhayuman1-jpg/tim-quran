@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 // src/app/api/absensi/student/route.ts
 // GET: Ambil riwayat kehadiran untuk satu siswa tertentu
 // Query param: student_id (required), date_from (optional), date_to (optional)

@@ -4,7 +4,7 @@
 // Auth: Kabid only
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
+import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
 
@@ -30,8 +30,7 @@ export async function PUT(request: NextRequest) {
   const { error } = await supabase
     .from('users')
     .update({ photo_url, updated_at: new Date().toISOString() })
-    .eq('id', id)
-    .eq('role', 'Tim_Quran'); // safety: hanya boleh update Tim_Quran
+    .eq('id', id);
 
   if (error) {
     console.error('Supabase error updating photo:', error);

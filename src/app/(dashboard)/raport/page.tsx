@@ -9,9 +9,8 @@ import { useReactToPrint } from 'react-to-print';
 import Modal from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
 import RaportTahfidzForm, { type RaportTahfidzFormData } from '@/components/features/raport/RaportTahfidzForm';
-import RaportTahfidzPrintable, { type RaportTahfidzData } from '@/components/features/raport/RaportTahfidzPrintable';
+import RaportTahfidzPrintable, { type RaportTahfidzData, type DetailSurahData } from '@/components/features/raport/RaportTahfidzPrintable';
 import { useRole } from '@/hooks/useRole';
-import { getNilaiColor } from '@/lib/surahData';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -22,8 +21,18 @@ interface RaportRow {
   juz?: number | null;
   catatan?: string | null;
   nama_guru_kelas?: string | null;
+  niy_guru_kelas?: string | null;
   nama_kabid?: string | null;
+  niy_kabid?: string | null;
   nama_kepala_sekolah?: string | null;
+  niy_kepala_sekolah?: string | null;
+  tahsin_metode?: string | null;
+  tahsin_buku?: string | null;
+  tahsin_halaman?: string | null;
+  tahsin_makhroj?: string | null;
+  tahsin_kelancaran?: string | null;
+  tahsin_adab?: string | null;
+  tahsin_catatan?: string | null;
   created_at?: string;
   santri?: {
     id: string;
@@ -51,6 +60,8 @@ export default function RaportPage() {
   // Selected raport for preview
   const [selected, setSelected] = useState<RaportRow | null>(null);
   const [selectedLoading, setSelectedLoading] = useState(false);
+  const [inlineEdit, setInlineEdit] = useState(false);
+  const [inlineDraft, setInlineDraft] = useState<Partial<RaportTahfidzData> & { detail?: DetailSurahData[] }>({});
 
   // Form modal
   const [formOpen, setFormOpen] = useState(false);
@@ -102,8 +113,12 @@ export default function RaportPage() {
       const res = await fetch(`/api/raport/tahfidz?id=${row.id}`);
       const json = await res.json();
       setSelected(json.data ?? row);
+      setInlineDraft({});
+      setInlineEdit(false);
     } catch {
       setSelected(row);
+      setInlineDraft({});
+      setInlineEdit(false);
     } finally {
       setSelectedLoading(false);
     }
@@ -123,8 +138,18 @@ export default function RaportPage() {
       juz: full.juz ?? null,
       catatan: full.catatan ?? '',
       nama_guru_kelas: full.nama_guru_kelas ?? '',
+      niy_guru_kelas: full.niy_guru_kelas ?? '',
       nama_kabid: full.nama_kabid ?? '',
+      niy_kabid: full.niy_kabid ?? '',
       nama_kepala_sekolah: full.nama_kepala_sekolah ?? '',
+      niy_kepala_sekolah: full.niy_kepala_sekolah ?? '',
+      tahsin_metode: full.tahsin_metode ?? '',
+      tahsin_buku: full.tahsin_buku ?? '',
+      tahsin_halaman: full.tahsin_halaman ?? '',
+      tahsin_makhroj: full.tahsin_makhroj ?? '',
+      tahsin_kelancaran: full.tahsin_kelancaran ?? '',
+      tahsin_adab: full.tahsin_adab ?? '',
+      tahsin_catatan: full.tahsin_catatan ?? '',
       detail: (full.raport_tahfidz_detail ?? [])
         .sort((a: any, b: any) => a.urutan - b.urutan)
         .map((d: any) => ({
@@ -194,7 +219,75 @@ export default function RaportPage() {
     }
   };
 
-  const detail = (selected?.raport_tahfidz_detail ?? []).sort((a: any, b: any) => a.urutan - b.urutan);
+  const currentPreviewRaport = selected ? {
+    ...selected,
+    ...inlineDraft,
+    raport_tahfidz_detail: inlineDraft.detail ?? selected.raport_tahfidz_detail,
+  } : selected;
+
+  const handleInlineFieldChange = (field: keyof RaportTahfidzData, value: string | null) => {
+    setInlineDraft(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleInlineDetailChange = (index: number, field: keyof DetailSurahData, value: string | null) => {
+    setInlineDraft(prev => {
+      const currentDetail = prev.detail ?? selected?.raport_tahfidz_detail ?? [];
+      const updated = currentDetail.map((row, i) => i === index ? { ...row, [field]: value } : row);
+      return { ...prev, detail: updated };
+    });
+  };
+
+  const handleInlineAddRow = () => {
+    setInlineDraft(prev => {
+      const currentDetail = prev.detail ?? selected?.raport_tahfidz_detail ?? [];
+      const nextRow: DetailSurahData = {
+        urutan: currentDetail.length + 1,
+        nama_surah: '',
+        makhroj: '',
+        tajwid: '',
+        lancar: '',
+        wafa_buku: '',
+        wafa_halaman: '',
+      };
+      return { ...prev, detail: [...currentDetail, nextRow] };
+    });
+  };
+
+  const handleInlineRemoveRow = (index: number) => {
+    setInlineDraft(prev => {
+      const currentDetail = prev.detail ?? selected?.raport_tahfidz_detail ?? [];
+      const updated = currentDetail.filter((_, i) => i !== index).map((row, i) => ({ ...row, urutan: i + 1 }));
+      return { ...prev, detail: updated };
+    });
+  };
+
+  const handleSaveInline = async () => {
+    if (!selected) return;
+    setFormSubmitting(true);
+    setFormError(null);
+    try {
+      const body = { id: selected.id, ...inlineDraft };
+      const res = await fetch('/api/raport/tahfidz', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setFormError(json.message ?? 'Gagal menyimpan perubahan.');
+        return;
+      }
+      setSelected(json.data ?? selected);
+      setInlineDraft({});
+      setInlineEdit(false);
+      setFormSuccess('Perubahan berhasil disimpan.');
+      setTimeout(() => setFormSuccess(null), 3000);
+    } catch {
+      setFormError('Terjadi kesalahan saat menyimpan perubahan.');
+    } finally {
+      setFormSubmitting(false);
+    }
+  };
 
   // ─────────────────────────────────────────────────────────────────────────
   return (
@@ -204,9 +297,9 @@ export default function RaportPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
             <ClipboardList size={24} className="text-emerald-600" />
-            Raport Tahfidz
+            Raport Tahfidz & Tahsin
           </h1>
-          <p className="text-slate-500 text-sm mt-0.5">Penilaian hafalan Al-Qur'an per surah — format resmi siap cetak.</p>
+          <p className="text-slate-500 text-sm mt-0.5">Penilaian hafalan dan tahsin Al-Qur'an per surah — format resmi siap cetak.</p>
         </div>
         <Button variant="primary" leftIcon={<Plus size={16} />}
           onClick={() => { setEditingId(null); setEditingData(null); setFormError(null); setFormOpen(true); }}>
@@ -315,10 +408,15 @@ export default function RaportPage() {
                     {selected.santri?.nama} — {selected.periode}
                   </p>
                 </div>
-                <div className="flex gap-2">
-                  <Button variant="secondary" leftIcon={<Edit2 size={14} />} onClick={() => handleEdit(selected)}>
-                    Edit
+                <div className="flex flex-wrap gap-2">
+                  <Button variant={inlineEdit ? 'secondary' : 'ghost'} leftIcon={<Edit2 size={14} />} onClick={() => setInlineEdit(p => !p)}>
+                    {inlineEdit ? 'Batal Edit Langsung' : 'Edit Langsung'}
                   </Button>
+                  {inlineEdit && (
+                    <Button variant="primary" leftIcon={<Edit2 size={14} />} onClick={handleSaveInline} loading={formSubmitting}>
+                      Simpan Perubahan
+                    </Button>
+                  )}
                   <Button variant="primary" leftIcon={<Printer size={14} />} onClick={() => handlePrint()}>
                     Cetak
                   </Button>
@@ -328,7 +426,15 @@ export default function RaportPage() {
               {/* Preview card — this is also the print target */}
               <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
                 <div ref={printRef}>
-                  <RaportTahfidzPrintable raport={selected as any} hideButtons />
+                  <RaportTahfidzPrintable
+                    raport={currentPreviewRaport as any}
+                    hideButtons
+                    inlineEdit={inlineEdit}
+                    onInlineChange={handleInlineFieldChange}
+                    onInlineDetailChange={handleInlineDetailChange}
+                    onInlineAddRow={handleInlineAddRow}
+                    onInlineRemoveRow={handleInlineRemoveRow}
+                  />
                 </div>
               </div>
             </div>

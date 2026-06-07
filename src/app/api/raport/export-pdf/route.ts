@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 // src/app/api/raport/export-pdf/route.ts
 // GET: Export raport siswa ke PDF
 // Query: id=raport_id (satu raport) ATAU periode=xxx (semua di periode itu)

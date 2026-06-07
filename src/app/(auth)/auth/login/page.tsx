@@ -11,18 +11,28 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [redirecting, setRedirecting] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const router = useRouter();
 
-  // Load remembered email on mount
+  // Check unlock status and load remembered email on mount
   useEffect(() => {
     if (typeof window === 'undefined') return;
+    
+    // Check if user has unlocked access
+    const isUnlocked = sessionStorage.getItem('auth_unlocked');
+    if (!isUnlocked) {
+      router.push('/auth/unlock');
+      return;
+    }
+
+    // Load remembered email
     const saved = localStorage.getItem('tq_remembered_email');
     if (saved) {
       setEmail(saved);
       setRememberMe(true);
     }
-  }, []);
+  }, [router]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,13 +52,42 @@ export default function LoginPage() {
       // Defensive cleanup — ensure password is never persisted
       localStorage.removeItem('tq_password');
       sessionStorage.removeItem('tq_password');
+      // Show full-screen loading overlay before redirect
+      setRedirecting(true);
       router.push("/dashboard"); router.refresh();
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center relative overflow-hidden"
-      style={{background: 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #312e81 100%)'}}>
+    <>
+      {/* ── Full-screen redirect overlay ─────────────────────────────────── */}
+      {redirecting && (
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center"
+          style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #312e81 100%)' }}>
+          {/* Spinning ring */}
+          <div className="relative w-20 h-20 mb-6">
+            <div className="absolute inset-0 rounded-full border-4 border-indigo-900/50" />
+            <div className="absolute inset-0 rounded-full border-4 border-t-indigo-400 border-r-transparent border-b-transparent border-l-transparent animate-spin" />
+            <div className="absolute inset-[6px] rounded-full flex items-center justify-center"
+              style={{ background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', boxShadow: '0 0 24px rgba(99,102,241,0.6)' }}>
+              <BookOpen size={22} className="text-white" />
+            </div>
+          </div>
+          <p className="text-white text-base font-semibold mb-1">Masuk ke Dashboard...</p>
+          <p className="text-indigo-300/60 text-sm">Menyiapkan halaman untuk Anda</p>
+          {/* Animated dots */}
+          <div className="flex gap-1.5 mt-4">
+            {[0,1,2].map(i => (
+              <span key={i} className="w-1.5 h-1.5 rounded-full bg-indigo-400/60 animate-bounce"
+                style={{ animationDelay: `${i * 0.15}s` }} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Background blobs */}
+      <div className="min-h-screen flex items-center justify-center relative overflow-hidden"
+        style={{background: 'linear-gradient(135deg, #020617 0%, #0b122c 35%, #151d4c 65%, #0f172a 100%)'}}>
 
       {/* Background blobs */}
       <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
@@ -78,12 +117,15 @@ export default function LoginPage() {
 
           {/* Logo & title */}
           <div className="text-center mb-8">
+            <span className="inline-flex items-center gap-2 rounded-full bg-slate-900/70 px-4 py-2 text-xs uppercase tracking-[0.28em] text-sky-200 ring-1 ring-sky-400/20 mb-4">
+              <BookOpen size={14} /> Panel Tim Qur&apos;an
+            </span>
             <div className="inline-flex w-16 h-16 rounded-2xl items-center justify-center mb-4"
-              style={{background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', boxShadow: '0 8px 32px rgba(99,102,241,0.5)'}}>
+              style={{background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', boxShadow: '0 10px 40px rgba(99,102,241,0.35)'}}>
               <BookOpen size={28} className="text-white" />
             </div>
-            <h1 className="text-3xl font-bold text-white mb-1">Selamat Datang</h1>
-            <p className="text-indigo-200/60 text-sm">Masuk ke dashboard Tim Qur&apos;an</p>
+            <h1 className="text-3xl font-black text-white mb-1">Selamat Datang</h1>
+            <p className="text-indigo-200/70 text-sm">Akses laporan, jadwal, dan progress santri dengan cepat.</p>
           </div>
 
           {/* Hadits mini */}
@@ -147,7 +189,7 @@ export default function LoginPage() {
 
             <button type="submit" disabled={loading}
               className="w-full flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold text-white transition-all hover:scale-[1.02] active:scale-100 disabled:opacity-60 disabled:cursor-not-allowed mt-2"
-              style={{background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', boxShadow: '0 8px 32px rgba(99,102,241,0.4)'}}>
+              style={{background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', boxShadow: '0 8px 40px rgba(99,102,241,0.4)'}}>
               {loading ? (
                 <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Memproses...</>
               ) : (
@@ -155,12 +197,24 @@ export default function LoginPage() {
               )}
             </button>
           </form>
+
+          <div className="mt-6 grid gap-3 sm:grid-cols-2 text-sm text-slate-300">
+            <div className="rounded-2xl border border-slate-800 bg-slate-900/75 p-3">
+              <p className="font-semibold text-white">Akses Cepat</p>
+              <p className="text-slate-400 mt-1">Lihat laporan dan jadwal tanpa repot.</p>
+            </div>
+            <div className="rounded-2xl border border-slate-800 bg-slate-900/75 p-3">
+              <p className="font-semibold text-white">Keamanan Prioritas</p>
+              <p className="text-slate-400 mt-1">Sesi aman dan proteksi data terjaga.</p>
+            </div>
+          </div>
         </div>
 
         <p className="text-center text-white/25 text-xs mt-6">
           &copy; {new Date().getFullYear()} Tim Qur&apos;an. Sistem Manajemen Tahfidz &amp; Tahsin.
         </p>
       </div>
-    </div>
+      </div>
+    </>
   );
 }

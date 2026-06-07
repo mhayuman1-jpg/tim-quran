@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 // src/app/api/raport/[id]/route.ts
 // GET: Ambil detail raport by id
 // PUT: Update raport by id

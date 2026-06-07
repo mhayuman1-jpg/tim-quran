@@ -2,11 +2,46 @@
 // PUT: Update nama lengkap user, return data terbaru
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
+import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
+
+export async function GET() {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session || !session.user) {
+      return NextResponse.json(
+        { message: 'Sesi tidak valid, silakan login kembali' },
+        { status: 401 }
+      );
+    }
+
+    const supabase = createServerClient();
+    const { data, error } = await supabase
+      .from('users')
+      .select('id, name, email, role, status, photo_url')
+      .eq('id', session.user.id)
+      .single();
+
+    if (error) {
+      console.error('Supabase error loading profile:', error);
+      return NextResponse.json(
+        { message: 'Gagal memuat profil.', error: error.message },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({ data }, { status: 200 });
+  } catch (error) {
+    console.error('Route error /api/pengaturan/profile:', error);
+    return NextResponse.json(
+      { message: 'Terjadi kesalahan pada server' },
+      { status: 500 }
+    );
+  }
+}
 
 export async function PUT(request: NextRequest) {
   try {

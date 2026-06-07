@@ -1,607 +1,545 @@
-// src/app/page.tsx — Landing Page Tim Qur'an
-// Tema: Warm Gold/Amber — tanpa route group
+﻿// src/app/page.tsx — Landing page baru Tim Qur'an
 
 export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+export const revalidate = 60;
 
-import Image from 'next/image';
+import React from 'react';
+import { default as nextDynamic } from 'next/dynamic';
 import Link from 'next/link';
+import { AtSign, Globe, Mail, MapPin, Phone, PlayCircle } from 'lucide-react';
 import PublicNavbar from '@/components/layout/PublicNavbar';
-import {
-  BookOpen, Users, Star, Mic, ChevronRight, Award,
-  MapPin, Clock, Calendar, Heart, Shield,
-  Phone, Mail, AtSign, PlayCircle, Globe, TrendingUp,
-} from 'lucide-react';
+import { createServerClient } from '@/lib/supabase/server';
 
-// Helper: query Supabase via REST API (tidak perlu import library di server component publik)
-async function supabaseQuery(table: string, params: Record<string, string> = {}) {
-  const url = new URL(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/${table}`);
-  Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
-  const res = await fetch(url.toString(), {
-    headers: {
-      apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      Authorization: `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!}`,
-      'Content-Type': 'application/json',
-    },
-    cache: 'no-store',
+const StudentProgressChart = nextDynamic(
+  () => import('@/components/features/charts/StudentProgressChart'),
+  { ssr: false }
+);
+
+interface MonthlyProgressPoint {
+  month: string;
+  tahfidz: number;
+  tahsin: number;
+}
+
+function getSixMonthRange(): { label: string; key: string }[] {
+  const today = new Date();
+  return Array.from({ length: 6 }, (_, index) => {
+    const date = new Date(today.getFullYear(), today.getMonth() - (5 - index), 1);
+    const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+    const label = date.toLocaleDateString('id-ID', { month: 'short' });
+    return { label, key };
   });
-  if (!res.ok) return null;
-  return res.json();
+}
+
+async function getMonthlyProgressData(): Promise<MonthlyProgressPoint[]> {
+  try {
+    const res = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/landing/monthly-progress`, {
+      cache: 'no-store',
+    });
+
+    if (!res.ok) {
+      console.error('[LandingPage] Monthly progress API error:', res.status);
+      return getSixMonthRange().map((month) => ({
+        month: month.label,
+        tahfidz: 0,
+        tahsin: 0,
+      }));
+    }
+
+    const json = await res.json();
+    return json.data ?? [];
+  } catch (error) {
+    console.error('[LandingPage] getMonthlyProgressData error:', error);
+    return getSixMonthRange().map((month) => ({
+      month: month.label,
+      tahfidz: 0,
+      tahsin: 0,
+    }));
+  }
 }
 
 async function getPageData() {
   try {
     const today = new Date().toISOString().split('T')[0];
+    const supabase = createServerClient();
 
-    const [profilArr, programs, agendas, pengumumans, artikels, galeris, santriStats] = await Promise.all([
-      supabaseQuery('profil_website', { select: '*', limit: '1' }),
-      supabaseQuery('program', { select: '*', is_active: 'eq.true', order: 'urutan.asc' }),
-      supabaseQuery('agenda', { select: '*', is_published: 'eq.true', tanggal: `gte.${today}`, order: 'tanggal.asc', limit: '5' }),
-      supabaseQuery('pengumuman', { select: '*', order: 'created_at.desc', limit: '4' }),
-      supabaseQuery('artikel', { select: 'id,judul,slug,cover_url,published_at', is_published: 'eq.true', order: 'published_at.desc', limit: '3' }),
-      supabaseQuery('galeri', { select: '*', is_published: 'eq.true', order: 'urutan.asc', limit: '8' }),
-      supabaseQuery('santri', { select: 'id,juz_terakhir', status: 'eq.Aktif', limit: '500' }),
+    const [profilResult, programsResult, agendasResult, pengumumanResult, artikelResult, galeriResult, santriResult, navResult] = await Promise.all([
+      supabase.from('profil_website').select('*').limit(1).maybeSingle(),
+      supabase.from('program').select('*').eq('is_active', true).order('urutan', { ascending: true }),
+      supabase.from('agenda').select('*').eq('is_published', true).gte('tanggal', today).order('tanggal', { ascending: true }).limit(5),
+      supabase.from('pengumuman').select('*').order('created_at', { ascending: false }).limit(5),
+      supabase.from('artikel').select('id,judul,slug,cover_url,published_at').eq('is_published', true).order('published_at', { ascending: false }).limit(6),
+      supabase.from('galeri').select('*').eq('is_published', true).order('urutan', { ascending: true }).limit(8),
+      supabase.from('santri').select('id,juz_terakhir').eq('status', 'Aktif').limit(500),
+      supabase.from('navigation_items').select('*').eq('is_active', true).order('urutan', { ascending: true }),
     ]);
 
-    const profil = Array.isArray(profilArr) && profilArr.length > 0 ? profilArr[0] : null;
-    const santriData: { juz_terakhir?: number }[] = Array.isArray(santriStats) ? santriStats : [];
+    const profil = profilResult?.data ?? null;
+    const programs = Array.isArray(programsResult?.data) ? programsResult.data : [];
+    const agendas = Array.isArray(agendasResult?.data) ? agendasResult.data : [];
+    const pengumumans = Array.isArray(pengumumanResult?.data) ? pengumumanResult.data : [];
+    const artikels = Array.isArray(artikelResult?.data) ? artikelResult.data : [];
+    const galeris = Array.isArray(galeriResult?.data) ? galeriResult.data : [];
+    const santriData = Array.isArray(santriResult?.data) ? santriResult.data : [];
+    const navigation = Array.isArray(navResult?.data) ? navResult.data : [];
     const totalSantri = santriData.length;
-
-    const juzGroups = [
-      { label: 'Juz 1\u20135', min: 1, max: 5, count: 0 },
-      { label: 'Juz 6\u201310', min: 6, max: 10, count: 0 },
-      { label: 'Juz 11\u201315', min: 11, max: 15, count: 0 },
-      { label: 'Juz 16\u201320', min: 16, max: 20, count: 0 },
-      { label: 'Juz 21\u201325', min: 21, max: 25, count: 0 },
-      { label: 'Juz 26\u201330', min: 26, max: 30, count: 0 },
-    ];
-
-    for (const s of santriData) {
-      const juz = s.juz_terakhir ?? 1;
-      const group = juzGroups.find(g => juz >= g.min && juz <= g.max);
-      if (group) group.count++;
-    }
+    const monthlyProgress = await getMonthlyProgressData();
 
     return {
       profil,
-      programs: Array.isArray(programs) ? programs : [],
-      agendas: Array.isArray(agendas) ? agendas : [],
-      pengumumans: Array.isArray(pengumumans) ? pengumumans : [],
-      artikels: Array.isArray(artikels) ? artikels : [],
-      galeris: Array.isArray(galeris) ? galeris : [],
+      programs,
+      agendas,
+      pengumumans,
+      artikels,
+      galeris,
       totalSantri,
-      juzGroups,
+      monthlyProgress,
+      navigation,
     };
-  } catch {
+  } catch (error) {
+    console.error('[LandingPage] getPageData error:', error);
     return {
-      profil: null, programs: [], agendas: [], pengumumans: [],
-      artikels: [], galeris: [], totalSantri: 0,
-      juzGroups: [
-        { label: 'Juz 1\u20135', min: 1, max: 5, count: 0 },
-        { label: 'Juz 6\u201310', min: 6, max: 10, count: 0 },
-        { label: 'Juz 11\u201315', min: 11, max: 15, count: 0 },
-        { label: 'Juz 16\u201320', min: 16, max: 20, count: 0 },
-        { label: 'Juz 21\u201325', min: 21, max: 25, count: 0 },
-        { label: 'Juz 26\u201330', min: 26, max: 30, count: 0 },
-      ],
+      profil: null,
+      programs: [],
+      agendas: [],
+      pengumumans: [],
+      artikels: [],
+      galeris: [],
+      totalSantri: 0,
+      navigation: [],
     };
   }
 }
 
-function formatTanggal(d: string) {
-  return new Date(d).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' });
-}
-function formatWaktu(t: string | null) { return t ? t.slice(0, 5) : ''; }
-
-const ICON_MAP: Record<string, React.ElementType> = {
-  BookOpen, Users, Star, Mic, Globe, Heart, Shield, Award,
+const formatDate = (value: string | null | undefined): string => {
+  try {
+    return new Date(String(value)).toLocaleDateString('id-ID', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    });
+  } catch {
+    return String(value ?? '');
+  }
 };
 
 export default async function LandingPage() {
-  const { profil: pd, programs, agendas, pengumumans, artikels, galeris, totalSantri, juzGroups } = await getPageData();
-
+  const { profil: pd, programs, agendas, pengumumans, artikels, totalSantri, monthlyProgress, navigation } = await getPageData();
   const profil = pd ?? {
     nama_lembaga: "Tim Qur'an",
     deskripsi: "Program Tahfidz dan Tahsin Al-Qur'an yang berdedikasi mencetak generasi Qur'ani berakhlak mulia.",
     visi: 'Menjadi lembaga Tahfidz & Tahsin terdepan.',
     misi: ['Pembelajaran berkualitas', 'Mencetak hafidz berakhlak'],
-    logo_url: null, logo_sekolah_url: null, nama_sekolah: null,
-    alamat: null, email: null, telepon: null, instagram: null, youtube: null,
+    logo_url: null,
+    nama_sekolah: null,
+    alamat: null,
+    email: null,
+    telepon: null,
+    instagram: null,
+    youtube: null,
+    facebook: null,
   };
 
-  const maxJuzCount = Math.max(...juzGroups.map(g => g.count), 1);
+  const activeNav = Array.isArray(navigation)
+    ? navigation.filter((item) => item.is_active ?? true)
+    : [];
+
+  const programCards = Array.isArray(programs) ? programs.slice(0, 4) : [];
+  const latestArticles = Array.isArray(artikels) ? artikels.slice(0, 3) : [];
+  const latestAnnouncements = Array.isArray(pengumumans) ? pengumumans.slice(0, 3) : [];
+  const latestAgendas = Array.isArray(agendas) ? agendas.slice(0, 3) : [];
+
+  const testimonials = [
+    { name: 'Ustadz Ahmad', role: 'Pengajar', quote: 'Lingkungan pembelajaran sangat nyaman dan dukungannya luar biasa.' },
+    { name: 'Siti Fatimah', role: 'Orang Tua Santri', quote: 'Anak saya semakin percaya diri dan disiplin sejak belajar di sini.' },
+  ];
 
   return (
-    <div className="min-h-screen flex flex-col bg-white">
-      <PublicNavbar logoUrl={profil.logo_url ?? null} namaLembaga={profil.nama_lembaga ?? "Tim Qur'an"} />
-      <main className="flex-1 pt-16">
-      <div className="overflow-x-hidden font-sans">
+    <div className="min-h-screen bg-slate-950 text-slate-100" style={{backgroundColor: '#0f172a', color: '#f8fafc', minHeight: '100vh'}}>
+      <PublicNavbar
+        logoUrl={profil.logo_url ?? null}
+        namaLembaga={profil.nama_lembaga ?? "Tim Qur'an"}
+        namaSekolah={profil.nama_sekolah ?? undefined}
+        navigationItems={activeNav}
+      />
 
-      {/* ══════════ HERO — Warm Brown/Gold ══════════ */}
-      <section id="beranda" className="relative min-h-screen flex items-center overflow-hidden"
-        style={{background: 'linear-gradient(135deg, #1a0a00 0%, #431407 40%, #7c2d12 75%, #9a3412 100%)'}}>
-
-        {/* Decorations */}
-        <div className="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
-          <div className="absolute -top-32 -left-32 w-[500px] h-[500px] rounded-full animate-float"
-            style={{background: 'radial-gradient(circle, rgba(245,158,11,0.15) 0%, transparent 70%)', animationDuration: '7s'}} />
-          <div className="absolute -bottom-32 right-0 w-[400px] h-[400px] rounded-full animate-float"
-            style={{background: 'radial-gradient(circle, rgba(251,191,36,0.1) 0%, transparent 70%)', animationDuration: '9s', animationDelay: '3s'}} />
-          {/* Ornament kaligrafi */}
-          <div className="absolute right-4 top-0 bottom-0 flex items-center select-none pointer-events-none">
-            <span className="text-amber-500/[0.06] font-serif leading-none" style={{fontSize: 'clamp(180px, 22vw, 340px)'}}>&#1575;&#1604;&#1604;&#1607;</span>
-          </div>
-          {/* Subtle grid pattern */}
-          <div className="absolute inset-0 opacity-[0.04]"
-            style={{backgroundImage: 'linear-gradient(rgba(245,158,11,0.8) 1px, transparent 1px), linear-gradient(90deg, rgba(245,158,11,0.8) 1px, transparent 1px)', backgroundSize: '80px 80px'}} />
-        </div>
-
-        <div className="relative z-10 max-w-6xl mx-auto px-6 py-32 grid lg:grid-cols-2 gap-16 items-center w-full">
-          {/* Kiri */}
-          <div>
-            {/* Badge */}
-            <div className="animate-fade-in-up inline-flex items-center gap-2 px-4 py-1.5 rounded-full border text-amber-300 text-sm font-medium mb-8"
-              style={{background: 'rgba(245,158,11,0.12)', borderColor: 'rgba(245,158,11,0.3)'}}>
-              <Star size={13} className="fill-amber-400 text-amber-400" />
-              Program Unggulan Tahfidz &amp; Tahsin Al-Qur&apos;an
-            </div>
-
-            {/* Logo + nama */}
-            <div className="flex items-center gap-5 mb-5">
-              {profil.logo_url ? (
-                <div className="relative shrink-0" style={{borderRadius: '16px', padding: '3px', background: 'linear-gradient(135deg, rgba(245,158,11,0.7), rgba(251,191,36,0.4))'}}>
-                  <Image src={profil.logo_url} alt="Logo" width={72} height={72} className="rounded-xl object-cover" style={{width: 72, height: 72}} />
-                </div>
-              ) : (
-                <div className="w-[72px] h-[72px] rounded-xl shrink-0 flex items-center justify-center"
-                  style={{background: 'rgba(245,158,11,0.2)', border: '1px solid rgba(245,158,11,0.4)'}}>
-                  <BookOpen size={30} className="text-amber-400" />
-                </div>
-              )}
-              <h1 className="font-bold text-white leading-tight" style={{fontSize: 'clamp(2.2rem, 4.5vw, 3.8rem)'}}>
-                {profil.nama_lembaga}
-              </h1>
-            </div>
-
-            <p className="text-amber-100/70 text-lg leading-relaxed mb-8 max-w-lg">
-              {profil.deskripsi}
-            </p>
-
-            {/* Hadits card */}
-            <div className="rounded-2xl p-5 mb-8"
-              style={{background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)'}}>
-              <p className="text-2xl text-amber-100 text-right leading-loose mb-2" dir="rtl">
-                &#1582;&#1614;&#1610;&#1618;&#1585;&#1615;&#1603;&#1615;&#1605;&#32;&#1605;&#1614;&#1606;&#32;&#1578;&#1614;&#1593;&#1614;&#1604;&#1614;&#1617;&#1605;&#1614;&#32;&#1575;&#1604;&#1618;&#1602;&#1615;&#1585;&#1618;&#1570;&#1606;&#1614;&#32;&#1608;&#1614;&#1593;&#1614;&#1604;&#1614;&#1617;&#1605;&#1614;&#1607;&#1615;
-              </p>
-              <p className="text-amber-300/70 text-sm italic text-center">
-                &ldquo;Sebaik-baik kalian adalah yang mempelajari Al-Qur&apos;an dan mengajarkannya.&rdquo;
-              </p>
-              <p className="text-amber-400/40 text-xs text-center mt-1">(HR. Bukhari no. 5027)</p>
-            </div>
-
-            {/* CTA */}
-            <div className="flex flex-wrap gap-3">
-              <Link href="/login" className="group inline-flex items-center gap-2 px-7 py-3.5 rounded-xl font-bold text-white transition-all hover:scale-105"
-                style={{background: 'linear-gradient(135deg, #d97706, #f59e0b)', boxShadow: '0 8px 32px rgba(217,119,6,0.5)'}}>
-                <span>Masuk Dashboard</span>
-                <ChevronRight size={18} className="group-hover:translate-x-1 transition-transform" />
-              </Link>
-              <a href="#profil" className="inline-flex items-center gap-2 px-7 py-3.5 rounded-xl font-semibold text-amber-200 transition-all hover:bg-white/10"
-                style={{background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)'}}>
-                Pelajari Lebih
-              </a>
-            </div>
-          </div>
-
-          {/* Kanan — stat cards gold */}
-          <div className="hidden lg:grid grid-cols-2 gap-4">
-            {([
-              { val: totalSantri > 0 ? String(totalSantri) : '\u2014', label: 'Santri Aktif', icon: '\uD83D\uDC68\u200D\uD83C\uDF93', dur: '6s' },
-              { val: '30', label: "Juz Al-Qur'an", icon: '\uD83D\uDCD6', dur: '7s' },
-              { val: '114', label: 'Surah', icon: '\uD83D\uDD4C', dur: '5s' },
-              { val: '\u221E', label: 'Keberkahan', icon: '\u2728', dur: '8s' },
-            ] as const).map(s => (
-              <div key={s.label} className="animate-float rounded-2xl p-6 text-center"
-                style={{background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.2)', backdropFilter: 'blur(12px)', animationDuration: s.dur}}>
-                <div className="text-3xl mb-2">{s.icon}</div>
-                <p className="text-4xl font-bold text-white mb-1">{s.val}</p>
-                <p className="text-amber-300/70 text-sm">{s.label}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Wave divider */}
-        <div className="absolute bottom-0 left-0 right-0">
-          <svg viewBox="0 0 1440 80" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full" style={{display:'block'}}>
-            <path d="M0 80L60 74.7C120 69.3 240 58.7 360 53.3C480 48 600 48 720 53.3C840 58.7 960 69.3 1080 74.7C1200 80 1320 80 1380 80H1440V80H0V80Z" fill="#fffbeb"/>
-          </svg>
-        </div>
-      </section>
-
-      {/* ══════════ GRAFIK PROGRES SANTRI ══════════ */}
-      {totalSantri > 0 && (
-        <section className="py-20 bg-amber-50">
-          <div className="max-w-5xl mx-auto px-6">
-            <div className="text-center mb-12">
-              <span className="inline-block px-4 py-1 rounded-full bg-amber-100 text-amber-700 text-sm font-semibold mb-3 border border-amber-200">
-                📊 Statistik Hafalan
+      <main className="pt-16">
+        <section className="relative overflow-hidden bg-[#06162e] px-6 pb-24 pt-28 text-white"
+          style={{backgroundColor: '#06162e', color: '#f8fafc', backgroundImage: 'radial-gradient(circle at 20% 20%, rgba(56,189,248,0.16), transparent 16%), radial-gradient(circle at 85% 15%, rgba(59,130,246,0.15), transparent 12%), radial-gradient(circle at 50% 110%, rgba(14,165,233,0.12), transparent 24%)'}}>
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(56,189,248,0.16),_transparent_30%)]" />
+          <div className="absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-slate-950/90 to-transparent" />
+          <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.03),transparent_40%,rgba(255,255,255,0.02))]" />
+          <div className="absolute right-0 top-1/2 h-72 w-72 -translate-y-1/2 rounded-full bg-cyan-400/10 blur-3xl" />
+          <div className="absolute left-12 top-24 h-40 w-40 rounded-full bg-sky-400/10 blur-3xl" />
+          <div className="relative mx-auto max-w-6xl">
+            <div className="space-y-6">
+              <span className="inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-900/80 px-4 py-2 text-xs uppercase tracking-[0.32em] text-sky-300/90">
+                <span className="h-2 w-2 rounded-full bg-sky-300 shadow-lg shadow-sky-500/30" /> Pendidikan Qur'ani Terpercaya
               </span>
-              <h2 className="text-3xl font-bold text-stone-900 mb-2">Progres Hafalan Santri</h2>
-              <p className="text-stone-500 max-w-md mx-auto text-sm">Distribusi pencapaian juz Al-Qur&apos;an seluruh santri aktif</p>
+              <h1 className="text-4xl font-black leading-tight sm:text-5xl lg:text-6xl">
+                Membangun Generasi <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 via-sky-300 to-indigo-300">Qur'ani</span> dengan Misi Modern
+              </h1>
+              <p className="max-w-2xl text-lg leading-8 text-slate-200 sm:text-xl">{profil.deskripsi}</p>
+              <div className="flex flex-col gap-3 sm:flex-row items-start sm:items-center">
+                <Link href="/profil" className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-sky-500 to-cyan-400 px-6 py-3 text-base font-semibold text-slate-950 shadow-xl shadow-cyan-500/25 transition hover:opacity-95 hover:-translate-y-0.5">
+                  Pelajari Lebih Lanjut
+                </Link>
+                <Link href="/profil" className="inline-flex items-center justify-center rounded-full border border-slate-700 bg-slate-900/80 px-6 py-3 text-base font-semibold text-white transition hover:bg-slate-800">
+                  Hubungi Kami
+                </Link>
+                <span className="inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-900/70 px-4 py-2 text-xs uppercase tracking-[0.28em] text-cyan-200 shadow-lg shadow-slate-950/20">
+                  <span className="h-2 w-2 rounded-full bg-cyan-300 animate-pulse"></span>
+                  100+ santri Qur'ani
+                </span>
+              </div>
+              <div className="mt-10 grid gap-4 sm:grid-cols-3">
+                <div className="rounded-3xl border border-slate-800 bg-slate-900/90 p-5 shadow-lg shadow-slate-950/20 transition hover:-translate-y-1 hover:border-cyan-400/20">
+                  <p className="text-xs uppercase tracking-[0.3em] text-sky-300/80">Pengajaran</p>
+                  <p className="mt-3 font-semibold text-white">Hafalan terstruktur</p>
+                  <p className="mt-2 text-slate-400 text-sm">Materi dirancang untuk progres rutin dan terukur.</p>
+                </div>
+                <div className="rounded-3xl border border-slate-800 bg-slate-900/90 p-5 shadow-lg shadow-slate-950/20 transition hover:-translate-y-1 hover:border-cyan-400/20">
+                  <p className="text-xs uppercase tracking-[0.3em] text-sky-300/80">Tajwid</p>
+                  <p className="mt-3 font-semibold text-white">Guru profesional</p>
+                  <p className="mt-2 text-slate-400 text-sm">Pendampingan tepat dalam ilmu tajwid dan bacaan.</p>
+                </div>
+                <div className="rounded-3xl border border-slate-800 bg-slate-900/90 p-5 shadow-lg shadow-slate-950/20 transition hover:-translate-y-1 hover:border-cyan-400/20">
+                  <p className="text-xs uppercase tracking-[0.3em] text-sky-300/80">Akhlak</p>
+                  <p className="mt-3 font-semibold text-white">Pembinaan karakter</p>
+                  <p className="mt-2 text-slate-400 text-sm">Lingkungan islami yang mendukung disiplin dan etika.</p>
+                </div>
+              </div>
             </div>
+          </div>
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-slate-950/90 to-transparent" />
+        </section>
 
-            <div className="bg-white rounded-3xl p-8 shadow-lg border border-amber-100">
-              {/* Summary row */}
-              <div className="flex flex-wrap gap-4 mb-8 pb-6 border-b border-amber-100">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center">
-                    <Users size={18} className="text-amber-600" />
+        <section id="tentang" className="bg-[#031b36] py-20">
+          <div className="mx-auto max-w-6xl px-6">
+            <div className="mb-10 text-center">
+              <p className="text-sm uppercase tracking-[0.3em] text-sky-300/80">Tentang Singkat</p>
+              <h2 className="mt-3 text-3xl font-bold text-white">Siapa kami dan apa misi kami</h2>
+            </div>
+            <div className="grid gap-8 lg:grid-cols-[0.95fr_0.65fr]">
+              <div className="rounded-[32px] border border-slate-800 bg-slate-950/85 p-10 shadow-2xl shadow-slate-950/30">
+                <p className="text-slate-300 leading-relaxed">{profil.deskripsi}</p>
+                <div className="mt-8 space-y-4">
+                  <div>
+                    <p className="text-sm uppercase tracking-[0.24em] text-sky-300/80">Visi</p>
+                    <p className="mt-2 text-white">{profil.visi}</p>
                   </div>
                   <div>
-                    <p className="text-2xl font-bold text-stone-900">{totalSantri}</p>
-                    <p className="text-xs text-stone-500">Total Santri Aktif</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center">
-                    <TrendingUp size={18} className="text-green-600" />
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold text-stone-900">{juzGroups.filter(g => g.count > 0).length * Math.floor(30/6)}</p>
-                    <p className="text-xs text-stone-500">Rata-rata Pencapaian</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 ml-auto">
-                  <div className="text-xs text-stone-400 text-right">
-                    <p>Terakhir diperbarui</p>
-                    <p className="font-medium text-stone-600">{new Date().toLocaleDateString('id-ID', {day:'numeric', month:'long', year:'numeric'})}</p>
+                    <p className="text-sm uppercase tracking-[0.24em] text-sky-300/80">Misi</p>
+                    <ul className="mt-2 space-y-2 text-slate-300">
+                      {Array.isArray(profil.misi) ? profil.misi.map((item: string, index: number) => (
+                        <li key={index} className="flex items-start gap-3">
+                          <span className="mt-1 h-2 w-2 rounded-full bg-sky-400" />
+                          <span>{item}</span>
+                        </li>
+                      )) : <li>{String(profil.misi)}</li>}
+                    </ul>
                   </div>
                 </div>
               </div>
-
-              {/* Bar chart */}
-              <div className="space-y-4">
-                {juzGroups.map((group, i) => {
-                  const pct = maxJuzCount > 0 ? (group.count / maxJuzCount) * 100 : 0;
-                  const colors = ['#f59e0b', '#f97316', '#ef4444', '#10b981', '#6366f1', '#8b5cf6'];
-                  const color = colors[i % colors.length];
-                  return (
-                    <div key={group.label} className="flex items-center gap-4">
-                      <div className="w-20 text-right shrink-0">
-                        <span className="text-xs font-semibold text-stone-600">{group.label}</span>
-                      </div>
-                      <div className="flex-1 h-8 bg-stone-100 rounded-lg overflow-hidden relative">
-                        <div
-                          className="h-full rounded-lg flex items-center justify-end pr-3 transition-all duration-700"
-                          style={{
-                            width: pct > 0 ? `${Math.max(pct, 8)}%` : '0%',
-                            background: `linear-gradient(90deg, ${color}dd, ${color})`,
-                          }}
-                        >
-                          {group.count > 0 && (
-                            <span className="text-xs font-bold text-white">{group.count}</span>
-                          )}
-                        </div>
-                        {group.count === 0 && (
-                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-stone-400">0 santri</span>
-                        )}
-                      </div>
-                      <div className="w-12 shrink-0 text-xs text-stone-500 text-right">
-                        {totalSantri > 0 ? `${Math.round((group.count / totalSantri) * 100)}%` : '0%'}
-                      </div>
-                    </div>
-                  );
-                })}
+              <div className="rounded-[32px] border border-slate-800 bg-slate-900/85 p-10 shadow-2xl shadow-slate-950/30">
+                <p className="text-sm uppercase tracking-[0.3em] text-sky-300/80">Filosofi Kami</p>
+                <h3 className="mt-3 text-2xl font-bold text-white">Pembelajaran Al-Qur'an yang Berkelanjutan</h3>
+                <p className="mt-4 text-slate-300 leading-relaxed">Kami percaya bahwa setiap santri berhak mendapatkan pendidikan yang seimbang antara hafalan, tajwid, dan akhlak.</p>
+                <div className="mt-8 grid gap-4">
+                  <div className="rounded-3xl border border-slate-800 bg-slate-950/90 p-4">
+                    <p className="text-sm text-slate-400">Kelas intensif</p>
+                    <p className="mt-2 font-semibold text-white">Pendampingan personal</p>
+                  </div>
+                  <div className="rounded-3xl border border-slate-800 bg-slate-950/90 p-4">
+                    <p className="text-sm text-slate-400">Lingkungan rapi</p>
+                    <p className="mt-2 font-semibold text-white">Kondusif dan fokus</p>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         </section>
-      )}
 
-      {/* ══════════ PROFIL ══════════ */}
-      <section id="profil" className="py-24" style={{background: '#fffbeb'}}>
-        <div className="max-w-6xl mx-auto px-6">
-          <div className="text-center mb-12">
-            <span className="inline-block px-4 py-1 rounded-full bg-amber-100 text-amber-700 text-sm font-semibold mb-3 border border-amber-200">Tentang Kami</span>
-            <h2 className="text-4xl font-bold text-stone-900 mb-3">Profil {profil.nama_lembaga}</h2>
-            <p className="text-stone-500 max-w-xl mx-auto">{profil.deskripsi}</p>
-          </div>
-
-          {(profil.logo_url || profil.logo_sekolah_url) && (
-            <div className="flex flex-wrap justify-center items-center gap-8 mb-14">
-              {profil.logo_url && (
-                <div className="flex flex-col items-center gap-3">
-                  <div className="w-24 h-24 rounded-2xl overflow-hidden border-2 border-amber-200 shadow-lg bg-white p-2">
-                    <Image src={profil.logo_url} alt="Logo" width={88} height={88} className="object-contain w-full h-full" />
-                  </div>
-                  <p className="text-xs text-stone-500 font-medium text-center">{profil.nama_lembaga}</p>
-                </div>
-              )}
-              {profil.logo_sekolah_url && (
-                <div className="flex flex-col items-center gap-3">
-                  <div className="w-24 h-24 rounded-2xl overflow-hidden border-2 border-stone-200 shadow-lg bg-white p-2">
-                    <Image src={profil.logo_sekolah_url} alt="Logo Sekolah" width={88} height={88} className="object-contain w-full h-full" />
-                  </div>
-                  {profil.nama_sekolah && <p className="text-xs text-stone-500 font-medium text-center">{profil.nama_sekolah}</p>}
-                </div>
-              )}
+        <section id="layanan" className="py-20">
+          <div className="mx-auto max-w-6xl px-6">
+            <div className="mb-10 text-center">
+              <p className="text-sm uppercase tracking-[0.3em] text-sky-300/80">Layanan Utama</p>
+              <h2 className="mt-3 text-3xl font-bold text-white">Program dan fitur unggulan kami</h2>
             </div>
-          )}
-
-          <div className="grid lg:grid-cols-2 gap-12">
-            <div>
-              <div className="rounded-2xl p-8 relative overflow-hidden mb-6" style={{background: 'linear-gradient(135deg, #fffbeb, #fef3c7)', border: '1px solid #fde68a'}}>
-                <div className="absolute -top-3 -left-3 text-8xl text-amber-200 font-serif leading-none select-none" aria-hidden="true">&ldquo;</div>
-                <div className="relative z-10">
-                  <h3 className="text-sm font-bold text-amber-700 uppercase tracking-widest mb-4">Visi</h3>
-                  <p className="text-stone-700 text-lg leading-relaxed font-medium">
-                    {profil.visi || "Menjadi lembaga Tahfidz & Tahsin terdepan."}
-                  </p>
-                </div>
-              </div>
-              {(profil.alamat || profil.email || profil.telepon) && (
-                <div className="bg-white rounded-2xl p-6 space-y-3 border border-stone-100 shadow-sm">
-                  <h3 className="text-xs font-bold text-stone-500 uppercase tracking-widest">Kontak</h3>
-                  {profil.alamat && <div className="flex items-start gap-3 text-sm text-stone-600"><MapPin size={15} className="text-amber-500 mt-0.5 shrink-0" />{profil.alamat}</div>}
-                  {profil.email && <div className="flex items-center gap-3 text-sm text-stone-600"><Mail size={15} className="text-amber-500 shrink-0" />{profil.email}</div>}
-                  {profil.telepon && <div className="flex items-center gap-3 text-sm text-stone-600"><Phone size={15} className="text-amber-500 shrink-0" />{profil.telepon}</div>}
-                  {profil.instagram && <div className="flex items-center gap-3 text-sm text-stone-600"><AtSign size={15} className="text-amber-500 shrink-0" />{profil.instagram}</div>}
-                  {profil.youtube && <div className="flex items-center gap-3 text-sm text-stone-600"><PlayCircle size={15} className="text-amber-500 shrink-0" />{profil.youtube}</div>}
-                </div>
-              )}
-            </div>
-            <div>
-              <h3 className="text-xs font-bold text-stone-500 uppercase tracking-widest mb-6">Misi</h3>
-              <div className="space-y-3">
-                {(Array.isArray(profil.misi) && profil.misi.length > 0
-                  ? profil.misi
-                  : ["Pembelajaran berkualitas", "Hafidz berakhlak"]
-                ).map((m: string, i: number) => (
-                  <div key={i} className="flex items-start gap-4 p-4 rounded-xl bg-white hover:bg-amber-50 border border-stone-100 hover:border-amber-200 transition-all group shadow-sm">
-                    <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 text-sm font-bold text-amber-700"
-                      style={{background: 'linear-gradient(135deg, #fde68a, #fcd34d)'}}>
-                      {i + 1}
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {programCards.length > 0 ? (
+                programCards.map((program) => (
+                  <div key={program.id} className="group flex min-h-[240px] flex-col justify-between rounded-[32px] border border-slate-800 bg-slate-950/85 p-6 shadow-lg shadow-slate-950/20 transition duration-200 hover:-translate-y-1 hover:border-sky-400/40">
+                    <div>
+                      <p className="text-sm uppercase tracking-[0.28em] text-sky-300/80">Program</p>
+                      <h3 className="mt-4 text-xl font-semibold text-white">{program.nama ?? 'Program'}</h3>
+                      <p className="mt-3 text-slate-300 text-sm leading-relaxed line-clamp-4">
+                        {program.deskripsi ? String(program.deskripsi) : 'Deskripsi singkat program akan tampil di sini.'}
+                      </p>
                     </div>
-                    <p className="text-stone-700 leading-relaxed pt-0.5 text-sm">{m}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ══════════ PROGRAM ══════════ */}
-      {programs.length > 0 && (
-        <section id="program" className="py-24 bg-white">
-          <div className="max-w-6xl mx-auto px-6">
-            <div className="text-center mb-16">
-              <span className="inline-block px-4 py-1 rounded-full bg-orange-100 text-orange-700 text-sm font-semibold mb-3 border border-orange-200">Program Kami</span>
-              <h2 className="text-4xl font-bold text-stone-900 mb-3">Program Pembelajaran</h2>
-              <p className="text-stone-500 max-w-xl mx-auto">Program unggulan untuk membimbing santri menghafal dan membaca Al-Qur&apos;an.</p>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {programs.map((p: { id: string; nama: string; deskripsi: string; icon: string }, i: number) => {
-                const IconComp = ICON_MAP[p.icon] || BookOpen;
-                const styles = [
-                  { border: 'border-amber-200', icon: 'from-amber-400 to-orange-400' },
-                  { border: 'border-orange-200', icon: 'from-orange-400 to-red-400' },
-                  { border: 'border-yellow-200', icon: 'from-yellow-400 to-amber-400' },
-                  { border: 'border-red-200', icon: 'from-red-400 to-orange-400' },
-                ];
-                const s = styles[i % styles.length];
-                return (
-                  <div key={p.id} className={`group bg-white rounded-2xl p-6 border ${s.border} shadow-sm hover:shadow-lg hover:-translate-y-2 transition-all duration-300`}>
-                    <div className={`w-12 h-12 rounded-xl mb-4 bg-gradient-to-br ${s.icon} shadow-md flex items-center justify-center`}>
-                      <IconComp size={22} className="text-white" />
+                    <div className="mt-6 flex items-center justify-between gap-3">
+                      <span className="text-sm font-semibold text-sky-300 transition group-hover:text-cyan-300">Pelajari lebih lanjut</span>
+                      <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-slate-800 text-slate-200 transition group-hover:bg-slate-700">
+                        →
+                      </span>
                     </div>
-                    <h3 className="font-bold text-stone-800 text-lg mb-2">{p.nama}</h3>
-                    <p className="text-stone-500 text-sm leading-relaxed">{p.deskripsi}</p>
                   </div>
-                );
-              })}
+                ))
+              ) : (
+                <div className="rounded-[32px] border border-slate-800 bg-slate-950/85 p-8 text-center text-slate-400">Belum ada layanan atau program yang dipublikasikan.</div>
+              )}
             </div>
           </div>
         </section>
-      )}
 
-      {/* ══════════ PENGUMUMAN ══════════ */}
-      {pengumumans.length > 0 && (
-        <section id="pengumuman" className="py-24" style={{background: '#fff7ed'}}>
-          <div className="max-w-6xl mx-auto px-6">
-            <div className="text-center mb-16">
-              <span className="inline-block px-4 py-1 rounded-full bg-orange-100 text-orange-700 text-sm font-semibold mb-3 border border-orange-200">Info Terkini</span>
-              <h2 className="text-4xl font-bold text-stone-900 mb-3">Pengumuman</h2>
+        <section id="informasi" className="bg-[#031b36] py-20">
+          <div className="mx-auto max-w-6xl px-6">
+            <div className="mb-10 text-center">
+              <p className="text-sm uppercase tracking-[0.3em] text-sky-300/80">Informasi Terbaru</p>
+              <h2 className="mt-3 text-3xl font-bold text-white">Berita, artikel, dan pengumuman terkini</h2>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-              {pengumumans.map((p: { id: string; judul: string; isi: string; target: string; created_at: string }) => (
-                <div key={p.id} className="bg-white rounded-2xl p-6 border border-orange-100 hover:border-amber-300 transition-all shadow-sm hover:shadow-md">
-                  <div className="flex items-start justify-between gap-3 mb-3">
-                    <h3 className="font-bold text-stone-800 text-base">{p.judul}</h3>
-                    <span className="shrink-0 text-xs px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium border border-amber-200">{p.target}</span>
+            <div className="grid gap-6 lg:grid-cols-3">
+              <div className="rounded-[32px] border border-slate-800 bg-slate-950/85 p-8 shadow-2xl shadow-slate-950/30">
+                <p className="text-sm uppercase tracking-[0.3em] text-sky-300/80">Artikel</p>
+                <h3 className="mt-4 text-xl font-semibold text-white">Konten Pendidikan</h3>
+                <div className="mt-6 space-y-4">
+                  {latestArticles.length > 0 ? latestArticles.map((article) => (
+                    <div key={article.id} className="rounded-3xl border border-slate-800 bg-slate-900/80 p-4">
+                      <p className="font-semibold text-white">{article.judul}</p>
+                      <p className="mt-2 text-sm text-slate-400">{formatDate(article.published_at ?? '')}</p>
+                    </div>
+                  )) : <p className="text-slate-400">Belum ada artikel terbaru.</p>}
+                </div>
+              </div>
+              <div className="rounded-[32px] border border-slate-800 bg-slate-950/85 p-8 shadow-2xl shadow-slate-950/30">
+                <p className="text-sm uppercase tracking-[0.3em] text-sky-300/80">Pengumuman</p>
+                <h3 className="mt-4 text-xl font-semibold text-white">Info penting</h3>
+                <div className="mt-6 space-y-4">
+                  {latestAnnouncements.length > 0 ? latestAnnouncements.map((announce) => (
+                    <div key={announce.id} className="rounded-3xl border border-slate-800 bg-slate-900/80 p-4">
+                      <p className="font-semibold text-white">{announce.judul}</p>
+                      <p className="mt-2 text-sm text-slate-400">{String(announce.isi ?? '').slice(0, 100)}...</p>
+                    </div>
+                  )) : <p className="text-slate-400">Belum ada pengumuman terbaru.</p>}
+                </div>
+              </div>
+              <div className="rounded-[32px] border border-slate-800 bg-slate-950/85 p-8 shadow-2xl shadow-slate-950/30">
+                <p className="text-sm uppercase tracking-[0.3em] text-sky-300/80">Agenda</p>
+                <h3 className="mt-4 text-xl font-semibold text-white">Kegiatan Mendatang</h3>
+                <div className="mt-6 space-y-4">
+                  {latestAgendas.length > 0 ? latestAgendas.map((agenda) => (
+                    <div key={agenda.id ?? agenda.tanggal} className="rounded-3xl border border-slate-800 bg-slate-900/80 p-4">
+                      <p className="font-semibold text-white">{agenda.judul ?? 'Agenda penting'}</p>
+                      <p className="mt-2 text-sm text-slate-400">{formatDate(agenda.tanggal ?? agenda.created_at ?? '')}</p>
+                    </div>
+                  )) : <p className="text-slate-400">Belum ada agenda mendatang.</p>}
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="testimoni" className="py-20">
+          <div className="mx-auto max-w-6xl px-6">
+            <div className="mb-10 text-center">
+              <p className="text-sm uppercase tracking-[0.3em] text-sky-300/80">Testimoni</p>
+              <h2 className="mt-3 text-3xl font-bold text-white">Apresiasi dari pengguna dan orang tua</h2>
+            </div>
+            <div className="grid gap-6 md:grid-cols-2">
+              {testimonials.map((item) => (
+                <div key={item.name} className="rounded-[32px] border border-slate-800 bg-slate-950/85 p-8 shadow-xl shadow-slate-950/20">
+                  <p className="text-slate-300 leading-relaxed">“{item.quote}”</p>
+                  <div className="mt-6">
+                    <p className="font-semibold text-white">{item.name}</p>
+                    <p className="text-sm text-slate-400">{item.role}</p>
                   </div>
-                  <p className="text-stone-500 text-sm leading-relaxed line-clamp-3 mb-3">{p.isi}</p>
-                  <p className="text-xs text-stone-400">{formatTanggal(p.created_at)}</p>
                 </div>
               ))}
             </div>
           </div>
         </section>
-      )}
 
-      {/* ══════════ ARTIKEL ══════════ */}
-      {artikels.length > 0 && (
-        <section id="artikel" className="py-24 bg-white">
-          <div className="max-w-6xl mx-auto px-6">
-            <div className="flex items-end justify-between mb-16">
-              <div>
-                <span className="inline-block px-4 py-1 rounded-full bg-stone-100 text-stone-600 text-sm font-semibold mb-3 border border-stone-200">Inspirasi</span>
-                <h2 className="text-4xl font-bold text-stone-900">Artikel Terbaru</h2>
+        <section id="progress-bulanan" className="py-20">
+          <div className="mx-auto max-w-6xl px-6">
+            <div className="mb-10 text-center">
+              <p className="text-sm uppercase tracking-[0.3em] text-sky-300/80">Progres Pencapaian</p>
+              <h2 className="mt-3 text-3xl font-bold text-white">Tren Tahfidz & Tahsin Santri</h2>
+              <p className="mx-auto mt-3 max-w-2xl text-slate-400">Lihat perkembangan siswa berdasarkan penilaian harian tim pengajar dalam program Tahfidz dan Tahsin.</p>
+            </div>
+            <div className="grid gap-6 lg:grid-cols-[0.95fr_0.45fr]">
+              <div className="rounded-[32px] border border-slate-800 bg-slate-950/85 p-8 shadow-2xl shadow-slate-950/30">
+                <StudentProgressChart data={monthlyProgress ?? []} />
               </div>
-              <Link href="/artikel" className="text-amber-600 text-sm font-medium hover:text-amber-700 flex items-center gap-1">
-                Lihat semua <ChevronRight size={16} />
+              <div className="rounded-[32px] border border-slate-800 bg-slate-950/85 p-8 shadow-2xl shadow-slate-950/30">
+                <div className="space-y-6">
+                  <div className="rounded-3xl bg-slate-900/80 p-6">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="h-3 w-3 rounded-full bg-cyan-400"></div>
+                      <p className="text-sm uppercase tracking-widest text-sky-300/80">Program Tahfidz</p>
+                    </div>
+                    <p className="text-slate-400 text-sm leading-relaxed">Penilaian harian mencakup makhroj (pengucapan huruf), tajwid (aturan bacaan), dan kelancaran membaca Al-Qur'an.</p>
+                  </div>
+                  <div className="rounded-3xl bg-slate-900/80 p-6">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="h-3 w-3 rounded-full bg-emerald-400"></div>
+                      <p className="text-sm uppercase tracking-widest text-sky-300/80">Program Tahsin</p>
+                    </div>
+                    <p className="text-slate-400 text-sm leading-relaxed">Penilaian harian mencakup makhroj, kelancaran, dan adab (etika) dalam membaca dan menghormati Al-Qur'an.</p>
+                  </div>
+                  <div className="rounded-3xl border border-slate-700 bg-gradient-to-br from-sky-500/10 to-cyan-500/5 p-5">
+                    <p className="text-xs text-sky-300/80 font-semibold uppercase tracking-widest">Sistem Penilaian</p>
+                    <div className="mt-4 space-y-2 text-sm text-slate-300">
+                      <p>✓ = 100% | A = 85% | B = 70%</p>
+                      <p>C = 55% | D = 40%</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="statistik" className="bg-[#031b36] py-20">
+          <div className="mx-auto max-w-6xl px-6">
+            <div className="mb-10 text-center">
+              <p className="text-sm uppercase tracking-[0.3em] text-sky-300/80">Statistik</p>
+              <h2 className="mt-3 text-3xl font-bold text-white">Data penting secara ringkas</h2>
+            </div>
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+              {[
+                { label: 'Santri Aktif', value: totalSantri },
+                { label: 'Agenda', value: Array.isArray(agendas) ? agendas.length : 0 },
+                { label: 'Artikel', value: Array.isArray(artikels) ? artikels.length : 0 },
+                { label: 'Pengumuman', value: Array.isArray(pengumumans) ? pengumumans.length : 0 },
+              ].map((item) => (
+                <div key={item.label} className="rounded-[32px] border border-slate-800 bg-slate-900/85 p-8 text-center shadow-lg shadow-slate-950/20">
+                  <p className="text-sm uppercase tracking-[0.3em] text-slate-400">{item.label}</p>
+                  <p className="mt-4 text-4xl font-bold text-white">{item.value}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="bg-[#06162e] py-20">
+          <div className="mx-auto max-w-6xl px-6 text-center">
+            <p className="text-sm uppercase tracking-[0.3em] text-sky-300/80">Ayo Bergabung</p>
+            <h2 className="mt-3 text-3xl font-bold text-white">Siap bergabung dan berkembang bersama kami?</h2>
+            <p className="mx-auto mt-4 max-w-2xl text-slate-300">Temukan program terbaik untuk peningkatan hafalan, tajwid, dan akhlak anak di lingkungan belajar yang nyaman.</p>
+            <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+              <Link href="/program" className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-sky-500 to-cyan-400 px-7 py-3 text-base font-semibold text-slate-950 transition hover:opacity-95">
+                Pelajari Program
+              </Link>
+              <Link href="/profil" className="inline-flex items-center justify-center rounded-full border border-slate-700 bg-slate-900/85 px-7 py-3 text-base font-semibold text-white transition hover:bg-slate-800">
+                Hubungi Kami
               </Link>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-              {artikels.map((a: { id: string; judul: string; slug: string; cover_url?: string; published_at?: string }) => (
-                <Link key={a.id} href={`/artikel/${a.slug}`} className="group bg-white rounded-2xl overflow-hidden border border-stone-100 shadow-sm hover:shadow-xl transition-all hover:-translate-y-1">
-                  <div className="relative h-48 bg-amber-50">
-                    {a.cover_url ? (
-                      <Image src={a.cover_url} alt={a.judul} fill className="object-cover group-hover:scale-105 transition-transform duration-300" sizes="(max-width:640px) 100vw, 33vw" />
-                    ) : (
-                      <div className="flex h-full items-center justify-center"><BookOpen size={36} className="text-amber-200" /></div>
-                    )}
+          </div>
+        </section>
+      </main>
+
+      <footer className="bg-[#031828] text-slate-300">
+        <div className="mx-auto max-w-6xl px-6 py-16">
+          <div className="grid gap-10 lg:grid-cols-[1.4fr_0.9fr_0.9fr]">
+            <div className="rounded-[32px] border border-slate-800 bg-slate-950/85 p-8 shadow-2xl shadow-slate-950/20">
+              <p className="text-base font-semibold text-white">{profil.nama_lembaga}</p>
+              <p className="mt-4 max-w-xl text-slate-400 leading-relaxed">{profil.deskripsi}</p>
+              <div className="mt-6 inline-flex items-center gap-2 rounded-full bg-cyan-500/10 px-4 py-2 text-sm text-cyan-200 ring-1 ring-cyan-500/20">
+                <span className="h-2 w-2 rounded-full bg-cyan-300 animate-pulse" />
+                Pembelajaran Qur'an modern, berakhlak, dan berkualitas.
+              </div>
+            </div>
+            <div className="rounded-[32px] border border-slate-800 bg-slate-950/85 p-8 shadow-2xl shadow-slate-950/20">
+              <p className="text-sm uppercase tracking-[0.3em] text-sky-300/80">Kontak</p>
+              <div className="mt-6 space-y-4">
+                {profil.alamat && (
+                  <div className="flex items-start gap-3">
+                    <MapPin size={20} className="mt-1 text-cyan-300" />
+                    <div>
+                      <p className="text-sm text-slate-400">Alamat</p>
+                      <p className="text-slate-100">{profil.alamat}</p>
+                    </div>
                   </div>
-                  <div className="p-5">
-                    <h3 className="font-bold text-stone-800 line-clamp-2 group-hover:text-amber-700 transition-colors mb-2">{a.judul}</h3>
-                    {a.published_at && <p className="text-xs text-stone-400">{formatTanggal(a.published_at)}</p>}
+                )}
+                {profil.telepon && (
+                  <div className="flex items-start gap-3">
+                    <Phone size={20} className="mt-1 text-cyan-300" />
+                    <div>
+                      <p className="text-sm text-slate-400">Telepon</p>
+                      <p className="text-slate-100">{profil.telepon}</p>
+                    </div>
+                  </div>
+                )}
+                {profil.email && (
+                  <div className="flex items-start gap-3">
+                    <Mail size={20} className="mt-1 text-cyan-300" />
+                    <div>
+                      <p className="text-sm text-slate-400">Email</p>
+                      <p className="text-slate-100">{profil.email}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="rounded-[32px] border border-slate-800 bg-slate-950/85 p-8 shadow-2xl shadow-slate-950/20">
+              <p className="text-sm uppercase tracking-[0.3em] text-sky-300/80">Sosial Media</p>
+              <div className="mt-6 space-y-4">
+                  {profil.facebook ? (
+                  <Link href={profil.facebook.startsWith('http') ? profil.facebook : `https://facebook.com/${String(profil.facebook).replace(/^\//, '')}`}
+                    className="group flex items-center gap-3 rounded-3xl border border-slate-800 bg-slate-900/85 px-4 py-3 transition hover:border-cyan-400/40 hover:bg-slate-900/95"
+                    target="_blank" rel="noreferrer noopener">
+                    <Globe size={20} className="text-cyan-300 transition group-hover:text-cyan-200" />
+                    <div>
+                      <p className="text-sm text-slate-400">Facebook</p>
+                      <p className="text-slate-100">{String(profil.facebook).replace(/^https?:\/\//, '')}</p>
+                    </div>
+                  </Link>
+                ) : (
+                  <div className="group flex items-center gap-3 rounded-3xl border border-slate-800 bg-slate-900/85 px-4 py-3 opacity-60">
+                    <Globe size={20} className="text-cyan-300" />
+                    <div>
+                      <p className="text-sm text-slate-400">Facebook</p>
+                      <p className="text-slate-100">/timquran</p>
+                    </div>
+                  </div>
+                )}
+                <Link href={profil.instagram ? (profil.instagram.startsWith('http') ? profil.instagram : `https://instagram.com/${String(profil.instagram).replace(/^@/, '').replace(/^\//, '')}`) : 'https://instagram.com'}
+                  className="group flex items-center gap-3 rounded-3xl border border-slate-800 bg-slate-900/85 px-4 py-3 transition hover:border-cyan-400/40 hover:bg-slate-900/95"
+                  target="_blank" rel="noreferrer noopener">
+                  <AtSign size={20} className="text-cyan-300 transition group-hover:text-cyan-200" />
+                  <div>
+                    <p className="text-sm text-slate-400">Instagram</p>
+                    <p className="text-slate-100">{profil.instagram ? String(profil.instagram) : '@timquran'}</p>
                   </div>
                 </Link>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* ══════════ GALERI ══════════ */}
-      {galeris.length > 0 && (
-        <section id="galeri" className="py-24" style={{background: '#fffbeb'}}>
-          <div className="max-w-6xl mx-auto px-6">
-            <div className="text-center mb-16">
-              <span className="inline-block px-4 py-1 rounded-full bg-amber-100 text-amber-700 text-sm font-semibold mb-3 border border-amber-200">Dokumentasi</span>
-              <h2 className="text-4xl font-bold text-stone-900 mb-3">Galeri Kegiatan</h2>
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-              {galeris.map((f: { id: string; foto_url: string; judul: string }) => (
-                <div key={f.id} className="group aspect-square relative rounded-2xl overflow-hidden bg-amber-50 shadow-sm hover:shadow-lg transition-all hover:-translate-y-1 border border-amber-100">
-                  <Image src={f.foto_url} alt={f.judul} fill className="object-cover group-hover:scale-105 transition-transform duration-300" sizes="(max-width:640px) 50vw, 25vw" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-3">
-                    <p className="text-white text-xs font-medium line-clamp-2">{f.judul}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* ══════════ AGENDA ══════════ */}
-      <section id="agenda" className="py-24 relative overflow-hidden"
-        style={{background: 'linear-gradient(135deg, #1a0a00 0%, #431407 50%, #7c2d12 100%)'}}>
-        <div className="absolute inset-0 pointer-events-none opacity-[0.05]"
-          style={{backgroundImage: 'radial-gradient(rgba(245,158,11,0.8) 1px, transparent 1px)', backgroundSize: '28px 28px'}} aria-hidden="true" />
-        <div className="relative z-10 max-w-6xl mx-auto px-6">
-          <div className="text-center mb-16">
-            <span className="inline-block px-4 py-1 rounded-full border text-amber-300 text-sm font-semibold mb-3" style={{background: 'rgba(245,158,11,0.12)', borderColor: 'rgba(245,158,11,0.3)'}}>Jadwal</span>
-            <h2 className="text-4xl font-bold text-white mb-3">Agenda Kegiatan</h2>
-            <p className="text-amber-200/60 max-w-xl mx-auto">Event dan kegiatan mendatang yang dapat kamu ikuti.</p>
-          </div>
-          {agendas.length > 0 ? (
-            <div className="relative max-w-3xl mx-auto">
-              <div className="absolute left-[31px] top-4 bottom-4 w-0.5 bg-amber-500/20 hidden sm:block" aria-hidden="true" />
-              <div className="space-y-5">
-                {agendas.map((ag: { id: string; judul: string; deskripsi?: string; tanggal: string; waktu_mulai?: string; waktu_selesai?: string; lokasi?: string }) => {
-                  const d = new Date(ag.tanggal);
-                  return (
-                    <div key={ag.id} className="flex gap-5">
-                      <div className="shrink-0 w-16">
-                        <div className="w-14 h-14 rounded-xl flex flex-col items-center justify-center text-center shadow-lg" style={{background: 'rgba(245,158,11,0.2)', border: '1px solid rgba(245,158,11,0.4)'}}>
-                          <span className="text-2xl font-bold leading-none" style={{color: '#fbbf24'}}>{d.getDate()}</span>
-                          <span className="text-[10px] uppercase font-medium" style={{color: 'rgba(251,191,36,0.7)'}}>
-                            {d.toLocaleDateString('id-ID', { month: 'short' })}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="flex-1 min-w-0 rounded-2xl p-5 hover:bg-white/10 transition-colors" style={{background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)'}}>
-                        <h3 className="font-bold text-white mb-1">{ag.judul}</h3>
-                        {ag.deskripsi && <p className="text-amber-200/60 text-sm line-clamp-2 mb-2">{ag.deskripsi}</p>}
-                        <div className="flex flex-wrap gap-3 text-xs text-amber-300/70">
-                          {(ag.waktu_mulai || ag.waktu_selesai) && (
-                            <span className="flex items-center gap-1"><Clock size={11} />{formatWaktu(ag.waktu_mulai ?? null)}{ag.waktu_selesai ? ` \u2013 ${formatWaktu(ag.waktu_selesai)}` : ''}</span>
-                          )}
-                          {ag.lokasi && <span className="flex items-center gap-1"><MapPin size={11} />{ag.lokasi}</span>}
-                        </div>
-                      </div>
+                {profil.youtube && (
+                  <Link href={profil.youtube.startsWith('http') ? profil.youtube : `https://youtube.com/${String(profil.youtube).replace(/^\//, '')}`}
+                    className="group flex items-center gap-3 rounded-3xl border border-slate-800 bg-slate-900/85 px-4 py-3 transition hover:border-cyan-400/40 hover:bg-slate-900/95"
+                    target="_blank" rel="noreferrer noopener">
+                    <PlayCircle size={20} className="text-cyan-300 transition group-hover:text-cyan-200" />
+                    <div>
+                      <p className="text-sm text-slate-400">YouTube</p>
+                      <p className="text-slate-100">{String(profil.youtube).replace(/^https?:\/\//, '')}</p>
                     </div>
-                  );
-                })}
+                  </Link>
+                )}
               </div>
             </div>
-          ) : (
-            <div className="text-center py-12">
-              <Calendar size={48} className="text-amber-400/30 mx-auto mb-3" />
-              <p className="text-amber-300/50">Belum ada agenda kegiatan mendatang.</p>
+          </div>
+          <div className="mt-10 border-t border-slate-800 pt-6 text-sm text-slate-500">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <span>&copy; {new Date().getFullYear()} {profil.nama_lembaga}. Semua hak dilindungi.</span>
+              <div className="flex flex-wrap gap-4">
+                <Link href="/" className="transition hover:text-white">Beranda</Link>
+                <Link href="/profil" className="transition hover:text-white">Profil</Link>
+                <Link href="/program" className="transition hover:text-white">Program</Link>
+                <Link href="/pengumuman" className="transition hover:text-white">Pengumuman</Link>
+                <Link href="/artikel" className="transition hover:text-white">Artikel</Link>
+              </div>
             </div>
-          )}
-        </div>
-        <div className="absolute bottom-0 left-0 right-0">
-          <svg viewBox="0 0 1440 60" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full block">
-            <path d="M0 60L80 50C160 40 320 20 480 15C640 10 800 20 960 28C1120 36 1280 42 1360 45L1440 48V60H0Z" fill="white"/>
-          </svg>
-        </div>
-      </section>
-
-      {/* ══════════ CTA ══════════ */}
-      <section className="py-20 bg-white relative overflow-hidden">
-        <div className="absolute inset-0 pointer-events-none opacity-[0.04]" style={{backgroundImage: 'radial-gradient(circle, #d97706 1px, transparent 1px)', backgroundSize: '28px 28px'}} aria-hidden="true" />
-        <div className="relative z-10 max-w-3xl mx-auto px-6 text-center">
-          <div className="text-5xl mb-4 animate-float" style={{animationDuration: '4s'}}>📖</div>
-          <h2 className="text-3xl sm:text-4xl font-bold text-stone-900 mb-4">Bergabunglah Bersama Kami</h2>
-          <p className="text-stone-500 text-lg mb-8">Daftarkan putra-putri Anda dalam program Tahfidz &amp; Tahsin Al-Qur&apos;an kami.</p>
-          <div className="flex flex-wrap gap-3 justify-center">
-            <Link href="/login" className="group inline-flex items-center gap-2 px-8 py-4 rounded-xl font-bold text-white text-lg transition-all hover:scale-105"
-              style={{background: 'linear-gradient(135deg, #d97706, #f59e0b)', boxShadow: '0 8px 32px rgba(217,119,6,0.3)'}}>
-              <BookOpen size={20} /> Masuk Sekarang
-              <ChevronRight size={18} className="group-hover:translate-x-1 transition-transform" />
-            </Link>
-            <a href="#profil" className="inline-flex items-center gap-2 px-8 py-4 rounded-xl border-2 border-amber-200 text-amber-700 font-semibold text-lg hover:bg-amber-50 transition-all">
-              Lihat Profil
-            </a>
           </div>
         </div>
-      </section>
-
-    </div>
-    </main>
-    <footer className="bg-stone-900">
-      <div className="max-w-6xl mx-auto px-6 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-10 mb-8">
-          <div>
-            <p className="font-bold text-white text-lg mb-3">{profil.nama_lembaga}</p>
-            <p className="text-amber-400/70 text-sm leading-relaxed">
-              Program Tahfidz &amp; Tahsin Al-Qur&apos;an untuk mencetak generasi Qur&apos;ani berakhlak mulia.
-            </p>
-          </div>
-          <div>
-            <p className="font-semibold text-white text-sm mb-4">Navigasi</p>
-            <ul className="space-y-2">
-              {[
-                { label: 'Beranda', href: '/#beranda' },
-                { label: 'Profil', href: '/#profil' },
-                { label: 'Program', href: '/#program' },
-                { label: 'Pengumuman', href: '/#pengumuman' },
-                { label: 'Artikel', href: '/artikel' },
-                { label: 'Agenda', href: '/#agenda' },
-              ].map(l => (
-                <li key={l.href}>
-                  <a href={l.href} className="text-amber-400/60 hover:text-amber-300 text-sm transition-colors">{l.label}</a>
-                </li>
-              ))}
-            </ul>
-          </div>
-          <div>
-            <p className="font-semibold text-white text-sm mb-4">Ayat</p>
-            <p className="text-amber-300/90 text-xl leading-loose" dir="rtl">وَلَقَدْ يَسَّرْنَا الْقُرْآنَ لِلذِّكْرِ</p>
-            <p className="text-amber-400/50 text-xs mt-2">QS. Al-Qamar: 17</p>
-          </div>
-        </div>
-        <div className="border-t border-stone-800 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <p className="text-stone-600 text-xs">&copy; {new Date().getFullYear()} {profil.nama_lembaga}. Semua hak dilindungi.</p>
-          <a href="/login" className="text-xs text-stone-500 hover:text-amber-400 transition-colors">Masuk Dashboard →</a>
-        </div>
-      </div>
-    </footer>
+      </footer>
     </div>
   );
 }

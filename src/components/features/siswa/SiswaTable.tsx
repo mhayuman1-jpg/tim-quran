@@ -2,6 +2,7 @@
 
 import React from 'react';
 import Image from 'next/image';
+import { cacheBust } from '@/lib/image';
 import { Edit, Trash2, Printer } from 'lucide-react';
 import DataTable, { ColumnDef } from '@/components/shared/DataTable';
 import Button from '@/components/ui/Button';
@@ -27,9 +28,10 @@ function formatTanggalLahir(tgl?: string): string {
 
 function StudentAvatar({ nama, photo_url }: { nama: string; photo_url?: string }) {
   if (photo_url) {
+    const src = cacheBust(photo_url) || photo_url;
     return (
       <div className="relative w-8 h-8 rounded-full overflow-hidden shrink-0 border border-slate-200">
-        <Image src={photo_url} alt={nama} fill className="object-cover" sizes="32px" />
+        <Image src={src} alt={nama} fill className="object-cover" sizes="32px" unoptimized />
       </div>
     );
   }

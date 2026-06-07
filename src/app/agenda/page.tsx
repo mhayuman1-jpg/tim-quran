@@ -1,6 +1,7 @@
 // src/app/agenda/page.tsx — Halaman Agenda Publik
 
 import { Calendar, Clock, MapPin } from 'lucide-react';
+import { createServerClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,21 +24,25 @@ interface Agenda {
 async function getAgenda(): Promise<{ upcoming: Agenda[]; past: Agenda[] }> {
   try {
     const today = new Date().toISOString().split('T')[0];
-    const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/agenda?select=*&is_published=eq.true&order=tanggal.asc`;
-    const res = await fetch(url, {
-      headers: {
-        apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        Authorization: `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!}`,
-      },
-      cache: 'no-store',
-    });
-    if (!res.ok) return { upcoming: [], past: [] };
-    const data: Agenda[] = await res.json();
+    const supabase = createServerClient();
+    const { data, error } = await supabase
+      .from('agenda')
+      .select('*')
+      .eq('is_published', true)
+      .order('tanggal', { ascending: true });
+
+    if (error) {
+      console.error('[AgendaPage] Supabase error:', error.message);
+      return { upcoming: [], past: [] };
+    }
+
+    const agendaList: Agenda[] = Array.isArray(data) ? data : [];
     return {
-      upcoming: data.filter(a => a.tanggal >= today),
-      past: data.filter(a => a.tanggal < today).reverse(),
+      upcoming: agendaList.filter(a => a.tanggal >= today),
+      past: agendaList.filter(a => a.tanggal < today).reverse(),
     };
-  } catch {
+  } catch (error) {
+    console.error('[AgendaPage] Fetch error:', error);
     return { upcoming: [], past: [] };
   }
 }
@@ -56,46 +61,46 @@ function AgendaCard({ ag, past = false }: { ag: Agenda; past?: boolean }) {
   const waktu = mulai ? (selesai ? `${mulai} – ${selesai}` : mulai) : null;
 
   return (
-    <div className={`flex gap-5 items-start p-6 rounded-2xl border transition-all hover:shadow-md ${
+    <div className={`flex gap-5 items-start p-6 rounded-3xl border transition-all hover:shadow-xl ${
       past
-        ? 'bg-stone-50 border-stone-100 opacity-70'
-        : 'bg-white border-amber-100 hover:border-amber-300'
+        ? 'bg-slate-900 border-slate-700/80 opacity-95'
+        : 'bg-slate-900 border-cyan-500/10 hover:border-cyan-400/50'
     }`}>
       {/* Tanggal badge */}
-      <div className={`shrink-0 rounded-xl text-center p-3 min-w-[64px] ${
-        past ? 'bg-stone-200' : 'bg-gradient-to-br from-amber-400 to-orange-400'
+      <div className={`shrink-0 rounded-3xl text-center p-4 min-w-[72px] ${
+        past ? 'bg-slate-800/90' : 'bg-gradient-to-br from-sky-500 to-cyan-500'
       }`}>
         <p className="text-white text-2xl font-bold leading-none">
           {new Date(ag.tanggal).getDate()}
         </p>
-        <p className="text-white/80 text-xs font-medium mt-0.5">
+        <p className="text-white/90 text-xs font-semibold mt-0.5">
           {new Date(ag.tanggal).toLocaleDateString('id-ID', { month: 'short' })}
         </p>
-        <p className="text-white/60 text-xs">
+        <p className="text-white/70 text-[11px]">
           {new Date(ag.tanggal).getFullYear()}
         </p>
       </div>
 
       {/* Konten */}
       <div className="flex-1 min-w-0">
-        <h3 className="font-bold text-stone-800 text-base mb-1">{ag.judul}</h3>
+        <h3 className="font-bold text-white text-base mb-2">{ag.judul}</h3>
         {ag.deskripsi && (
-          <p className="text-stone-500 text-sm leading-relaxed mb-3">{ag.deskripsi}</p>
+          <p className="text-slate-300 text-sm leading-relaxed mb-4">{ag.deskripsi}</p>
         )}
-        <div className="flex flex-wrap gap-3 text-xs text-stone-400">
+        <div className="flex flex-wrap gap-3 text-xs text-slate-400">
           <span className="flex items-center gap-1.5">
-            <Calendar size={12} className="shrink-0 text-amber-500" />
+            <Calendar size={12} className="shrink-0 text-cyan-300" />
             {formatTanggal(ag.tanggal)}
           </span>
           {waktu && (
             <span className="flex items-center gap-1.5">
-              <Clock size={12} className="shrink-0 text-amber-500" />
+              <Clock size={12} className="shrink-0 text-cyan-300" />
               {waktu} WIB
             </span>
           )}
           {ag.lokasi && (
             <span className="flex items-center gap-1.5">
-              <MapPin size={12} className="shrink-0 text-amber-500" />
+              <MapPin size={12} className="shrink-0 text-cyan-300" />
               {ag.lokasi}
             </span>
           )}
@@ -109,15 +114,14 @@ export default async function AgendaPage() {
   const { upcoming, past } = await getAgenda();
 
   return (
-    <div className="bg-amber-50 min-h-screen">
+    <div className="bg-slate-950 min-h-screen text-slate-100">
       {/* Hero */}
-      <div className="bg-gradient-to-br from-stone-900 via-amber-950 to-orange-900 py-20 px-6 text-center">
-        <span className="inline-block px-4 py-1 rounded-full border text-amber-300 text-sm font-semibold mb-4"
-          style={{ background: 'rgba(245,158,11,0.12)', borderColor: 'rgba(245,158,11,0.3)' }}>
+      <div className="bg-gradient-to-br from-slate-900 via-sky-950 to-slate-950 py-20 px-6 text-center">
+        <span className="inline-block px-4 py-1 rounded-full border text-cyan-100 text-sm font-semibold mb-4 border-cyan-500/30 bg-cyan-500/10">
           Jadwal Kegiatan
         </span>
         <h1 className="text-4xl font-bold text-white mb-4">Agenda</h1>
-        <p className="text-amber-100/70 text-lg max-w-xl mx-auto">
+        <p className="text-slate-300 text-lg max-w-2xl mx-auto">
           Event dan kegiatan mendatang yang dapat kamu ikuti bersama Tim Qur&apos;an.
         </p>
       </div>
@@ -125,14 +129,14 @@ export default async function AgendaPage() {
       <div className="max-w-3xl mx-auto px-6 py-16 space-y-12">
         {/* Akan Datang */}
         <div>
-          <h2 className="text-xs font-bold text-amber-700 uppercase tracking-widest mb-5 flex items-center gap-2">
-            <span className="inline-block w-2 h-2 rounded-full bg-amber-500" />
+          <h2 className="text-xs font-bold text-cyan-200 uppercase tracking-widest mb-5 flex items-center gap-2">
+            <span className="inline-block w-2 h-2 rounded-full bg-cyan-400" />
             Akan Datang
           </h2>
           {upcoming.length === 0 ? (
-            <div className="text-center py-16 bg-white rounded-2xl border border-amber-100">
-              <Calendar size={40} className="text-stone-200 mx-auto mb-3" />
-              <p className="text-stone-400 text-sm">Belum ada agenda mendatang.</p>
+            <div className="text-center py-16 bg-slate-900 rounded-3xl border border-slate-800">
+              <Calendar size={40} className="text-cyan-300 mx-auto mb-3" />
+              <p className="text-slate-300 text-sm">Belum ada agenda mendatang.</p>
             </div>
           ) : (
             <div className="space-y-4">
@@ -144,8 +148,8 @@ export default async function AgendaPage() {
         {/* Sudah Lewat */}
         {past.length > 0 && (
           <div>
-            <h2 className="text-xs font-bold text-stone-400 uppercase tracking-widest mb-5 flex items-center gap-2">
-              <span className="inline-block w-2 h-2 rounded-full bg-stone-400" />
+            <h2 className="text-xs font-bold text-slate-300 uppercase tracking-widest mb-5 flex items-center gap-2">
+              <span className="inline-block w-2 h-2 rounded-full bg-slate-400" />
               Sudah Berlalu
             </h2>
             <div className="space-y-4">

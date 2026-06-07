@@ -8,7 +8,7 @@ import { withAuth, NextRequestWithAuth } from 'next-auth/middleware';
 import { NextResponse } from 'next/server';
 
 // Rute yang hanya boleh diakses oleh Kabid
-const KABID_ONLY_ROUTES = ['/kelas', '/tim', '/laporan', '/kelola-artikel', '/absensi/monitoring', '/website'];
+const KABID_ONLY_ROUTES = ['/kelas', '/semester', '/tim', '/laporan', '/dashboard/kelola-artikel', '/absensi/monitoring', '/website', '/dashboard/website'];
 
 export default withAuth(
   function middleware(req: NextRequestWithAuth) {
@@ -49,12 +49,14 @@ export const config = {
     '/raport/:path*',
     '/scan/:path*',
     '/rekap/:path*',
-    '/pengumuman/:path*',
+    '/dashboard/pengumuman/:path*',
     '/pengaturan/:path*',
+    '/semester/:path*',
     '/kelas/:path*',
     '/tim/:path*',
     '/laporan/:path*',
-    '/kelola-artikel/:path*',
+    '/dashboard/kelola-artikel/:path*',
     '/website/:path*',
+    '/dashboard/website/:path*',
   ],
 };

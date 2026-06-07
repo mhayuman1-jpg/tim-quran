@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 // src/app/api/rekap/list/route.ts
 // GET: Ambil daftar rekap diurutkan terbaru, dengan signed URL untuk download
 

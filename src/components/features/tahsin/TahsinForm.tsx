@@ -124,7 +124,7 @@ export default function TahsinForm({
       });
 
     return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, []);
 
   // ── Populate form saat edit

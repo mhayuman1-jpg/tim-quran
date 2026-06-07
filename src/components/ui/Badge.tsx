@@ -3,7 +3,7 @@
 // src/components/ui/Badge.tsx
 // Badge dengan variant warna: green=Aktif, red=Nonaktif, blue=info, yellow=warning, gray=netral
 
-type BadgeVariant = 'green' | 'red' | 'blue' | 'yellow' | 'gray' | 'orange';
+type BadgeVariant = 'green' | 'red' | 'blue' | 'yellow' | 'gray' | 'orange' | 'purple' | 'amber';
 
 interface BadgeProps {
   variant?: BadgeVariant;
@@ -18,6 +18,8 @@ const variantClasses: Record<BadgeVariant, string> = {
   yellow: 'bg-yellow-100 text-yellow-700 ring-yellow-200',
   orange: 'bg-orange-100 text-orange-700 ring-orange-200',
   gray:   'bg-slate-100 text-slate-600 ring-slate-200',
+  purple: 'bg-purple-100 text-purple-700 ring-purple-200',
+  amber:  'bg-amber-100 text-amber-700 ring-amber-200',
 };
 
 export default function Badge({

@@ -1,15 +1,13 @@
 'use client';
 
-// RaportTahfidzPrintable.tsx
-// Komponen preview & cetak raport tahfidz
-// Format mengikuti contoh: header sekolah, tabel surah, tanda tangan
+// RaportTahfidzPrintable.tsx — Printable raport layout for Tahfidz & Tahsin
+// Updated to remove WAFA/IWR/Al-Qur'an columns and reposition Catatan Ustadz/ah.
 
 import React, { useRef, useState, useEffect } from 'react';
 import Image from 'next/image';
 import { useReactToPrint } from 'react-to-print';
 import Button from '@/components/ui/Button';
 import { Printer } from 'lucide-react';
-import { getNilaiColor } from '@/lib/surahData';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -31,8 +29,20 @@ export interface RaportTahfidzData {
   juz?: number | null;
   catatan?: string | null;
   nama_guru_kelas?: string | null;
+  niy_guru_kelas?: string | null;
   nama_kabid?: string | null;
+  niy_kabid?: string | null;
   nama_kepala_sekolah?: string | null;
+  niy_kepala_sekolah?: string | null;
+  tahsin_metode?: string | null;
+  tahsin_buku?: string | null;
+  tahsin_halaman?: string | null;
+  tahsin_makhroj?: string | null;
+  tahsin_kelancaran?: string | null;
+  tahsin_adab?: string | null;
+  tahsin_catatan?: string | null;
+  lokasi?: string | null;
+  tanggal?: string | null;
   created_at?: string;
   santri?: {
     nama: string;
@@ -51,230 +61,547 @@ interface ProfilData {
   alamat?: string | null;
 }
 
-// ─── Print Content ────────────────────────────────────────────────────────────
+// ─── Shared cell style ───────────────────────────────────────────────────────
+
+const cell = (extra: React.CSSProperties = {}): React.CSSProperties => ({
+  border: '1px solid #000',
+  padding: '3px 5px',
+  ...extra,
+});
+
+// ─── PrintContent ─────────────────────────────────────────────────────────────
 
 const PrintContent = React.forwardRef<HTMLDivElement, {
   raport: RaportTahfidzData;
   profil: ProfilData;
-}>(({ raport, profil }, ref) => {
+  inlineEdit?: boolean;
+  onInlineChange?: (field: keyof RaportTahfidzData, value: string | null) => void;
+  onInlineDetailChange?: (index: number, field: keyof DetailSurahData, value: string | null) => void;
+  onInlineAddRow?: () => void;
+  onInlineRemoveRow?: (index: number) => void;
+}>(({ raport, profil, inlineEdit = false, onInlineChange, onInlineDetailChange, onInlineAddRow, onInlineRemoveRow }, ref) => {
   const siswa = raport.santri;
-  const guru = raport.users;
+  const guru  = raport.users;
   const detail = (raport.raport_tahfidz_detail ?? [])
     .slice()
     .sort((a, b) => a.urutan - b.urutan);
 
-  // Nama tanda tangan — diambil dari data yang diketik guru di form
-  const namaGuruKelas = raport.nama_guru_kelas || guru?.name || null;
-  const namaKabid = raport.nama_kabid || null;
+  const namaGuruKelas    = raport.nama_guru_kelas   || guru?.name || null;
+  const niyGuruKelas     = raport.niy_guru_kelas    || null;
+  const namaKabid        = raport.nama_kabid        || null;
+  const niyKabid         = raport.niy_kabid         || null;
   const namaKepalaSekolah = raport.nama_kepala_sekolah || null;
-  const today = new Date().toLocaleDateString('id-ID', {
+  const niyKepalaSekolah  = raport.niy_kepala_sekolah  || null;
+
+  const reportDate = raport.created_at ? new Date(raport.created_at) : new Date();
+  const today = reportDate.toLocaleDateString('id-ID', {
     day: 'numeric', month: 'long', year: 'numeric',
   });
 
-  // Kota dari alamat (ambil kata pertama)
-  const kota = profil.alamat
-    ? profil.alamat.split(',')[0]?.split(' ').slice(0, 2).join(' ') ?? 'Kota'
-    : 'Kota';
+  const editableInputStyle: React.CSSProperties = {
+    width: '100%',
+    border: inlineEdit ? '1px solid #999' : 'transparent',
+    borderRadius: 4,
+    padding: '4px 6px',
+    fontFamily: 'inherit',
+    fontSize: 'inherit',
+    background: inlineEdit ? '#fff' : 'transparent',
+    color: '#000',
+    outline: inlineEdit ? 'none' : 'none',
+  };
+
+  const editableTextareaStyle: React.CSSProperties = {
+    width: '100%',
+    minHeight: 62,
+    border: inlineEdit ? '1px solid #999' : 'transparent',
+    borderRadius: 4,
+    padding: '8px 10px',
+    fontFamily: 'inherit',
+    fontSize: 'inherit',
+    background: inlineEdit ? '#fff' : '#f9fafb',
+    color: '#000',
+    outline: inlineEdit ? 'none' : 'none',
+    resize: 'vertical',
+  };
+
+  const renderEditableText = (
+    field: keyof RaportTahfidzData,
+    value: string | null | undefined,
+    placeholder = '—',
+    containerStyle: React.CSSProperties = {},
+  ) => {
+    if (!inlineEdit) {
+      return <span style={containerStyle}>{value || placeholder}</span>;
+    }
+    return (
+      <input
+        type="text"
+        value={value ?? ''}
+        placeholder={placeholder}
+        style={{ ...editableInputStyle, ...containerStyle }}
+        onChange={(event) => onInlineChange?.(field, event.target.value || null)}
+      />
+    );
+  };
+
+  const renderEditableTextarea = (
+    field: keyof RaportTahfidzData,
+    value: string | null | undefined,
+    placeholder = '—',
+  ) => {
+    if (!inlineEdit) {
+      return <div style={{ whiteSpace: 'pre-wrap', minHeight: 62, padding: '10px 12px', background: '#f9fafb' }}>{value ? `“${value}”` : '—'}</div>;
+    }
+    return (
+      <textarea
+        value={value ?? ''}
+        placeholder={placeholder}
+        style={editableTextareaStyle}
+        onChange={(event) => onInlineChange?.(field, event.target.value || null)}
+      />
+    );
+  };
+
+  // Ambil kota dari nama sekolah atau alamat jika tersedia, default Dompu
+  const kotaFromSchool = /dompu/i.test(profil.nama_sekolah ?? '') ? 'Dompu' : undefined;
+  const alamatParts = profil.alamat?.split(',').map((part) => part.trim()).filter(Boolean) ?? [];
+  const kotaRaw = alamatParts.length > 0 ? alamatParts[alamatParts.length - 1] : '';
+  const kota = (raport.lokasi ?? kotaFromSchool ?? kotaRaw) || 'Dompu';
+  const tanggal = raport.tanggal ?? today;
+
+  // Cari baris pertama yang punya nilai wafa
+  const n = detail.length;
 
   return (
     <div
       ref={ref}
       style={{
-        fontFamily: 'Times New Roman, serif',
+        fontFamily: '"Times New Roman", Times, serif',
         background: '#fff',
-        padding: '24px 32px',
-        maxWidth: '740px',
+        padding: '20px 28px',
+        maxWidth: '760px',
         margin: '0 auto',
-        fontSize: '13px',
+        fontSize: '12px',
         color: '#000',
+        lineHeight: 1.4,
       }}
     >
-      {/* ── Header Sekolah ────────────────────────────────────────────────── */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', borderBottom: '3px double #000', paddingBottom: '8px', marginBottom: '6px' }}>
-        {/* Logo sekolah */}
-        {profil.logo_sekolah_url ? (
-          <div style={{ width: 70, height: 70, flexShrink: 0 }}>
-            <Image src={profil.logo_sekolah_url} alt="Logo Sekolah" width={70} height={70} style={{ objectFit: 'contain', width: '100%', height: '100%' }} />
-          </div>
-        ) : (
-          <div style={{ width: 70, height: 70, border: '1px solid #ccc', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', color: '#999' }}>LOGO</div>
-        )}
+      {/* ══ HEADER SEKOLAH ════════════════════════════════════════════════ */}
+      <div style={{ marginBottom: '6px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
 
-        {/* Info sekolah */}
-        <div style={{ flex: 1, textAlign: 'center' }}>
-          <div style={{ fontSize: '20px', fontWeight: 900, letterSpacing: '1px', color: '#cc0000', lineHeight: 1.2 }}>
-            {profil.nama_sekolah?.toUpperCase() ?? profil.nama_lembaga?.toUpperCase() ?? 'NAMA SEKOLAH'}
+          {/* Logo sekolah kiri */}
+          <div style={{ width: 85, height: 85, flexShrink: 0 }}>
+            {profil.logo_sekolah_url ? (
+              <Image src={profil.logo_sekolah_url} alt="Logo" width={85} height={85}
+                style={{ objectFit: 'contain', width: '100%', height: '100%' }}
+                unoptimized />
+            ) : (
+              <div style={{ width: 85, height: 85, borderRadius: '50%', background: '#1a5c2a',
+                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                border: '3px solid #fbbf24' }}>
+                <span style={{ color: '#fbbf24', fontSize: '8px', fontWeight: 900, textAlign: 'center', lineHeight: 1.2 }}>
+                  LOGO<br />SEKOLAH
+                </span>
+              </div>
+            )}
           </div>
-          {profil.nama_sekolah && profil.nama_lembaga && profil.nama_sekolah !== profil.nama_lembaga && (
-            <div style={{ fontSize: '11px', fontStyle: 'italic', color: '#333', marginTop: 2 }}>
+
+          {/* Tengah: nama + tagline + garis + alamat */}
+          <div style={{ flex: 1, textAlign: 'center' }}>
+            {/* Nama sekolah merah BESAR */}
+            <div style={{
+              fontSize: '24px', fontWeight: 900, color: '#cc0000',
+              lineHeight: 1.1, letterSpacing: '0.5px', textTransform: 'uppercase',
+              fontFamily: '"Times New Roman", serif',
+            }}>
+              {profil.nama_sekolah ?? profil.nama_lembaga ?? 'SD ISLAM TERPADU AL-HILMI'}
+            </div>
+
+            {/* Tagline italic hijau */}
+            <div style={{
+              fontSize: '11.5px', fontStyle: 'italic', fontWeight: 700,
+              color: '#166534', marginTop: '2px',
+            }}>
               Sekolah Terpadu Dengan Pendidikan Berkarakter
             </div>
-          )}
-          {profil.alamat && (
-            <div style={{ fontSize: '10px', color: '#555', marginTop: 2 }}>{profil.alamat}</div>
-          )}
+
+            {/* Garis dekoratif merah-hijau */}
+            <div style={{ display: 'flex', height: '3px', margin: '4px auto', borderRadius: '2px', width: '90%' }}>
+              <div style={{ flex: 4, background: '#cc0000' }} />
+              <div style={{ flex: 1, background: '#16a34a' }} />
+            </div>
+
+            {/* Alamat — gunakan dari profil atau hardcode fallback */}
+            <div style={{ fontSize: '9px', color: '#333', lineHeight: 1.5, textAlign: 'center' }}>
+              <span style={{ fontWeight: 700 }}>Alamat : </span>
+              {profil.alamat
+                ? profil.alamat
+                : 'Lingk. Jado RT.09 Kel. Dorotangga Dompu - NTB'}
+            </div>
+            <div style={{ fontSize: '9px', color: '#333', lineHeight: 1.4, textAlign: 'center' }}>
+              <span style={{ marginRight: 8 }}>✉ sditah.asshoff@gmail.com</span>
+              <span>📘 Sdit Al-Hilmi Dompu</span>
+            </div>
+          </div>
+
+          {/* Logo tim kanan */}
+          <div style={{ width: 78, height: 78, flexShrink: 0 }}>
+            {profil.logo_url ? (
+              <Image src={profil.logo_url} alt="Logo Tim" width={78} height={78}
+                style={{ objectFit: 'contain', width: '100%', height: '100%' }}
+                unoptimized />
+            ) : (
+              <div style={{ width: 78, height: 78, borderRadius: '50%', background: '#1e3a5f',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid #93c5fd' }}>
+                <span style={{ color: '#93c5fd', fontSize: '7px', fontWeight: 900, textAlign: 'center' }}>
+                  LOGO<br />TIM
+                </span>
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Logo Tim */}
-        {profil.logo_url ? (
-          <div style={{ width: 70, height: 70, flexShrink: 0 }}>
-            <Image src={profil.logo_url} alt="Logo Tim" width={70} height={70} style={{ objectFit: 'contain', width: '100%', height: '100%' }} />
-          </div>
-        ) : (
-          <div style={{ width: 70, height: 70, border: '1px solid #ccc', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', color: '#999' }}>LOGO</div>
-        )}
+        {/* Garis bawah header — dua baris tebal */}
+        <div style={{ height: '2.5px', background: '#000', marginTop: '7px' }} />
+        <div style={{ height: '1px', background: '#000', marginTop: '2px' }} />
       </div>
 
-      {/* ── Judul ────────────────────────────────────────────────────────── */}
-      <div style={{ textAlign: 'center', fontSize: '15px', fontWeight: 900, letterSpacing: '2px', marginBottom: '12px', textDecoration: 'underline', textUnderlineOffset: '3px' }}>
-        RAPORT WAFA TAHFIDZ
+      {/* ══ JUDUL ═════════════════════════════════════════════════════════ */}
+      <div style={{
+        textAlign: 'center',
+        fontSize: '14px',
+        fontWeight: 900,
+        letterSpacing: '3px',
+        textDecoration: 'underline',
+        textDecorationColor: '#cc0000',
+        textUnderlineOffset: '3px',
+        color: '#000',
+        margin: '8px 0 10px',
+        textTransform: 'uppercase',
+      }}>
+        Raport Tahfidz &amp; Tahsin
       </div>
 
-      {/* ── Identitas Siswa ───────────────────────────────────────────────── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 24px', marginBottom: '12px', fontSize: '13px' }}>
-        <div>
-          <div style={{ display: 'flex', gap: 4 }}>
-            <span style={{ minWidth: 100 }}>Nama</span>
-            <span>: <strong>{siswa?.nama ?? '—'}</strong></span>
-          </div>
-          <div style={{ display: 'flex', gap: 4 }}>
-            <span style={{ minWidth: 100 }}>NIS / NISN</span>
-            <span>: {siswa?.nisn ?? '—'}</span>
-          </div>
-          <div style={{ display: 'flex', gap: 4 }}>
-            <span style={{ minWidth: 100 }}>Juz</span>
-            <span>: {raport.juz ? `Juz ${raport.juz}` : '—'}</span>
-          </div>
-        </div>
-        <div>
-          <div style={{ display: 'flex', gap: 4 }}>
-            <span style={{ minWidth: 110 }}>Kelas/Semester</span>
-            <span>: {siswa?.classes?.name ?? '—'} /{raport.periode ?? '—'}</span>
-          </div>
-          <div style={{ display: 'flex', gap: 4 }}>
-            <span style={{ minWidth: 110 }}>Tahun Ajaran</span>
-            <span>: {raport.tahun_ajaran}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Tabel Penilaian ───────────────────────────────────────────────── */}
+      {/* ══ IDENTITAS SISWA ═══════════════════════════════════════════════ */}
       <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '10px', fontSize: '12px' }}>
-        <thead>
+        <tbody>
           <tr>
-            <th rowSpan={2} style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'center', width: 32 }}>No.</th>
-            <th rowSpan={2} style={{ border: '1px solid #000', padding: '4px 8px', textAlign: 'center' }}>SURAH</th>
-            <th colSpan={3} style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'center', background: '#f9f9f9' }}>NILAI TAHFIDZ</th>
-            <th colSpan={2} style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'center', background: '#f9f9f9' }}>WAFA</th>
-            <th rowSpan={2} style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'center', minWidth: 100 }}>Catatan Ustadz/ah</th>
+            <td style={{ width: '14%', verticalAlign: 'top' }}>Nama</td>
+            <td style={{ width: '1%', verticalAlign: 'top' }}>:</td>
+            <td style={{ width: '35%', fontWeight: 700, verticalAlign: 'top' }}>{siswa?.nama ?? '—'}</td>
+            <td style={{ width: '18%', verticalAlign: 'top' }}>Kelas/Semester</td>
+            <td style={{ width: '1%', verticalAlign: 'top' }}>:</td>
+            <td style={{ verticalAlign: 'top' }}>{siswa?.classes?.name ?? '—'} / {renderEditableText('periode', raport.periode, '—')}</td>
           </tr>
           <tr>
-            <th style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'center', textDecoration: 'underline', color: '#cc0000', background: '#f9f9f9' }}>Makhroi</th>
-            <th style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'center', background: '#f9f9f9' }}>Tajwid</th>
-            <th style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'center', background: '#f9f9f9' }}>Lancar</th>
-            <th style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'center', background: '#f9f9f9' }}>Buku</th>
-            <th style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'center', background: '#f9f9f9' }}>Hal.</th>
+            <td>NIS / NISN</td>
+            <td>:</td>
+            <td>{siswa?.nisn ?? '—'}</td>
+            <td>Tahun Ajaran</td>
+            <td>:</td>
+            <td>{renderEditableText('tahun_ajaran', raport.tahun_ajaran, '—')}</td>
+          </tr>
+          <tr>
+            <td>Juz</td>
+            <td>:</td>
+            <td>{renderEditableText('juz', raport.juz ? String(raport.juz) : null, '—')}</td>
+            <td></td><td></td><td></td>
+          </tr>
+        </tbody>
+      </table>
+
+      {/* ══ TABEL PENILAIAN ═══════════════════════════════════════════════ */}
+      <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '8px', fontSize: '11.5px' }}>
+        <thead>
+          <tr>
+            <th rowSpan={2} style={cell({ textAlign: 'center', width: 28, background: '#f5f5f5' })}>No.</th>
+            <th rowSpan={2} style={cell({ textAlign: 'center', background: '#f5f5f5' })}>SURAH</th>
+            <th colSpan={3} style={cell({ textAlign: 'center', background: '#f5f5f5' })}>NILAI TAHFIDZ</th>
+            {inlineEdit && <th rowSpan={2} style={cell({ textAlign: 'center', width: 70, background: '#f5f5f5' })}>Aksi</th>}
+          </tr>
+          <tr>
+            <th style={cell({ textAlign: 'center', width: 48, color: '#cc0000', textDecoration: 'underline', background: '#f5f5f5' })}>Makhroj</th>
+            <th style={cell({ textAlign: 'center', width: 44, background: '#f5f5f5' })}>Tajwid</th>
+            <th style={cell({ textAlign: 'center', width: 44, background: '#f5f5f5' })}>Lancar</th>
           </tr>
         </thead>
         <tbody>
-          {detail.map((row, i) => (
+          {n === 0 ? (
+            <tr>
+              <td colSpan={inlineEdit ? 6 : 5} style={cell({ textAlign: 'center', color: '#999', padding: '10px' })}>
+                Belum ada data surah
+              </td>
+            </tr>
+          ) : detail.map((row, i) => (
             <tr key={row.id ?? i}>
-              <td style={{ border: '1px solid #000', padding: '3px 6px', textAlign: 'center' }}>{i + 1}</td>
-              <td style={{ border: '1px solid #000', padding: '3px 8px' }}>{row.nama_surah}</td>
-              <td style={{ border: '1px solid #000', padding: '3px 6px', textAlign: 'center', fontWeight: 'bold' }}>{row.makhroj || ''}</td>
-              <td style={{ border: '1px solid #000', padding: '3px 6px', textAlign: 'center', fontWeight: 'bold' }}>{row.tajwid || ''}</td>
-              <td style={{ border: '1px solid #000', padding: '3px 6px', textAlign: 'center', fontWeight: 'bold' }}>{row.lancar || ''}</td>
-              {i === 0 && (row.wafa_buku || row.wafa_halaman) ? (
-                <>
-                  <td rowSpan={detail.filter(d => d.wafa_buku).length || 1}
-                    style={{ border: '1px solid #000', padding: '3px 6px', textAlign: 'center', verticalAlign: 'middle' }}>
-                    {row.wafa_buku || ''}
-                  </td>
-                  <td rowSpan={detail.filter(d => d.wafa_halaman).length || 1}
-                    style={{ border: '1px solid #000', padding: '3px 6px', textAlign: 'center', verticalAlign: 'middle', color: '#cc0000', fontWeight: 'bold' }}>
-                    {row.wafa_halaman || ''}
-                  </td>
-                </>
-              ) : !row.wafa_buku && !row.wafa_halaman && i > 0 ? (
-                <>
-                  <td style={{ border: '1px solid #000', padding: '3px 6px' }}></td>
-                  <td style={{ border: '1px solid #000', padding: '3px 6px' }}></td>
-                </>
-              ) : i > 0 ? null : (
-                <>
-                  <td style={{ border: '1px solid #000', padding: '3px 6px' }}></td>
-                  <td style={{ border: '1px solid #000', padding: '3px 6px' }}></td>
-                </>
-              )}
-              {i === 0 && raport.catatan ? (
-                <td rowSpan={detail.length}
-                  style={{ border: '1px solid #000', padding: '6px 8px', textAlign: 'center', verticalAlign: 'middle', fontStyle: 'italic', fontSize: '11px', lineHeight: 1.5, maxWidth: 130 }}>
-                  &ldquo;{raport.catatan}&rdquo;
+              <td style={cell({ textAlign: 'center' })}>{i + 1}</td>
+              <td style={cell({ padding: '3px 7px' })}>
+                {inlineEdit ? (
+                  <input
+                    type="text"
+                    value={row.nama_surah}
+                    onChange={(event) => onInlineDetailChange?.(i, 'nama_surah', event.target.value || null)}
+                    style={editableInputStyle}
+                    placeholder="Nama surah"
+                  />
+                ) : row.nama_surah}
+              </td>
+              <td style={cell({ textAlign: 'center', fontWeight: 700 })}>
+                {inlineEdit ? (
+                  <input
+                    type="text"
+                    value={row.makhroj ?? ''}
+                    onChange={(event) => onInlineDetailChange?.(i, 'makhroj', event.target.value || null)}
+                    style={{ ...editableInputStyle, width: '100%', textAlign: 'center' }}
+                    placeholder="A/B/✓"
+                  />
+                ) : row.makhroj || ''}
+              </td>
+              <td style={cell({ textAlign: 'center', fontWeight: 700 })}>
+                {inlineEdit ? (
+                  <input
+                    type="text"
+                    value={row.tajwid ?? ''}
+                    onChange={(event) => onInlineDetailChange?.(i, 'tajwid', event.target.value || null)}
+                    style={{ ...editableInputStyle, width: '100%', textAlign: 'center' }}
+                    placeholder="A/B/✓"
+                  />
+                ) : row.tajwid || ''}
+              </td>
+              <td style={cell({ textAlign: 'center', fontWeight: 700 })}>
+                {inlineEdit ? (
+                  <input
+                    type="text"
+                    value={row.lancar ?? ''}
+                    onChange={(event) => onInlineDetailChange?.(i, 'lancar', event.target.value || null)}
+                    style={{ ...editableInputStyle, width: '100%', textAlign: 'center' }}
+                    placeholder="A/B/✓"
+                  />
+                ) : row.lancar || ''}
+              </td>
+              {inlineEdit && (
+                <td style={cell({ textAlign: 'center' })}>
+                  <button
+                    type="button"
+                    onClick={() => onInlineRemoveRow?.(i)}
+                    style={{
+                      border: '1px solid #333',
+                      background: '#fff',
+                      color: '#333',
+                      padding: '4px 8px',
+                      borderRadius: 5,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Hapus
+                  </button>
                 </td>
-              ) : i > 0 ? null : (
-                <td style={{ border: '1px solid #000', padding: '3px 6px' }}></td>
               )}
             </tr>
           ))}
         </tbody>
       </table>
 
-      {/* ── Keterangan ────────────────────────────────────────────────────── */}
-      <div style={{ fontSize: '11px', marginBottom: '24px' }}>
-        <div style={{ fontWeight: 'bold', marginBottom: 2 }}>Keterangan :</div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 32px', maxWidth: 320 }}>
-          <div>A = Sangat Baik</div>
-          <div>B = Baik</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <span style={{ fontWeight: 'bold', fontSize: '14px' }}>⊕</span> Cukup Baik
-          </div>
-          <div>D = Kurang Baik</div>
+      {inlineEdit && (
+        <div style={{ marginTop: '10px', display: 'flex', justifyContent: 'flex-end' }}>
+          <button type="button" onClick={onInlineAddRow}
+            style={{ border: '1px solid #000', background: '#fff', padding: '6px 10px', borderRadius: 6, cursor: 'pointer' }}>
+            Tambah Baris Surah
+          </button>
+        </div>
+      )}
+
+      {/* ══ PENILAIAN TAHSIN ═══════════════════════════════════════════════ */}
+      <div style={{ fontSize: '11px', marginBottom: '18px' }}>
+        <div style={{ fontWeight: 700, marginBottom: '6px' }}>Penilaian Tahsin</div>
+        <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '12px', fontSize: '11px' }}>
+          <tbody>
+            <tr>
+              <td style={{ width: '24%', padding: '4px 6px', border: '1px solid #000', fontWeight: 700 }}>Metode</td>
+              <td style={{ width: '26%', padding: '4px 6px', border: '1px solid #000' }}>{renderEditableText('tahsin_metode', raport.tahsin_metode, '—')}</td>
+              <td style={{ width: '24%', padding: '4px 6px', border: '1px solid #000', fontWeight: 700 }}>Halaman</td>
+              <td style={{ width: '26%', padding: '4px 6px', border: '1px solid #000' }}>{renderEditableText('tahsin_halaman', raport.tahsin_halaman, '—')}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', fontSize: '11px' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr>
+                <th style={{ border: '1px solid #000', background: '#f5f5f5', padding: '4px 6px', textAlign: 'left' }}>Makharijul Huruf</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style={{ padding: '8px 6px', border: '1px solid #000', textAlign: 'center', fontWeight: 700 }}>{renderEditableText('tahsin_makhroj', raport.tahsin_makhroj, '—')}</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr>
+                <th style={{ border: '1px solid #000', background: '#f5f5f5', padding: '4px 6px', textAlign: 'left' }}>Tajwid</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style={{ padding: '8px 6px', border: '1px solid #000', textAlign: 'center', fontWeight: 700 }}>{renderEditableText('tahsin_adab', raport.tahsin_adab, '—')}</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr>
+                <th style={{ border: '1px solid #000', background: '#f5f5f5', padding: '4px 6px', textAlign: 'left' }}>Kelancaran</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style={{ padding: '8px 6px', border: '1px solid #000', textAlign: 'center', fontWeight: 700 }}>{renderEditableText('tahsin_kelancaran', raport.tahsin_kelancaran, '—')}</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
 
-      {/* ── Tanda Tangan ─────────────────────────────────────────────────── */}
-      <div style={{ textAlign: 'right', marginBottom: '4px', fontSize: '12px' }}>
-        {kota}, {today}
+      {/* ══ CATATAN USTADZ/AH ══════════════════════════════════════════════ */}
+      <div style={{ fontSize: '11px', marginBottom: '18px' }}>
+        <div style={{ fontWeight: 700, marginBottom: '6px' }}>Catatan Ustadz/ah</div>
+        <div style={{ minHeight: '62px', padding: '10px 12px', border: '1px solid #000', lineHeight: 1.6, background: '#f9fafb' }}>
+          {renderEditableTextarea('catatan', raport.catatan, '—')}
+        </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 24px', fontSize: '12px', marginBottom: '32px' }}>
+      {/* ══ KETERANGAN ════════════════════════════════════════════════════ */}
+      <div style={{ fontSize: '10.5px', marginBottom: '18px' }}>
+        <strong>Keterangan :</strong>
+        <div style={{ display: 'grid', gridTemplateColumns: '160px 160px', gap: '1px 0', marginTop: 2 }}>
+          <span>A = Sangat Baik</span>
+          <span>B = Baik</span>
+          <span>C = Cukup Baik</span>
+          <span>D = Kurang Baik</span>
+        </div>
+      </div>
+
+      {/* ══ TANGGAL ═══════════════════════════════════════════════════════ */}
+      <div style={{ textAlign: 'right', fontSize: '11.5px', marginBottom: '6px' }}>
+        {inlineEdit ? (
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <input
+              type="text"
+              value={kota}
+              onChange={(event) => onInlineChange?.('lokasi', event.target.value || null)}
+              style={{ ...editableInputStyle, width: 120, textAlign: 'left' }}
+              placeholder="Dompu"
+            />
+            ,
+            <input
+              type="text"
+              value={tanggal}
+              onChange={(event) => onInlineChange?.('tanggal', event.target.value || null)}
+              style={{ ...editableInputStyle, width: 180, textAlign: 'left' }}
+              placeholder="7 Juni 2026"
+            />
+          </span>
+        ) : (
+          <span style={{ textDecoration: 'underline' }}>{kota}</span>
+        )}
+        {!inlineEdit && `, ${tanggal}`}
+      </div>
+
+      {/* ══ TANDA TANGAN GURU & KABID ═════════════════════════════════════ */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 24px',
+        fontSize: '11.5px', marginBottom: '20px' }}>
+
         {/* Guru Kelas */}
         <div style={{ textAlign: 'center' }}>
-          <div style={{ marginBottom: 56 }}>Guru Kelas,</div>
-          {/* Area kosong untuk TTD tangan */}
-          <div style={{ borderBottom: '1px solid #000', marginBottom: 6 }}>&nbsp;</div>
+          <div style={{ marginBottom: 4 }}>Guru Kelas,</div>
+          <div style={{ height: 60 }}></div>
           {namaGuruKelas ? (
-            <div style={{ fontWeight: 700 }}>{namaGuruKelas}</div>
+            <>
+              <div style={{
+                fontWeight: 700,
+                textDecoration: 'underline',
+                textDecorationThickness: '1.5px',
+                textUnderlineOffset: '2px',
+                marginBottom: 2,
+                fontSize: '11.5px',
+              }}>
+                {renderEditableText('nama_guru_kelas', namaGuruKelas, 'Nama Guru Kelas', { display: 'block', width: '100%' })}
+              </div>
+              {renderEditableText('niy_guru_kelas', niyGuruKelas, 'NIY Guru Kelas', { fontSize: '10px', color: '#222', display: 'block' })}
+            </>
           ) : (
-            <div style={{ color: '#999' }}>( _________________ )</div>
+            <div style={{ borderBottom: '1px solid #000', margin: '0 auto', width: '80%', paddingTop: 4 }} />
           )}
         </div>
 
         {/* Kabid Qur'an */}
         <div style={{ textAlign: 'center' }}>
-          <div style={{ marginBottom: 56 }}>Kabid Qur&apos;an,</div>
-          <div style={{ borderBottom: '1px solid #000', marginBottom: 6 }}>&nbsp;</div>
+          <div style={{ marginBottom: 4 }}>Kabid Qur&apos;an,</div>
+          <div style={{ height: 60 }}></div>
           {namaKabid ? (
-            <div style={{ fontWeight: 700 }}>{namaKabid}</div>
+            <>
+              <div style={{
+                fontWeight: 700,
+                textDecoration: 'underline',
+                textDecorationThickness: '1.5px',
+                textUnderlineOffset: '2px',
+                marginBottom: 2,
+                fontSize: '11.5px',
+              }}>
+                {renderEditableText('nama_kabid', namaKabid, 'Nama Kabid', { display: 'block', width: '100%' })}
+              </div>
+              {renderEditableText('niy_kabid', niyKabid, 'NIY Kabid', { fontSize: '10px', color: '#222', display: 'block' })}
+            </>
           ) : (
-            <div style={{ color: '#999' }}>( _________________ )</div>
+            <div style={{ borderBottom: '1px solid #000', margin: '0 auto', width: '80%', paddingTop: 4 }} />
           )}
         </div>
       </div>
 
-      {/* Kepala Sekolah */}
-      <div style={{ textAlign: 'center', fontSize: '12px' }}>
-        <div style={{ marginBottom: 4 }}>Mengetahui:</div>
-        <div style={{ marginBottom: 56, fontStyle: 'italic' }}>
-          Kepala {profil.nama_sekolah ?? profil.nama_lembaga ?? 'Sekolah'}
+      {/* ══ KEPALA SEKOLAH ════════════════════════════════════════════════ */}
+      <div style={{ textAlign: 'center', fontSize: '11.5px' }}>
+        <div style={{ marginBottom: 2 }}>Mengetahui;</div>
+        <div style={{ fontStyle: 'italic', marginBottom: 4 }}>
+          Kepala SD IT Al Hilmi Dompu,
         </div>
-        <div style={{ display: 'inline-block', minWidth: 220 }}>
-          <div style={{ borderBottom: '1px solid #000', marginBottom: 6 }}>&nbsp;</div>
-          {namaKepalaSekolah ? (
-            <div style={{ fontWeight: 700 }}>{namaKepalaSekolah}</div>
-          ) : (
-            <div style={{ color: '#999' }}>( _________________ )</div>
-          )}
+        <div style={{ height: 60 }}></div>
+        {namaKepalaSekolah ? (
+          <>
+            <div style={{
+              fontWeight: 700,
+              textDecoration: 'underline',
+              textDecorationThickness: '1.5px',
+              textUnderlineOffset: '2px',
+              marginBottom: 2,
+              fontSize: '11.5px',
+              display: 'inline-block',
+            }}>
+              {renderEditableText('nama_kepala_sekolah', namaKepalaSekolah, 'Nama Kepala Sekolah', { display: 'block', width: '100%' })}
+            </div>
+            {renderEditableText('niy_kepala_sekolah', niyKepalaSekolah, 'NIY Kepala Sekolah', { fontSize: '10px', color: '#222', display: 'block' })}
+          </>
+        ) : (
+          <div style={{ borderBottom: '1px solid #000', width: 200, margin: '0 auto', paddingTop: 4 }} />
+        )}
+      </div>
+
+      {/* ══ FOOTER GARIS ══════════════════════════════════════════════════ */}
+      <div style={{ marginTop: '20px' }}>
+        <div style={{ height: '1px', background: '#000' }} />
+        <div style={{ height: '2px', background: '#000', marginTop: '2px' }} />
+        <div style={{
+          display: 'flex', justifyContent: 'space-between',
+          fontSize: '8px', color: '#555', marginTop: '3px',
+          fontStyle: 'italic',
+        }}>
+          <span>{profil.nama_sekolah ?? profil.nama_lembaga ?? ''}</span>
+          <span>Raport Tahfidz &amp; Tahsin — {raport.tahun_ajaran}</span>
         </div>
       </div>
     </div>
@@ -284,10 +611,25 @@ PrintContent.displayName = 'PrintContent';
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export default function RaportTahfidzPrintable({ raport, hideButtons }: { raport: RaportTahfidzData; hideButtons?: boolean }) {
+export default function RaportTahfidzPrintable({
+  raport,
+  hideButtons,
+  inlineEdit = false,
+  onInlineChange,
+  onInlineDetailChange,
+  onInlineAddRow,
+  onInlineRemoveRow,
+}: {
+  raport: RaportTahfidzData;
+  hideButtons?: boolean;
+  inlineEdit?: boolean;
+  onInlineChange?: (field: keyof RaportTahfidzData, value: string | null) => void;
+  onInlineDetailChange?: (index: number, field: keyof DetailSurahData, value: string | null) => void;
+  onInlineAddRow?: () => void;
+  onInlineRemoveRow?: (index: number) => void;
+}) {
   const printRef = useRef<HTMLDivElement>(null);
   const [profil, setProfil] = useState<ProfilData>({});
-  const detail = (raport.raport_tahfidz_detail ?? []).sort((a, b) => a.urutan - b.urutan);
 
   useEffect(() => {
     fetch('/api/website/profil')
@@ -299,6 +641,16 @@ export default function RaportTahfidzPrintable({ raport, hideButtons }: { raport
   const handlePrint = useReactToPrint({
     contentRef: printRef,
     documentTitle: `Raport_Tahfidz_${raport.santri?.nama ?? 'Siswa'}_${raport.periode}`,
+    pageStyle: `
+      @page {
+        size: 215mm 330mm;
+        margin: 15mm 18mm 15mm 20mm;
+      }
+      @media print {
+        body { margin: 0; }
+        * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+      }
+    `,
   });
 
   return (
@@ -312,97 +664,34 @@ export default function RaportTahfidzPrintable({ raport, hideButtons }: { raport
         </div>
       )}
 
-      {/* Preview */}
+      {/* ── Preview tampilan dokumen langsung ────────────────────────── */}
       <div className="rounded-xl border border-slate-200 overflow-hidden shadow-sm bg-white">
-        {/* Header info */}
+        {/* Bar info */}
         <div className="bg-emerald-700 px-4 py-2.5 flex items-center justify-between">
-          <p className="text-white text-sm font-semibold">Preview Raport Tahfidz</p>
+          <p className="text-white text-sm font-semibold">Preview Raport Tahfidz &amp; Tahsin</p>
           <span className="text-emerald-200 text-xs">{raport.santri?.nama} · {raport.periode}</span>
         </div>
 
-        <div className="p-4 space-y-4 text-sm">
-          {/* Identitas */}
-          <div className="grid grid-cols-2 gap-3 bg-slate-50 rounded-xl p-4 border border-slate-100">
-            <div>
-              <p className="text-xs text-slate-400 uppercase tracking-wide mb-0.5">Nama</p>
-              <p className="font-semibold text-slate-800">{raport.santri?.nama ?? '—'}</p>
-            </div>
-            <div>
-              <p className="text-xs text-slate-400 uppercase tracking-wide mb-0.5">NISN</p>
-              <p className="font-mono text-slate-700">{raport.santri?.nisn ?? '—'}</p>
-            </div>
-            <div>
-              <p className="text-xs text-slate-400 uppercase tracking-wide mb-0.5">Kelas</p>
-              <p className="text-slate-700">{raport.santri?.classes?.name ?? '—'}</p>
-            </div>
-            <div>
-              <p className="text-xs text-slate-400 uppercase tracking-wide mb-0.5">Periode</p>
-              <p className="text-slate-700">{raport.periode} · {raport.tahun_ajaran}</p>
-            </div>
-            {raport.juz && (
-              <div>
-                <p className="text-xs text-slate-400 uppercase tracking-wide mb-0.5">Juz</p>
-                <p className="text-slate-700">Juz {raport.juz}</p>
-              </div>
-            )}
-          </div>
-
-          {/* Tabel surah */}
-          <div className="overflow-x-auto rounded-xl border border-slate-200">
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="bg-slate-50">
-                  <th className="px-3 py-2 text-left border-b border-slate-200 text-slate-500 uppercase w-8">No</th>
-                  <th className="px-3 py-2 text-left border-b border-slate-200 text-slate-500 uppercase">Surah</th>
-                  <th className="px-3 py-2 text-center border-b border-slate-200 text-slate-500 uppercase w-14">Makhroj</th>
-                  <th className="px-3 py-2 text-center border-b border-slate-200 text-slate-500 uppercase w-14">Tajwid</th>
-                  <th className="px-3 py-2 text-center border-b border-slate-200 text-slate-500 uppercase w-14">Lancar</th>
-                  <th className="px-3 py-2 text-center border-b border-slate-200 text-slate-500 uppercase w-20">Wafa Buku</th>
-                  <th className="px-3 py-2 text-center border-b border-slate-200 text-slate-500 uppercase w-20">Wafa Hal.</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {detail.map((row, i) => (
-                  <tr key={row.id ?? i} className="hover:bg-slate-50">
-                    <td className="px-3 py-2 text-slate-400">{i + 1}</td>
-                    <td className="px-3 py-2 font-medium text-slate-800">{row.nama_surah}</td>
-                    <td className={`px-3 py-2 text-center font-bold ${getNilaiColor(row.makhroj)}`}>{row.makhroj || '—'}</td>
-                    <td className={`px-3 py-2 text-center font-bold ${getNilaiColor(row.tajwid)}`}>{row.tajwid || '—'}</td>
-                    <td className={`px-3 py-2 text-center font-bold ${getNilaiColor(row.lancar)}`}>{row.lancar || '—'}</td>
-                    <td className="px-3 py-2 text-center text-slate-600">{row.wafa_buku || '—'}</td>
-                    <td className="px-3 py-2 text-center text-slate-600">{row.wafa_halaman || '—'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Catatan */}
-          {raport.catatan && (
-            <div className="rounded-xl bg-emerald-50 border border-emerald-100 p-4">
-              <p className="text-xs font-semibold text-emerald-700 uppercase tracking-wide mb-1">Catatan Ustadz/ah</p>
-              <p className="text-sm text-slate-700 italic leading-relaxed">&ldquo;{raport.catatan}&rdquo;</p>
-            </div>
-          )}
-
-          {/* Legenda */}
-          <div className="flex flex-wrap gap-3 text-xs text-slate-500 border-t border-slate-100 pt-3">
-            <span><strong className="text-emerald-600">✓</strong> = Hafal</span>
-            <span><strong className="text-blue-600">A</strong> = Sangat Baik</span>
-            <span><strong className="text-indigo-600">B</strong> = Baik</span>
-            <span><strong className="text-amber-600">C</strong> = Cukup Baik</span>
-            <span><strong className="text-red-600">D</strong> = Kurang Baik</span>
+        {/* Render PrintContent langsung sebagai preview — bukan hidden */}
+        <div className="overflow-x-auto p-2 sm:p-4 bg-gray-100">
+          <div className="min-w-[680px] bg-white shadow-md rounded">
+            <PrintContent
+              raport={raport}
+              profil={profil}
+              inlineEdit={inlineEdit}
+              onInlineChange={onInlineChange}
+              onInlineDetailChange={onInlineDetailChange}
+              onInlineAddRow={onInlineAddRow}
+              onInlineRemoveRow={onInlineRemoveRow}
+              ref={null}
+            />
           </div>
         </div>
       </div>
 
-      {/* Hidden print content */}
+      {/* Hidden print target */}
       <div style={{ display: 'none' }}>
-        <PrintContent
-          ref={printRef}
-          raport={raport}
-          profil={profil}
-        />
+        <PrintContent ref={printRef} raport={raport} profil={profil} />
       </div>
     </div>
   );

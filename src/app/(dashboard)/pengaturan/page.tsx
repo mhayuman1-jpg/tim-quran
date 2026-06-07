@@ -13,6 +13,15 @@ import Button from '@/components/ui/Button';
 import ImageUpload from '@/components/shared/ImageUpload';
 import { User, Lock, AlertCircle, CheckCircle, Camera } from 'lucide-react';
 
+// ─── Helper: Cache-busting untuk URL gambar ──
+function getPhotoUrlWithCacheBuster(url: string | null): string | null {
+  if (!url) return null;
+  // Tambahkan timestamp query param untuk cache-bust (update setiap menit)
+  const timestamp = Math.floor(Date.now() / 60000);
+  const separator = url.includes('?') ? '&' : '?';
+  return `${url}${separator}t=${timestamp}`;
+}
+
 export default function PengaturanPage() {
   const { session, isLoading: sessionLoading, userName, userEmail } = useSession();
   const { update: updateSession } = useNextAuthSession();
@@ -40,19 +49,43 @@ export default function PengaturanPage() {
   const [newPasswordError, setNewPasswordError] = useState('');
   const [confirmPasswordError, setConfirmPasswordError] = useState('');
 
-  // Set nama awal dari session
+  // Set nama awal dari session. Jika session name tidak tersedia, ambil dari server.
   useEffect(() => {
     if (userName) {
       setProfileName(userName);
+      return;
     }
+
+    async function loadProfile() {
+      try {
+        const res = await fetch('/api/pengaturan/profile', { cache: 'no-store' });
+        if (!res.ok) return;
+        const json = await res.json();
+        const name = json?.data?.name as string | undefined;
+        const photo = json?.data?.photo_url as string | null | undefined;
+
+        if (name) {
+          setProfileName(name);
+        }
+
+        if (photo !== undefined) {
+          setPhotoUrl(photo);
+        }
+      } catch (error) {
+        console.error('Error loading profile:', error);
+      }
+    }
+
+    loadProfile();
   }, [userName]);
 
-  // Load photo_url dari session saat mount
   useEffect(() => {
     if (session?.user?.photo_url) {
       setPhotoUrl(session.user.photo_url);
+    } else if (session && session.user.photo_url === null) {
+      setPhotoUrl(null);
     }
-  }, [session]);
+  }, [session?.user?.photo_url, session]);
 
   // ── Handler: Update Profil ──
   const handleProfileSubmit = async (e: FormEvent) => {
@@ -87,10 +120,11 @@ export default function PengaturanPage() {
       // Update local state langsung agar UI langsung berubah tanpa reload
       setProfileName(data.data.name);
 
-      // Trigger session refresh untuk update nama di seluruh UI
-      await updateSession({ name: data.data.name });
-
-      // Force re-render navbar/layout yang menampilkan nama
+      // Refresh latest profile data from server and update session
+      await fetch('/api/pengaturan/profile', { cache: 'no-store' });
+      if (updateSession) {
+        await updateSession();
+      }
       router.refresh();
 
       // Clear success message setelah 3 detik
@@ -191,12 +225,12 @@ export default function PengaturanPage() {
 
       setPhotoUrl(url);
       setProfileSuccess('Foto profil berhasil diperbarui.');
-      // Refresh session agar photo_url baru tersedia di seluruh app
-      try {
-        await updateSession({ photo_url: url });
-      } catch {
-        setProfileError('Foto tersimpan, tapi sesi gagal diperbarui. Silakan refresh halaman.');
+      // Refresh latest profile data from server and update session
+      await fetch('/api/pengaturan/profile', { cache: 'no-store' });
+      if (updateSession) {
+        await updateSession();
       }
+      router.refresh();
       setTimeout(() => setProfileSuccess(''), 3000);
     } catch {
       setProfileError('Terjadi kesalahan saat menyimpan foto.');
@@ -260,10 +294,10 @@ export default function PengaturanPage() {
         <div className="flex items-center gap-6">
           <div className="w-24 h-24 shrink-0">
             <ImageUpload
-              value={photoUrl}
+              value={getPhotoUrlWithCacheBuster(photoUrl)}
               onUpload={handlePhotoUploaded}
-              bucket="profile-photos"
-              folder={`${session?.user?.role?.toLowerCase()}/${session?.user?.id}`}
+              bucket="assets"
+              folder={`profile/${session?.user?.id}`}
               shape="circle"
               disabled={photoSaving}
               helperText="Maks 5MB"

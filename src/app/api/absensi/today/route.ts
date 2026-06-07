@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 // src/app/api/absensi/today/route.ts
 // GET: ambil daftar siswa yang sudah hadir hari ini.
 // Dipakai oleh halaman /scan untuk menampilkan daftar real-time.

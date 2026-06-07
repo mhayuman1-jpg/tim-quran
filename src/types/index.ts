@@ -1,7 +1,7 @@
 // src/types/index.ts
 // Semua TypeScript types untuk Tim Qur'an Website
 
-export type UserRole = 'Kabid' | 'Tim_Quran' | 'Sekretaris';
+export type UserRole = 'Kabid' | 'Tim_Quran' | 'Sekretaris' | 'Bendahara';
 export type UserStatus = 'Aktif' | 'Nonaktif';
 export type Gender = 'Laki-laki' | 'Perempuan';
 export type AttendanceStatus = 'Hadir' | 'Tidak Hadir' | 'Izin' | 'Sakit';
@@ -52,6 +52,10 @@ export interface Hafalan {
   tanggal: string;
   surah_juz: string;
   halaman?: number;
+  makhroj?: string;
+  tajwid?: string;
+  lancar?: string;
+  buku?: string;
   catatan?: string;
   created_at?: string;
 }
@@ -64,6 +68,33 @@ export interface Tahsin {
   metode: TahsinMetode;
   buku?: string;
   halaman?: number;
+  makhroj?: string;
+  kelancaran?: string;
+  adab?: string;
+  catatan?: string;
+  created_at?: string;
+}
+
+export interface SemesterSetting {
+  id: string;
+  semester_name: string;
+  end_date: string;
+  notes?: string;
+  is_active: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface Tahfidz {
+  id: string;
+  student_id: string;
+  teacher_id: string;
+  tanggal: string;
+  surah_juz: string;
+  halaman?: number;
+  makhroj: string;
+  tajwid: string;
+  lancar: string;
   catatan?: string;
   created_at?: string;
 }

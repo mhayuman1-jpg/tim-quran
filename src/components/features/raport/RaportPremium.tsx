@@ -298,6 +298,7 @@ const RaportPremium = React.forwardRef<HTMLDivElement, { data: RaportPremiumData
                 width={56}
                 height={56}
                 style={{ objectFit: 'contain', width: '100%', height: '100%' }}
+                unoptimized
               />
             ) : (
               <span style={{ fontSize: '8px', color: 'rgba(255,255,255,0.7)', textAlign: 'center', lineHeight: 1.2 }}>LOGO{'\n'}SEKOLAH</span>
@@ -362,6 +363,7 @@ const RaportPremium = React.forwardRef<HTMLDivElement, { data: RaportPremiumData
                 width={56}
                 height={56}
                 style={{ objectFit: 'contain', width: '100%', height: '100%' }}
+                unoptimized
               />
             ) : (
               <span style={{ fontSize: '8px', color: 'rgba(255,255,255,0.7)', textAlign: 'center', lineHeight: 1.2 }}>LOGO{'\n'}TIM</span>
@@ -408,6 +410,7 @@ const RaportPremium = React.forwardRef<HTMLDivElement, { data: RaportPremiumData
                 width={76}
                 height={76}
                 style={{ objectFit: 'cover', width: '100%', height: '100%' }}
+                unoptimized
               />
             ) : (
               <svg width="40" height="40" viewBox="0 0 40 40" fill="none">

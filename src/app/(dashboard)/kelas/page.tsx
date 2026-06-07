@@ -76,10 +76,10 @@ export default function KelasPage() {
   const fetchKelas = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/kelas/list');
-      const json = await res.json();
+      const res = await fetch('/api/kelas/list', { credentials: 'same-origin' });
+      const json = await res.json().catch(() => ({}));
       if (!res.ok) {
-        toast.error(json.message ?? 'Gagal memuat data kelas.');
+        toast.error(json.message ?? (res.status === 403 ? 'Akses kelas hanya untuk Kabid.' : 'Gagal memuat data kelas.'));
         setData([]);
       } else {
         setData(json.data ?? []);

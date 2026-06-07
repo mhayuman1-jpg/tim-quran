@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { nisn, nama, gender, tanggal_lahir, class_id, juz_terakhir, status } = body;
+    const { nisn, nama, gender, tanggal_lahir, class_id, juz_terakhir, status, photo_url } = body;
 
     // Validasi field wajib
     if (!nisn || typeof nisn !== 'string' || nisn.trim() === '') {
@@ -66,6 +66,7 @@ export async function POST(request: NextRequest) {
     // Field opsional
     if (tanggal_lahir) insertData.tanggal_lahir = tanggal_lahir;
     if (class_id) insertData.class_id = class_id;
+    if (photo_url) insertData.photo_url = photo_url;
 
     // Untuk Tim_Quran, auto-assign ke dirinya sendiri jika tidak ada assigned_teacher_id
     if (session.user.role === 'Tim_Quran') {
@@ -75,7 +76,7 @@ export async function POST(request: NextRequest) {
     const { data, error } = await supabase
       .from('santri')
       .insert([insertData])
-      .select(`id, nisn, nama, gender, tanggal_lahir, class_id, juz_terakhir, qr_code, status, assigned_teacher_id, created_at`)
+      .select(`id, nisn, nama, gender, tanggal_lahir, class_id, juz_terakhir, qr_code, status, assigned_teacher_id, photo_url, created_at`)
       .single();
 
     if (error) {

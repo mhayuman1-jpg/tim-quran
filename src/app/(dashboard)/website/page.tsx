@@ -1,8 +1,8 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import Image from 'next/image';
-import { Globe, BookOpen, Calendar, Images, Plus, Pencil, Trash2, ToggleLeft, ToggleRight, Save } from 'lucide-react';
+import { Globe, BookOpen, Calendar, Images, Plus, Pencil, Trash2, ToggleLeft, ToggleRight, Save, Menu as MenuIcon, GripVertical } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Modal from '@/components/ui/Modal';
@@ -16,56 +16,63 @@ interface Profil {
   id?: string; nama_lembaga: string; deskripsi: string; visi: string;
   misi: string[]; logo_url: string; logo_sekolah_url: string; nama_sekolah: string;
   alamat: string; email: string;
-  telepon: string; instagram: string; youtube: string;
+  telepon: string; instagram: string; facebook: string; youtube: string;
 }
 interface Program { id: string; nama: string; deskripsi: string; icon: string; urutan: number; is_active: boolean; }
 interface Agenda { id: string; judul: string; deskripsi: string; tanggal: string; waktu_mulai: string; waktu_selesai: string; lokasi: string; is_published: boolean; }
 interface GaleriItem { id: string; judul: string; deskripsi?: string; foto_url: string; urutan: number; is_published: boolean; }
+interface NavigationItem { id: string; label: string; href: string; urutan: number; is_active: boolean; }
 
-const EMPTY_PROFIL: Profil = { nama_lembaga: '', deskripsi: '', visi: '', misi: [], logo_url: '', logo_sekolah_url: '', nama_sekolah: '', alamat: '', email: '', telepon: '', instagram: '', youtube: '' };
+const EMPTY_PROFIL: Profil = { nama_lembaga: '', deskripsi: '', visi: '', misi: [], logo_url: '', logo_sekolah_url: '', nama_sekolah: '', alamat: '', email: '', telepon: '', instagram: '', facebook: '', youtube: '' };
 const EMPTY_PROGRAM: Omit<Program, 'id'> = { nama: '', deskripsi: '', icon: 'BookOpen', urutan: 0, is_active: true };
 const EMPTY_AGENDA: Omit<Agenda, 'id'> = { judul: '', deskripsi: '', tanggal: '', waktu_mulai: '', waktu_selesai: '', lokasi: '', is_published: true };
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function WebsitePage() {
-  const [tab, setTab] = useState<'profil' | 'program' | 'agenda' | 'galeri'>('profil');
+  const [tab, setTab] = useState<'profil' | 'program' | 'agenda' | 'galeri' | 'menu'>('profil');
   const { toast } = useToast();
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-          <Globe size={22} className="text-emerald-600" /> Kelola Website
-        </h1>
-        <p className="text-slate-500 text-sm mt-1">Atur semua konten yang tampil di halaman publik website.</p>
+    <div className="space-y-6 max-w-6xl mx-auto">
+      <div className="rounded-3xl bg-white/90 shadow-sm ring-1 ring-slate-200/80 p-6">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
+            <Globe size={22} className="text-emerald-600" /> Kelola Website
+          </h1>
+          <p className="text-slate-500 text-sm mt-1">Atur semua konten yang tampil di halaman publik website.</p>
+        </div>
+
+        {/* Tabs */}
+        <div className="mt-6 flex flex-wrap gap-2 border-b border-slate-200 pb-0 overflow-x-auto sm:overflow-visible">
+          {([
+            { id: 'profil', label: 'Profil & Visi Misi', icon: Globe },
+            { id: 'program', label: 'Program', icon: BookOpen },
+            { id: 'agenda', label: 'Agenda', icon: Calendar },
+            { id: 'galeri', label: 'Galeri', icon: Images },
+            { id: 'menu', label: 'Navigasi Menu', icon: MenuIcon },
+          ] as const).map(({ id, label, icon: Icon }) => (
+            <button
+              key={id}
+              onClick={() => setTab(id)}
+              className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap ${
+                tab === id
+                  ? 'border-emerald-600 text-emerald-700'
+                  : 'border-transparent text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              <Icon size={15} /> {label}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-2 border-b border-slate-200 pb-0">
-        {([
-          { id: 'profil', label: 'Profil & Visi Misi', icon: Globe },
-          { id: 'program', label: 'Program', icon: BookOpen },
-          { id: 'agenda', label: 'Agenda', icon: Calendar },
-          { id: 'galeri', label: 'Galeri', icon: Images },
-        ] as const).map(({ id, label, icon: Icon }) => (
-          <button
-            key={id}
-            onClick={() => setTab(id)}
-            className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
-              tab === id
-                ? 'border-emerald-600 text-emerald-700'
-                : 'border-transparent text-slate-500 hover:text-slate-700'
-            }`}
-          >
-            <Icon size={15} /> {label}
-          </button>
-        ))}
+      <div className="space-y-6">
+        {tab === 'profil' && <ProfilTab toast={toast} />}
+        {tab === 'program' && <ProgramTab toast={toast} />}
+        {tab === 'agenda' && <AgendaTab toast={toast} />}
+        {tab === 'galeri' && <GaleriTab toast={toast} />}
+        {tab === 'menu' && <MenuTab toast={toast} />}
       </div>
-
-      {tab === 'profil' && <ProfilTab toast={toast} />}
-      {tab === 'program' && <ProgramTab toast={toast} />}
-      {tab === 'agenda' && <AgendaTab toast={toast} />}
-      {tab === 'galeri' && <GaleriTab toast={toast} />}
     </div>
   );
 }
@@ -75,14 +82,28 @@ function ProfilTab({ toast }: { toast: ReturnType<typeof useToast>['toast'] }) {
   const [profil, setProfil] = useState<Profil>(EMPTY_PROFIL);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [logoSaving, setLogoSaving] = useState<'logo_url' | 'logo_sekolah_url' | null>(null);
   const [newMisi, setNewMisi] = useState('');
+  // Ref untuk akses profil terbaru tanpa stale closure
+  const profilRef = React.useRef(profil);
+  profilRef.current = profil;
 
-  useEffect(() => {
-    fetch('/api/website/profil').then(r => r.json()).then(j => {
-      if (j.data) setProfil({ ...EMPTY_PROFIL, ...j.data, misi: j.data.misi ?? [] });
+  const fetchProfil = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/website/profil?t=${Date.now()}`, { cache: 'no-store' });
+      const j = await res.json();
+      if (j.data) {
+        setProfil({ ...EMPTY_PROFIL, ...j.data, misi: j.data.misi ?? [] });
+      }
+    } catch (err) {
+      console.error('[fetchProfil]', err);
+    } finally {
       setLoading(false);
-    }).catch(() => setLoading(false));
+    }
   }, []);
+
+  useEffect(() => { fetchProfil(); }, [fetchProfil]);
 
   const set = (k: keyof Profil, v: string) => setProfil(p => ({ ...p, [k]: v }));
 
@@ -91,22 +112,60 @@ function ProfilTab({ toast }: { toast: ReturnType<typeof useToast>['toast'] }) {
     setProfil(p => ({ ...p, misi: [...p.misi, newMisi.trim()] }));
     setNewMisi('');
   };
-
   const removeMisi = (i: number) => setProfil(p => ({ ...p, misi: p.misi.filter((_, idx) => idx !== i) }));
+
+  // Auto-save logo segera setelah upload berhasil
+  const handleLogoUpload = async (field: 'logo_url' | 'logo_sekolah_url', url: string) => {
+    // Update state lokal dulu
+    setProfil(p => ({ ...p, [field]: url }));
+    setLogoSaving(field);
+    try {
+      // Kirim HANYA field logo yang berubah — tidak bergantung pada profilRef
+      const res = await fetch('/api/website/profil', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ [field]: url }),
+      });
+      const j = await res.json();
+      if (res.ok) {
+        toast.success(field === 'logo_url' ? 'Logo Tim berhasil disimpan ✓' : 'Logo Sekolah berhasil disimpan ✓');
+        // Refresh data dari server untuk sinkronisasi
+        const r2 = await fetch(`/api/website/profil?t=${Date.now()}`, { cache: 'no-store' });
+        const j2 = await r2.json();
+        if (j2.data) setProfil({ ...EMPTY_PROFIL, ...j2.data, misi: j2.data.misi ?? [] });
+      } else {
+        toast.error(j.message || 'Gagal menyimpan logo.');
+      }
+    } catch (err) {
+      console.error('[handleLogoUpload]', err);
+      toast.error('Gagal menyimpan logo. Klik "Simpan Perubahan" untuk mencoba lagi.');
+    } finally {
+      setLogoSaving(null);
+    }
+  };
 
   const save = async () => {
     setSaving(true);
     try {
-      const res = await fetch('/api/website/profil', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(profil) });
+      const res = await fetch('/api/website/profil', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(profil),
+      });
       const j = await res.json();
       if (res.ok) {
         toast.success('Profil berhasil disimpan! ✓');
         window.scrollTo({ top: 0, behavior: 'smooth' });
+        await fetchProfil();
       } else {
         toast.error(j.message || 'Gagal menyimpan profil.');
       }
-    } catch { toast.error('Terjadi kesalahan. Coba lagi.'); }
-    finally { setSaving(false); }
+    } catch (err) {
+      console.error('[saveProfil]', err);
+      toast.error('Terjadi kesalahan. Coba lagi.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (loading) return (
@@ -185,9 +244,9 @@ function ProfilTab({ toast }: { toast: ReturnType<typeof useToast>['toast'] }) {
             <ImageUpload
               label="Logo Tim Qur'an"
               value={profil.logo_url || null}
-              onUpload={(url) => setProfil(p => ({ ...p, logo_url: url }))}
+              onUpload={(url) => handleLogoUpload('logo_url', url)}
               bucket="assets" folder="logo" shape="square"
-              helperText="Tampil di navbar dan hero website"
+              helperText={logoSaving === 'logo_url' ? '⏳ Menyimpan...' : 'Tersimpan otomatis setelah upload'}
             />
           </div>
           {/* Upload logo sekolah */}
@@ -195,9 +254,9 @@ function ProfilTab({ toast }: { toast: ReturnType<typeof useToast>['toast'] }) {
             <ImageUpload
               label="Logo Sekolah / Yayasan"
               value={profil.logo_sekolah_url || null}
-              onUpload={(url) => setProfil(p => ({ ...p, logo_sekolah_url: url }))}
+              onUpload={(url) => handleLogoUpload('logo_sekolah_url', url)}
               bucket="assets" folder="logo" shape="square"
-              helperText="Tampil di ID Card siswa bersama logo Tim Qur'an"
+              helperText={logoSaving === 'logo_sekolah_url' ? '⏳ Menyimpan...' : 'Tersimpan otomatis setelah upload'}
             />
             <Input
               label="Nama Sekolah / Yayasan"
@@ -251,6 +310,7 @@ function ProfilTab({ toast }: { toast: ReturnType<typeof useToast>['toast'] }) {
           <Input label="Alamat" value={profil.alamat} onChange={e => set('alamat', e.target.value)} />
           <Input label="Email" type="email" value={profil.email} onChange={e => set('email', e.target.value)} />
           <Input label="Telepon" value={profil.telepon} onChange={e => set('telepon', e.target.value)} />
+          <Input label="Facebook" value={profil.facebook} onChange={e => set('facebook', e.target.value)} placeholder="Link halaman atau username" />
           <Input label="Instagram" value={profil.instagram} onChange={e => set('instagram', e.target.value)} placeholder="@username" />
           <Input label="YouTube" value={profil.youtube} onChange={e => set('youtube', e.target.value)} placeholder="Link channel" />
         </div>
@@ -613,6 +673,185 @@ function GaleriTab({ toast }: { toast: ReturnType<typeof useToast>['toast'] }) {
 
       <ConfirmDialog open={!!deleteTarget} onClose={() => !deleteLoading && setDeleteTarget(null)} onConfirm={confirmDelete}
         title="Hapus Foto" message={`Hapus foto "${deleteTarget?.judul}"?`} confirmLabel="Hapus" loading={deleteLoading} />
+    </div>
+  );
+}
+
+// ── Tab Menu Navigasi ─────────────────────────────────────────────────────────
+function MenuTab({ toast }: { toast: ReturnType<typeof useToast>['toast'] }) {
+  const [items, setItems] = useState<NavigationItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({ label: '', href: '' });
+  const [addOpen, setAddOpen] = useState(false);
+
+  const fetchMenu = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/website/navigation');
+      const json = await res.json();
+      if (json.data) {
+        setItems(json.data);
+      }
+    } catch (err) {
+      console.error('[MenuTab] Failed to fetch:', err);
+      toast.error('Gagal memuat menu.');
+    }
+    finally { setLoading(false); }
+  }, [toast]);
+
+  useEffect(() => { fetchMenu(); }, [fetchMenu]);
+
+  const handleAddMenu = async () => {
+    if (!form.label.trim() || !form.href.trim()) {
+      toast.error('Label dan URL wajib diisi.');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const res = await fetch('/api/website/navigation/manage', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          label: form.label.trim(),
+          href: form.href.trim(),
+          urutan: Math.max(...items.map(i => i.urutan), 0) + 1,
+        }),
+      });
+      const json = await res.json();
+      if (res.ok) {
+        toast.success('Menu berhasil ditambahkan.');
+        setForm({ label: '', href: '' });
+        setAddOpen(false);
+        fetchMenu();
+      } else {
+        toast.error(json.error || 'Gagal menambahkan menu.');
+      }
+    } catch (err) {
+      console.error('[handleAddMenu]', err);
+      toast.error('Terjadi kesalahan.');
+    }
+    finally { setSaving(false); }
+  };
+
+  const handleToggle = async (item: NavigationItem) => {
+    setSaving(true);
+    try {
+      const res = await fetch('/api/website/navigation/manage', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          items: [{ ...item, is_active: !item.is_active }],
+        }),
+      });
+      const json = await res.json();
+      if (res.ok) {
+        toast.success(item.is_active ? 'Menu disembunyikan.' : 'Menu ditampilkan.');
+        fetchMenu();
+      } else {
+        toast.error(json.error || 'Gagal mengupdate.');
+      }
+    } catch (err) {
+      console.error('[handleToggle]', err);
+      toast.error('Terjadi kesalahan.');
+    }
+    finally { setSaving(false); }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Hapus menu item ini?')) return;
+    setSaving(true);
+    try {
+      const res = await fetch('/api/website/navigation/manage', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      });
+      const json = await res.json();
+      if (res.ok) {
+        toast.success('Menu berhasil dihapus.');
+        fetchMenu();
+      } else {
+        toast.error(json.error || 'Gagal menghapus.');
+      }
+    } catch (err) {
+      console.error('[handleDelete]', err);
+      toast.error('Terjadi kesalahan.');
+    }
+    finally { setSaving(false); }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-end">
+        <Button variant="primary" leftIcon={<Plus size={15} />} onClick={() => setAddOpen(true)}>Tambah Menu</Button>
+      </div>
+
+      {loading ? (
+        <div className="space-y-2">
+          {[...Array(3)].map((_, i) => <div key={i} className="h-12 bg-slate-200 rounded-lg animate-pulse" />)}
+        </div>
+      ) : items.length === 0 ? (
+        <div className="py-8 text-center text-slate-400 text-sm">Belum ada menu.</div>
+      ) : (
+        <div className="bg-white rounded-xl border border-slate-200 divide-y">
+          {items.map((item) => (
+            <div key={item.id} className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors">
+              <div className="flex items-center gap-3 flex-1">
+                <GripVertical size={18} className="text-slate-300 cursor-grab" />
+                <div>
+                  <p className="text-sm font-medium text-slate-900">{item.label}</p>
+                  <p className="text-xs text-slate-500 font-mono">{item.href}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => handleToggle(item)}
+                  disabled={saving}
+                  className="p-1.5"
+                >
+                  {item.is_active ? (
+                    <ToggleRight size={20} className="text-emerald-600" />
+                  ) : (
+                    <ToggleLeft size={20} className="text-slate-400" />
+                  )}
+                </button>
+                <button
+                  onClick={() => handleDelete(item.id)}
+                  disabled={saving}
+                  className="p-1.5 text-slate-400 hover:text-red-600 transition-colors"
+                >
+                  <Trash2 size={18} />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <Modal open={addOpen} onClose={() => setAddOpen(false)} title="Tambah Menu" size="sm">
+        <div className="space-y-4">
+          <Input
+            label="Label Menu"
+            value={form.label}
+            onChange={e => setForm(f => ({ ...f, label: e.target.value }))}
+            placeholder="Contoh: Berita"
+            required
+          />
+          <Input
+            label="URL"
+            value={form.href}
+            onChange={e => setForm(f => ({ ...f, href: e.target.value }))}
+            placeholder="Contoh: /berita"
+            required
+          />
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="ghost" onClick={() => setAddOpen(false)} disabled={saving}>Batal</Button>
+            <Button variant="primary" loading={saving} onClick={handleAddMenu}>Tambah</Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

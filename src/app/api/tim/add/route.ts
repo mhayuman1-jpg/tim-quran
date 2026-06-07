@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, email, password } = body;
+    const { name, email, password, role } = body;
 
     // Validasi field wajib
     if (!name || typeof name !== 'string' || name.trim() === '') {
@@ -66,6 +66,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const allowedRoles = ['Tim_Quran', 'Sekretaris', 'Bendahara'] as const;
+    if (!role || typeof role !== 'string' || !allowedRoles.includes(role as typeof allowedRoles[number])) {
+      return NextResponse.json(
+        { message: `Role tidak valid. Pilih salah satu: ${allowedRoles.join(', ')}` },
+        { status: 400 }
+      );
+    }
+
     // Validasi panjang password minimal 6 karakter
     if (password.length < 6) {
       return NextResponse.json(
@@ -88,7 +96,7 @@ export async function POST(request: NextRequest) {
           name: name.trim(),
           email: email.trim().toLowerCase(),
           password_hash: passwordHash,
-          role: 'Tim_Quran',
+          role: role as typeof allowedRoles[number],
           status: 'Aktif',
         },
       ])

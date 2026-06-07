@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { cacheBust } from '@/lib/image';
 
 export interface StaffIDCardProps {
   name: string;
@@ -106,8 +107,9 @@ export function StaffIDCard({
               background: "rgba(255,255,255,0.92)", padding: 1, flexShrink: 0,
               display: "flex", alignItems: "center", justifyContent: "center",
             }}>
-              <Image src={logoSekolahUrl} alt={namaSekolah ?? "Sekolah"} width={22} height={22}
-                style={{ objectFit: "contain", width: "100%", height: "100%" }} />
+              <Image src={cacheBust(logoSekolahUrl) || logoSekolahUrl} alt={namaSekolah ?? "Sekolah"} width={22} height={22}
+                style={{ objectFit: "contain", width: "100%", height: "100%" }}
+                unoptimized />
             </div>
           ) : (
             <div style={{ width: 22, height: 22, borderRadius: 4, background: "rgba(255,255,255,0.15)", flexShrink: 0 }} />
@@ -138,8 +140,9 @@ export function StaffIDCard({
               background: "rgba(255,255,255,0.92)", padding: 1, flexShrink: 0,
               display: "flex", alignItems: "center", justifyContent: "center",
             }}>
-              <Image src={logoUrl} alt={namaLembaga} width={22} height={22}
-                style={{ objectFit: "contain", width: "100%", height: "100%" }} />
+              <Image src={cacheBust(logoUrl) || logoUrl} alt={namaLembaga} width={22} height={22}
+                style={{ objectFit: "contain", width: "100%", height: "100%" }}
+                unoptimized />
             </div>
           ) : (
             <div style={{ width: 22, height: 22, borderRadius: 4, background: "rgba(255,255,255,0.2)", flexShrink: 0 }} />
@@ -179,8 +182,9 @@ export function StaffIDCard({
           boxShadow: `0 2px 8px ${accent}33`,
         }}>
           {photoUrl ? (
-            <Image src={photoUrl} alt={name} width={80} height={80}
-              style={{ objectFit: "cover", width: "100%", height: "100%" }} />
+            <Image src={cacheBust(photoUrl) || photoUrl} alt={name} width={80} height={80}
+              style={{ objectFit: "cover", width: "100%", height: "100%" }}
+              unoptimized />
           ) : (
             <svg viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" strokeWidth="1.5" width="36" height="36">
               <path strokeLinecap="round" strokeLinejoin="round"

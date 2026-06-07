@@ -4,9 +4,20 @@
 // Komponen upload gambar reusable dengan preview, drag & drop, dan progress.
 // Menggunakan API /api/upload untuk upload ke Supabase Storage.
 
-import { useRef, useState, useCallback } from 'react';
+import { useRef, useState, useCallback, useEffect } from 'react';
 import Image from 'next/image';
-import { Upload, X, Camera, AlertCircle, CheckCircle2, ImageIcon } from 'lucide-react';
+import { X, Camera, AlertCircle, CheckCircle2, ImageIcon } from 'lucide-react';
+
+// ─── Helper: Cache-busting untuk URL gambar ──
+function getImageUrlWithCacheBuster(url: string | null): string | null {
+  if (!url) return null;
+  // Jika URL adalah data URI, return as-is
+  if (url.startsWith('data:')) return url;
+  // Tambahkan timestamp query param untuk cache-bust (update setiap menit)
+  const timestamp = Math.floor(Date.now() / 60000);
+  const separator = url.includes('?') ? '&' : '?';
+  return `${url}${separator}t=${timestamp}`;
+}
 
 interface ImageUploadProps {
   /** URL gambar saat ini (untuk tampilkan preview existing) */
@@ -43,8 +54,15 @@ export default function ImageUpload({
   const [success, setSuccess] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
+  const [hasLoadError, setHasLoadError] = useState(false);
 
   const currentImage = preview || value;
+
+  useEffect(() => {
+    if (currentImage) {
+      setHasLoadError(false);
+    }
+  }, [currentImage]);
 
   const handleFile = useCallback(async (file: File) => {
     if (!file) return;
@@ -109,6 +127,13 @@ export default function ImageUpload({
     e.target.value = '';
   };
 
+  const clearImage = useCallback(() => {
+    setPreview(null);
+    setHasLoadError(false);
+    setError(null);
+    onUpload('');
+  }, [onUpload]);
+
   const shapeClasses = {
     square: 'aspect-square rounded-xl',
     circle: 'aspect-square rounded-full',
@@ -137,15 +162,17 @@ export default function ImageUpload({
         aria-label="Klik atau drop gambar di sini"
       >
         {/* Preview gambar */}
-        {currentImage ? (
+        {currentImage && !hasLoadError ? (
           <>
             <Image
-              src={currentImage}
+              src={getImageUrlWithCacheBuster(currentImage) || currentImage}
               alt="Preview"
               fill
               className="object-cover"
               sizes="300px"
-              unoptimized={currentImage.startsWith('data:')}
+              unoptimized={currentImage.startsWith('data:') || currentImage.startsWith('http')}
+              onError={() => setHasLoadError(true)}
+              onLoadingComplete={() => setHasLoadError(false)}
             />
             {/* Overlay saat hover */}
             <div className={`absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity ${uploading ? 'opacity-100' : ''}`}>
@@ -163,12 +190,27 @@ export default function ImageUpload({
             </div>
           </>
         ) : (
-          // Empty state
+          // Empty state or broken image state
           <div className="absolute inset-0 flex flex-col items-center justify-center p-4 text-center">
             {uploading ? (
               <>
                 <div className="w-8 h-8 border-2 border-emerald-300 border-t-emerald-600 rounded-full animate-spin mb-2" />
                 <p className="text-xs text-emerald-600 font-medium">Mengunggah...</p>
+              </>
+            ) : hasLoadError ? (
+              <>
+                <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center mb-3">
+                  <AlertCircle size={20} className="text-red-500" />
+                </div>
+                <p className="text-sm text-slate-700 font-medium">Gagal memuat gambar</p>
+                <p className="text-xs text-slate-400 mt-1">Klik untuk pilih ulang atau hapus URL</p>
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); clearImage(); }}
+                  className="mt-3 inline-flex items-center justify-center rounded-full border border-red-300 bg-white px-3 py-1 text-xs font-semibold text-red-600 hover:bg-red-50"
+                >
+                  Hapus URL lama
+                </button>
               </>
             ) : (
               <>
@@ -199,6 +241,7 @@ export default function ImageUpload({
             onClick={(e) => {
               e.stopPropagation();
               setPreview(null);
+              setHasLoadError(false);
               onUpload('');
             }}
             className="absolute top-2 left-2 w-7 h-7 rounded-full bg-black/50 hover:bg-black/70 text-white flex items-center justify-center transition-colors"

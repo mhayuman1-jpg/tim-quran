@@ -1,0 +1,41 @@
+<svg width="1200" height="900" viewBox="0 0 1200 900" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bgGrad" x1="600" y1="0" x2="600" y2="900" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0B1734" />
+      <stop offset="1" stop-color="#07111F" />
+    </linearGradient>
+    <linearGradient id="bookGrad" x1="600" y1="360" x2="600" y2="700" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F8D876" />
+      <stop offset="1" stop-color="#D19F42" />
+    </linearGradient>
+    <linearGradient id="coverGrad" x1="600" y1="200" x2="600" y2="620" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#14445F" />
+      <stop offset="1" stop-color="#0B2B42" />
+    </linearGradient>
+    <radialGradient id="halo" cx="0.5" cy="0.4" r="0.7">
+      <stop offset="0" stop-color="#4FD1C5" stop-opacity="0.28" />
+      <stop offset="1" stop-color="#4FD1C5" stop-opacity="0" />
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="900" rx="48" fill="url(#bgGrad)" />
+  <circle cx="600" cy="260" r="220" fill="url(#halo)" />
+  <circle cx="600" cy="260" r="180" stroke="#22D3EE" stroke-opacity="0.16" stroke-width="10" />
+  <path d="M280 520C280 520 360 420 600 420C840 420 920 520 920 520C920 620 840 680 600 680C360 680 280 620 280 520Z" fill="url(#bookGrad)"/>
+  <path d="M320 520C320 520 410 430 600 430C790 430 880 520 880 520C880 610 790 660 600 660C410 660 320 610 320 520Z" fill="#F7E1A8"/>
+  <path d="M320 520L600 420L880 520" stroke="#B58F39" stroke-width="14" stroke-linecap="round" />
+  <path d="M320 520C320 540 320 610 320 620C320 680 360 700 420 700L440 700" fill="#DAC37F" />
+  <path d="M880 520C880 540 880 610 880 620C880 680 840 700 780 700L760 700" fill="#DAC37F" />
+  <path d="M370 560C430 520 470 520 530 560C590 600 630 600 690 560C750 520 790 520 850 560" stroke="#C38C17" stroke-width="10" stroke-linecap="round" />
+  <path d="M380 590C430 560 470 560 530 600C590 640 630 640 690 600C750 560 790 560 840 590" stroke="#C38C17" stroke-width="10" stroke-linecap="round" />
+  <path d="M385 630C430 600 470 600 530 640C590 680 630 680 690 640C750 600 790 600 835 630" stroke="#C38C17" stroke-width="10" stroke-linecap="round" />
+  <rect x="520" y="500" width="160" height="100" rx="20" fill="#14445F" />
+  <path d="M540 540H660" stroke="#F8D876" stroke-width="10" stroke-linecap="round" />
+  <path d="M540 570H660" stroke="#F8D876" stroke-width="10" stroke-linecap="round" />
+  <path d="M540 600H660" stroke="#F8D876" stroke-width="10" stroke-linecap="round" />
+  <path d="M520 520C520 520 540 490 600 490C660 490 680 520 680 520" stroke="#F8D876" stroke-width="12" stroke-linecap="round" />
+  <path d="M520 520L600 430L680 520" stroke="#F8D876" stroke-width="10" stroke-linecap="round" />
+  <path d="M320 200C340 170 420 150 480 150C620 150 700 190 720 220" stroke="#F7E1A8" stroke-width="14" stroke-linecap="round" />
+  <path d="M840 180C820 150 740 130 680 130C540 130 460 170 440 200" stroke="#F7E1A8" stroke-width="14" stroke-linecap="round" />
+  <path d="M520 240C540 220 580 210 600 210C620 210 660 220 680 240" stroke="#F7E1A8" stroke-width="12" stroke-linecap="round" />
+  <path d="M520 260C540 245 580 240 600 240C620 240 660 245 680 260" stroke="#F7E1A8" stroke-width="10" stroke-linecap="round" />
+</svg>

@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 // src/app/api/artikel/list/route.ts
 // GET: Ambil daftar artikel
 // - published=true  → halaman publik, tanpa auth, hanya artikel yang sudah diterbitkan

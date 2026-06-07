@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 // src/app/api/siswa/template/route.ts
 // GET: Generate dan download file Excel template import siswa
 // Otomatis ambil daftar kelas yang tersedia dari database

@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 // src/app/api/laporan/tim/route.ts
 // GET: Laporan progres siswa per Tim_Quran (Kabid only)
 // Query param: teacher_id (required)

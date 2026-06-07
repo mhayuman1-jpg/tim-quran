@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS public.profil_website (
   email         text,
   telepon       text,
   instagram     text,
+  facebook      text,
   youtube       text,
   created_at    timestamptz NOT NULL DEFAULT now(),
   updated_at    timestamptz NOT NULL DEFAULT now()

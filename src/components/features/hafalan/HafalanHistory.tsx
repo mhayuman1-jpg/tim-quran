@@ -19,6 +19,9 @@ interface HafalanRow {
   tanggal: string;
   surah_juz: string;
   halaman: number;
+  makhroj?: string | null;
+  tajwid?: string | null;
+  lancar?: string | null;
   catatan?: string | null;
   created_at?: string;
   santri?: { id: string; nama: string } | null;
@@ -30,6 +33,8 @@ interface HafalanHistoryProps {
   studentId?: string;
   /** Callback saat tombol edit diklik */
   onEdit?: (hafalan: HafalanRow) => void;
+  /** Callback saat nama siswa diklik */
+  onSelectStudent?: (student: { id: string; nama: string }) => void;
   /** Key untuk trigger refetch dari parent */
   refreshKey?: number;
 }
@@ -54,6 +59,7 @@ function formatDate(dateStr: string): string {
 export default function HafalanHistory({
   studentId,
   onEdit,
+  onSelectStudent,
   refreshKey = 0,
 }: HafalanHistoryProps) {
   const [data, setData] = useState<HafalanRow[]>([]);
@@ -107,20 +113,66 @@ export default function HafalanHistory({
         </span>
       ),
     },
-    {
+  ];
+
+  if (!studentId) {
+    columns.push({
       key: 'nama_siswa',
       header: 'Nama Siswa',
-      render: (row) => (
-        <span className="font-medium text-slate-800">
-          {row.santri?.nama ?? '—'}
-        </span>
-      ),
-    },
+      render: (row) => {
+        const name = row.santri?.nama ?? '—';
+        if (row.santri?.id && onSelectStudent) {
+          return (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onSelectStudent({ id: row.santri!.id, nama: row.santri!.nama });
+              }}
+              className="text-left font-medium text-slate-800 hover:text-emerald-600 transition-colors"
+            >
+              {name}
+            </button>
+          );
+        }
+        return <span className="font-medium text-slate-800">{name}</span>;
+      },
+    });
+  }
+
+  columns.push(
     {
       key: 'surah_juz',
       header: 'Surah / Juz',
       render: (row) => (
         <span className="text-slate-700">{row.surah_juz}</span>
+      ),
+    },
+    {
+      key: 'makhroj',
+      header: 'Makhroj',
+      align: 'center',
+      width: '90px',
+      render: (row) => (
+        <span className="text-slate-600">{row.makhroj || '—'}</span>
+      ),
+    },
+    {
+      key: 'tajwid',
+      header: 'Tajwid',
+      align: 'center',
+      width: '90px',
+      render: (row) => (
+        <span className="text-slate-600">{row.tajwid || '—'}</span>
+      ),
+    },
+    {
+      key: 'lancar',
+      header: 'Lancar',
+      align: 'center',
+      width: '90px',
+      render: (row) => (
+        <span className="text-slate-600">{row.lancar || '—'}</span>
       ),
     },
     {
@@ -141,7 +193,7 @@ export default function HafalanHistory({
         </span>
       ),
     },
-  ];
+  );
 
   // Tambahkan kolom aksi jika ada callback edit
   if (onEdit) {

@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 // src/app/api/artikel/delete/route.ts
 // DELETE (Kabid only): Hapus artikel
 

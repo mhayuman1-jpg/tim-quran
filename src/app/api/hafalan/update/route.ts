@@ -23,7 +23,7 @@ export async function PUT(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { id, tanggal, surah_juz, halaman, catatan, update_juz_terakhir, juz_baru } = body;
+    const { id, tanggal, surah_juz, halaman, catatan, makhroj, tajwid, lancar, buku, update_juz_terakhir, juz_baru } = body;
 
     // Validasi field id
     if (!id || typeof id !== 'string' || id.trim() === '') {
@@ -94,25 +94,65 @@ export async function PUT(request: NextRequest) {
         ? catatan.trim()
         : null;
     }
-
-    if (Object.keys(updateData).length === 0) {
-      return NextResponse.json(
-        { message: 'Tidak ada perubahan yang diberikan.' },
-        { status: 400 }
-      );
+    if (makhroj !== undefined) {
+      updateData.makhroj = typeof makhroj === 'string' && makhroj.trim() !== ''
+        ? makhroj.trim()
+        : null;
+    }
+    if (tajwid !== undefined) {
+      updateData.tajwid = typeof tajwid === 'string' && tajwid.trim() !== ''
+        ? tajwid.trim()
+        : null;
+    }
+    if (lancar !== undefined) {
+      updateData.lancar = typeof lancar === 'string' && lancar.trim() !== ''
+        ? lancar.trim()
+        : null;
+    }
+    if (buku !== undefined) {
+      updateData.buku = typeof buku === 'string' && buku.trim() !== ''
+        ? buku.trim()
+        : null;
     }
 
-    // Update hafalan
-    const { data, error } = await supabase
-      .from('hafalan')
-      .update(updateData)
-      .eq('id', id.trim())
-      .select(
-        `id, student_id, teacher_id, tanggal, surah_juz, halaman, catatan, created_at,
-         santri ( id, nama ),
-         users ( id, name )`
-      )
-      .single();
+    const shouldUpdateHafalan = Object.keys(updateData).length > 0;
+
+    let data: any = null;
+    let error: any = null;
+
+    if (shouldUpdateHafalan) {
+      const result = await supabase
+        .from('hafalan')
+        .update(updateData)
+        .eq('id', id.trim())
+        .select(
+          `id, student_id, teacher_id, tanggal, surah_juz, halaman, catatan, created_at,
+           santri ( id, nama ),
+           users ( id, name )`
+        )
+        .single();
+      data = result.data;
+      error = result.error;
+
+      if (error) {
+        console.error('Supabase update hafalan error:', error);
+        return NextResponse.json(
+          { message: 'Gagal memperbarui catatan hafalan.', error: error.message },
+          { status: 500 }
+        );
+      }
+    } else {
+      // Jika tidak ada perubahan pada catatan hafalan, pastikan setidaknya ada perubahan pada juz terakhir
+      if (!update_juz_terakhir) {
+        return NextResponse.json(
+          { message: 'Tidak ada perubahan yang diberikan.' },
+          { status: 400 }
+        );
+      }
+
+      // Ambil data hafalan untuk response format ketika hanya update juz terakhir
+      data = existingHafalan;
+    }
 
     if (error) {
       console.error('Supabase update hafalan error:', error);

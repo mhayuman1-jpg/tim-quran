@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 // src/app/api/absensi/bulanan/route.ts
 // GET: terima query params `month` (1-12) dan `year` (YYYY).
 // Return rekap kehadiran per santri: jumlah hadir, total hari aktif, persentase.

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
+import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
+export const dynamic = 'force-dynamic';
 
 export async function POST(_req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -11,7 +12,18 @@ export async function POST(_req: NextRequest) {
     const supabase = createServerClient();
     const { data: teachers } = await supabase.from('users').select('id, name').eq('role', 'Tim_Quran').eq('status', 'Aktif');
     if (!teachers || teachers.length === 0) return NextResponse.json({ message: "Tidak ada anggota Tim Qur'an aktif." }, { status: 400 });
-    const { data: classes } = await supabase.from('classes').select('id, name, teacher1_id, teacher2_id');
+    const { data: classes, error: classesError } = await supabase.from('classes').select('id, name, teacher1_id, teacher2_id');
+    if (classesError) {
+      console.error('[auto-assign] Supabase classes query error:', classesError);
+      const message = String(classesError.message || '').toLowerCase();
+      if (message.includes('teacher1_id') || message.includes('teacher2_id')) {
+        return NextResponse.json({
+          message: 'Kolom teacher1_id atau teacher2_id tidak ditemukan di tabel classes. Jalankan migrasi schema untuk menambahkan kolom ini.',
+          error: classesError.message,
+        }, { status: 500 });
+      }
+      return NextResponse.json({ message: 'Gagal mengambil data kelas.', error: classesError.message }, { status: 500 });
+    }
     if (!classes || classes.length === 0) return NextResponse.json({ message: 'Tidak ada kelas.' }, { status: 200 });
     const updates = classes.map((kelas, i) => {
       const t1 = teachers[i % teachers.length];

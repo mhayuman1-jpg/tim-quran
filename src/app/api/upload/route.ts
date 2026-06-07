@@ -6,13 +6,13 @@
 // Returns: { url: string } â€” public URL gambar
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
+import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
 
-const ALLOWED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
+const ALLOWED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif', 'image/svg+xml'];
 const MAX_SIZE_MB = 5;
 const MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024;
 
@@ -25,8 +25,9 @@ export async function POST(request: NextRequest) {
 
   try {
     const { searchParams } = new URL(request.url);
-    const bucket = searchParams.get('bucket') || 'assets';
-    const folder = searchParams.get('folder') || 'uploads';
+    const bucket = (searchParams.get('bucket') || 'assets').trim();
+    const rawFolder = searchParams.get('folder') || 'uploads';
+    const folder = rawFolder.trim().replace(/^\/+|\/+$/g, '').replace(/\s+/g, '-');
 
     const formData = await request.formData();
     const file = formData.get('file') as File | null;
@@ -53,7 +54,9 @@ export async function POST(request: NextRequest) {
 
     // Generate nama file unik: folder/timestamp-random.ext
     const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
-    const fileName = `${folder}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+    const fileName = folder
+      ? `${folder}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`
+      : `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
 
     // Convert ke ArrayBuffer
     const arrayBuffer = await file.arrayBuffer();
@@ -82,6 +85,19 @@ export async function POST(request: NextRequest) {
     const { data: { publicUrl } } = supabase.storage
       .from(bucket)
       .getPublicUrl(fileName);
+
+    if (!publicUrl) {
+      console.error('Upload API error: public URL not available for', fileName);
+      return NextResponse.json({ message: 'Gagal membuat URL publik untuk file.' }, { status: 500 });
+    }
+
+    const headResponse = await fetch(publicUrl, { method: 'HEAD' });
+    if (!headResponse.ok) {
+      console.error('Upload API error: public URL not reachable', publicUrl, headResponse.status);
+      return NextResponse.json({
+        message: 'File berhasil diunggah, tetapi URL publik tidak dapat diakses. Periksa izin bucket atau path.',
+      }, { status: 500 });
+    }
 
     return NextResponse.json({ url: publicUrl, fileName }, { status: 201 });
 

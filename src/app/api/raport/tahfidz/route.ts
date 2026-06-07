@@ -13,7 +13,8 @@ export const dynamic = 'force-dynamic';
 
 const HEADER_SELECT = `
   id, student_id, teacher_id, periode, tahun_ajaran, juz, catatan,
-  nama_guru_kelas, nama_kabid, nama_kepala_sekolah,
+  nama_guru_kelas, niy_guru_kelas, nama_kabid, niy_kabid, nama_kepala_sekolah, niy_kepala_sekolah,
+  tahsin_metode, tahsin_buku, tahsin_halaman, tahsin_makhroj, tahsin_kelancaran, tahsin_adab, tahsin_catatan,
   created_at, updated_at,
   santri ( id, nama, nisn, classes ( id, name ) ),
   users ( id, name )
@@ -69,8 +70,9 @@ export async function GET(request: NextRequest) {
     if (error) return NextResponse.json({ message: 'Gagal mengambil data.', error: error.message }, { status: 500 });
 
     return NextResponse.json({ data: data ?? [] }, { status: 200 });
-  } catch {
-    return NextResponse.json({ message: 'Terjadi kesalahan pada server.' }, { status: 500 });
+  } catch (error) {
+    console.error('Raport Tahfidz GET error:', error);
+    return NextResponse.json({ message: 'Terjadi kesalahan pada server.', error: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }
 
@@ -82,15 +84,19 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { student_id, periode, tahun_ajaran, juz, catatan,
-            nama_guru_kelas, nama_kabid, nama_kepala_sekolah, detail } = body;
+            nama_guru_kelas, niy_guru_kelas, nama_kabid, niy_kabid,
+            nama_kepala_sekolah, niy_kepala_sekolah,
+            tahsin_metode, tahsin_buku, tahsin_halaman, tahsin_makhroj, tahsin_kelancaran, tahsin_adab, tahsin_catatan,
+            detail } = body;
 
     if (!student_id?.trim()) return NextResponse.json({ message: 'student_id wajib.' }, { status: 400 });
-    if (!periode?.trim())    return NextResponse.json({ message: 'Periode wajib.' }, { status: 400 });
+    if (!periode?.trim())      return NextResponse.json({ message: 'Periode wajib.' }, { status: 400 });
     if (!tahun_ajaran?.trim()) return NextResponse.json({ message: 'Tahun ajaran wajib.' }, { status: 400 });
     if (!Array.isArray(detail) || detail.length === 0) {
       return NextResponse.json({ message: 'Detail surah wajib diisi.' }, { status: 400 });
     }
 
+    const parsedJuz = typeof juz === 'string' ? (juz.trim() === '' ? null : Number(juz)) : juz;
     const supabase = createServerClient();
 
     // RBAC check
@@ -125,16 +131,27 @@ export async function POST(request: NextRequest) {
         teacher_id: session.user.id,
         periode: periode.trim(),
         tahun_ajaran: tahun_ajaran.trim(),
-        juz: juz ?? null,
+        juz: parsedJuz ?? null,
         catatan: catatan?.trim() || null,
         nama_guru_kelas: nama_guru_kelas?.trim() || null,
+        niy_guru_kelas: niy_guru_kelas?.trim() || null,
         nama_kabid: nama_kabid?.trim() || null,
+        niy_kabid: niy_kabid?.trim() || null,
         nama_kepala_sekolah: nama_kepala_sekolah?.trim() || null,
+        niy_kepala_sekolah: niy_kepala_sekolah?.trim() || null,
+        tahsin_metode: tahsin_metode?.trim() || null,
+        tahsin_buku: tahsin_buku?.trim() || null,
+        tahsin_halaman: tahsin_halaman?.trim() || null,
+        tahsin_makhroj: tahsin_makhroj || null,
+        tahsin_kelancaran: tahsin_kelancaran || null,
+        tahsin_adab: tahsin_adab || null,
+        tahsin_catatan: tahsin_catatan?.trim() || null,
       }])
       .select('id')
       .single();
 
     if (insertErr || !raport) {
+      console.error('Raport Tahfidz POST insert error:', insertErr);
       return NextResponse.json({ message: 'Gagal menyimpan raport.', error: insertErr?.message }, { status: 500 });
     }
 
@@ -165,8 +182,9 @@ export async function POST(request: NextRequest) {
       .single();
 
     return NextResponse.json({ message: 'Raport berhasil disimpan.', data: full }, { status: 201 });
-  } catch {
-    return NextResponse.json({ message: 'Terjadi kesalahan pada server.' }, { status: 500 });
+  } catch (error) {
+    console.error('Raport Tahfidz POST error:', error);
+    return NextResponse.json({ message: 'Terjadi kesalahan pada server.', error: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }
 
@@ -178,10 +196,14 @@ export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
     const { id, periode, tahun_ajaran, juz, catatan,
-            nama_guru_kelas, nama_kabid, nama_kepala_sekolah, detail } = body;
+            nama_guru_kelas, niy_guru_kelas, nama_kabid, niy_kabid,
+            nama_kepala_sekolah, niy_kepala_sekolah,
+            tahsin_metode, tahsin_buku, tahsin_halaman, tahsin_makhroj, tahsin_kelancaran, tahsin_adab, tahsin_catatan,
+            detail } = body;
 
     if (!id) return NextResponse.json({ message: 'id raport wajib.' }, { status: 400 });
 
+    const parsedJuz = typeof juz === 'string' ? (juz.trim() === '' ? null : Number(juz)) : juz;
     const supabase = createServerClient();
 
     // Cek akses
@@ -204,17 +226,36 @@ export async function PUT(request: NextRequest) {
     const updateHeader: Record<string, unknown> = { updated_at: new Date().toISOString() };
     if (periode?.trim()) updateHeader.periode = periode.trim();
     if (tahun_ajaran?.trim()) updateHeader.tahun_ajaran = tahun_ajaran.trim();
-    if (juz !== undefined) updateHeader.juz = juz ?? null;
+    if (juz !== undefined) updateHeader.juz = parsedJuz ?? null;
     if (catatan !== undefined) updateHeader.catatan = catatan?.trim() || null;
     if (nama_guru_kelas !== undefined) updateHeader.nama_guru_kelas = nama_guru_kelas?.trim() || null;
+    if (niy_guru_kelas !== undefined) updateHeader.niy_guru_kelas = niy_guru_kelas?.trim() || null;
     if (nama_kabid !== undefined) updateHeader.nama_kabid = nama_kabid?.trim() || null;
+    if (niy_kabid !== undefined) updateHeader.niy_kabid = niy_kabid?.trim() || null;
     if (nama_kepala_sekolah !== undefined) updateHeader.nama_kepala_sekolah = nama_kepala_sekolah?.trim() || null;
+    if (niy_kepala_sekolah !== undefined) updateHeader.niy_kepala_sekolah = niy_kepala_sekolah?.trim() || null;
+    if (tahsin_metode !== undefined) updateHeader.tahsin_metode = tahsin_metode?.trim() || null;
+    if (tahsin_buku !== undefined) updateHeader.tahsin_buku = tahsin_buku?.trim() || null;
+    if (tahsin_halaman !== undefined) updateHeader.tahsin_halaman = tahsin_halaman?.trim() || null;
+    if (tahsin_makhroj !== undefined) updateHeader.tahsin_makhroj = tahsin_makhroj || null;
+    if (tahsin_kelancaran !== undefined) updateHeader.tahsin_kelancaran = tahsin_kelancaran || null;
+    if (tahsin_adab !== undefined) updateHeader.tahsin_adab = tahsin_adab || null;
+    if (tahsin_catatan !== undefined) updateHeader.tahsin_catatan = tahsin_catatan?.trim() || null;
 
-    await supabase.from('raport_tahfidz').update(updateHeader).eq('id', id);
+    const { error: headerErr } = await supabase.from('raport_tahfidz').update(updateHeader).eq('id', id);
+    if (headerErr) {
+      console.error('Raport Tahfidz PUT header update error:', headerErr);
+      return NextResponse.json({ message: 'Gagal memperbarui header raport.', error: headerErr.message }, { status: 500 });
+    }
 
-    // Update detail surah â€” hapus lama, insert baru
+    // Update detail surah — hapus lama, insert baru
     if (Array.isArray(detail) && detail.length > 0) {
-      await supabase.from('raport_tahfidz_detail').delete().eq('raport_id', id);
+      const { error: deleteErr } = await supabase.from('raport_tahfidz_detail').delete().eq('raport_id', id);
+      if (deleteErr) {
+        console.error('Raport Tahfidz PUT detail delete error:', deleteErr);
+        return NextResponse.json({ message: 'Gagal menghapus detail lama.', error: deleteErr.message }, { status: 500 });
+      }
+
       const detailRows = detail.map((d: any, i: number) => ({
         raport_id: id,
         urutan: i + 1,
@@ -225,18 +266,28 @@ export async function PUT(request: NextRequest) {
         wafa_buku: d.wafa_buku?.trim() || null,
         wafa_halaman: d.wafa_halaman?.trim() || null,
       }));
-      await supabase.from('raport_tahfidz_detail').insert(detailRows);
+      const { error: detailErr } = await supabase.from('raport_tahfidz_detail').insert(detailRows);
+      if (detailErr) {
+        console.error('Raport Tahfidz PUT detail insert error:', detailErr);
+        return NextResponse.json({ message: 'Gagal menyimpan detail surah.', error: detailErr.message }, { status: 500 });
+      }
     }
 
-    const { data: full } = await supabase
+    const { data: full, error: fetchErr } = await supabase
       .from('raport_tahfidz')
       .select(`${HEADER_SELECT}, raport_tahfidz_detail ( * )`)
       .eq('id', id)
       .single();
 
+    if (fetchErr || !full) {
+      console.error('Raport Tahfidz PUT fetch full raport error:', fetchErr);
+      return NextResponse.json({ message: 'Gagal mengambil raport setelah update.', error: fetchErr?.message }, { status: 500 });
+    }
+
     return NextResponse.json({ message: 'Raport berhasil diperbarui.', data: full }, { status: 200 });
-  } catch {
-    return NextResponse.json({ message: 'Terjadi kesalahan pada server.' }, { status: 500 });
+  } catch (error) {
+    console.error('Raport Tahfidz PUT error:', error);
+    return NextResponse.json({ message: 'Terjadi kesalahan pada server.', error: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }
 

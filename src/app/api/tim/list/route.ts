@@ -1,8 +1,8 @@
 ﻿// src/app/api/tim/list/route.ts
-// GET: Ambil semua user dengan role Tim_Quran beserta nama, email, status
+// GET: Ambil semua user dengan role Tim_Quran, Sekretaris, atau Bendahara
 
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
+import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
 
@@ -29,17 +29,17 @@ export async function GET() {
 
     const supabase = createServerClient();
 
-    // Ambil semua user dengan role Tim_Quran
+    // Ambil semua user dengan role Tim_Quran, Sekretaris, atau Bendahara
     const { data: timQuran, error } = await supabase
       .from('users')
-      .select('id, name, email, status, created_at, photo_url')
-      .eq('role', 'Tim_Quran')
+      .select('id, name, email, role, status, created_at, photo_url')
+      .in('role', ['Tim_Quran', 'Sekretaris', 'Bendahara'])
       .order('name', { ascending: true });
 
     if (error) {
       console.error('Supabase error fetching Tim Quran:', error);
       return NextResponse.json(
-        { message: 'Gagal mengambil data Tim Qur\'an.', error: error.message },
+        { message: "Gagal mengambil data Tim Qur'an.", error: error.message },
         { status: 500 }
       );
     }

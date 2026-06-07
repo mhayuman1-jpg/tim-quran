@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS public.users (
   name          text        NOT NULL,
   email         text        NOT NULL UNIQUE,
   password_hash text        NOT NULL,
-  role          text        NOT NULL CHECK (role IN ('Kabid', 'Tim_Quran')),
+  role          text        NOT NULL CHECK (role IN ('Kabid', 'Tim_Quran', 'Sekretaris', 'Bendahara')),
   status        text        NOT NULL DEFAULT 'Aktif' CHECK (status IN ('Aktif', 'Nonaktif')),
   created_at    timestamptz NOT NULL DEFAULT now(),
   updated_at    timestamptz NOT NULL DEFAULT now()
@@ -52,6 +52,10 @@ CREATE TABLE IF NOT EXISTS public.hafalan (
   tanggal     date        NOT NULL,
   surah_juz   text        NOT NULL,
   halaman     int,
+  makhroj     text,
+  tajwid      text,
+  lancar      text,
+  buku        text,
   catatan     text,
   created_at  timestamptz NOT NULL DEFAULT now(),
   updated_at  timestamptz NOT NULL DEFAULT now()
@@ -73,6 +77,9 @@ CREATE TABLE IF NOT EXISTS public.tahsin (
   metode      text        NOT NULL CHECK (metode IN ('Wafa', 'IWR', 'Al-Quran')),
   buku        text,
   halaman     int,
+  makhroj     text,
+  kelancaran  text,
+  adab        text,
   catatan     text,
   created_at  timestamptz NOT NULL DEFAULT now(),
   updated_at  timestamptz NOT NULL DEFAULT now()
@@ -105,6 +112,50 @@ CREATE TABLE IF NOT EXISTS public.raport_quran (
 CREATE INDEX IF NOT EXISTS raport_quran_student_id_idx ON public.raport_quran (student_id);
 CREATE INDEX IF NOT EXISTS raport_quran_teacher_id_idx ON public.raport_quran (teacher_id);
 CREATE INDEX IF NOT EXISTS raport_quran_periode_idx    ON public.raport_quran (periode);
+
+-- -----------------------------------------------------------------------------
+-- Tabel: semester_settings
+-- Menyimpan konfigurasi akhir semester dan status aktif
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS public.semester_settings (
+  id            uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+  semester_name text        NOT NULL,
+  end_date      date        NOT NULL,
+  notes         text,
+  is_active     boolean     NOT NULL DEFAULT true,
+  created_at    timestamptz NOT NULL DEFAULT now(),
+  updated_at    timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS semester_settings_is_active_idx ON public.semester_settings (is_active);
+CREATE INDEX IF NOT EXISTS semester_settings_end_date_idx ON public.semester_settings (end_date);
+CREATE INDEX IF NOT EXISTS semester_settings_created_at_idx ON public.semester_settings (created_at DESC);
+
+-- -----------------------------------------------------------------------------
+-- Tabel: juz_templates
+-- Menyimpan daftar template setiap juz untuk generate otomatis surah
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS public.juz_templates (
+  id          uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+  juz         int         NOT NULL CHECK (juz BETWEEN 1 AND 30),
+  title       text        NOT NULL,
+  created_at  timestamptz NOT NULL DEFAULT now(),
+  updated_at  timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (juz)
+);
+
+CREATE TABLE IF NOT EXISTS public.juz_template_surahs (
+  id              uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+  juz_template_id uuid        NOT NULL REFERENCES public.juz_templates(id) ON DELETE CASCADE,
+  urutan          int         NOT NULL DEFAULT 1,
+  nama_surah      text        NOT NULL,
+  notes           text,
+  created_at      timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (juz_template_id, urutan)
+);
+
+CREATE INDEX IF NOT EXISTS juz_templates_juz_idx ON public.juz_templates (juz);
+CREATE INDEX IF NOT EXISTS juz_template_surahs_juz_template_id_idx ON public.juz_template_surahs (juz_template_id);
 
 -- -----------------------------------------------------------------------------
 -- Tabel: rekap_bulanan

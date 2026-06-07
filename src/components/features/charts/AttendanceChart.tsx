@@ -91,7 +91,7 @@ function CustomTooltip({ active, payload, label }: CustomTooltipProps) {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function AttendanceChart({ data, dateRange }: AttendanceChartProps) {
+export default function AttendanceChart({ data, dateRange: _dateRange }: AttendanceChartProps) {
   // Tampilkan grafik kosong dengan nilai nol jika tidak ada data
   const chartData: ChartDataPoint[] = data.length > 0 ? data : [];
 

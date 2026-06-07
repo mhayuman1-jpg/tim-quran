@@ -1,11 +1,7 @@
 'use client';
 
-// src/app/(dashboard)/pengumuman/page.tsx
-// Halaman Kelola Pengumuman
-// - Tabel daftar pengumuman diurutkan terbaru
-// - Form tambah/edit pengumuman (modal)
-// - Hapus dengan konfirmasi (hanya Kabid)
-// - Kedua role (Kabid dan Tim_Quran) dapat melihat dan membuat pengumuman
+// src/app/(dashboard)/dashboard/pengumuman/page.tsx
+// Halaman Kelola Pengumuman (dipindahkan ke dalam /dashboard)
 
 import React, { useCallback, useEffect, useState } from 'react';
 import { Plus, Pencil, Trash2, Megaphone } from 'lucide-react';
@@ -17,8 +13,6 @@ import Modal from '@/components/ui/Modal';
 import Badge from '@/components/ui/Badge';
 import ConfirmDialog from '@/components/shared/ConfirmDialog';
 import type { AnnouncementTarget } from '@/types';
-
-// ─── Types ──────────────────────────────────────────────────────────────────
 
 interface PengumumanItem {
   id: string;
@@ -40,8 +34,6 @@ interface Toast {
 let toastCounter = 0;
 
 const TARGET_OPTIONS: AnnouncementTarget[] = ['Semua', 'Guru', 'Siswa', 'Orang Tua'];
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function formatDate(iso: string): string {
   try {
@@ -73,8 +65,6 @@ function getTargetBadgeVariant(
       return 'gray';
   }
 }
-
-// ─── Toast Component ────────────────────────────────────────────────────────
 
 function ToastContainer({
   toasts,
@@ -111,17 +101,13 @@ function ToastContainer({
   );
 }
 
-// ─── Page ───────────────────────────────────────────────────────────────────
-
 export default function PengumumanPage() {
   const { data: session } = useSession();
   const isKabid = session?.user?.role === 'Kabid';
 
-  // ── Data state
   const [data, setData] = useState<PengumumanItem[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // ── Form modal state (add & edit share the same modal)
   const [formModalOpen, setFormModalOpen] = useState(false);
   const [formMode, setFormMode] = useState<'add' | 'edit'>('add');
   const [editTarget, setEditTarget] = useState<PengumumanItem | null>(null);
@@ -132,14 +118,11 @@ export default function PengumumanPage() {
   const [formLoading, setFormLoading] = useState(false);
   const [formError, setFormError] = useState('');
 
-  // ── Delete confirmation
   const [deleteTarget, setDeleteTarget] = useState<PengumumanItem | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
-  // ── View detail modal
   const [viewTarget, setViewTarget] = useState<PengumumanItem | null>(null);
 
-  // ── Toast notifications
   const [toasts, setToasts] = useState<Toast[]>([]);
 
   const showToast = (type: Toast['type'], message: string) => {
@@ -151,7 +134,6 @@ export default function PengumumanPage() {
   const dismissToast = (id: number) =>
     setToasts((prev) => prev.filter((t) => t.id !== id));
 
-  // ── Fetch pengumuman
   const fetchPengumuman = useCallback(async () => {
     setLoading(true);
     try {
@@ -175,7 +157,6 @@ export default function PengumumanPage() {
     fetchPengumuman();
   }, [fetchPengumuman]);
 
-  // ── Open add modal
   const handleOpenAdd = () => {
     setFormMode('add');
     setEditTarget(null);
@@ -186,7 +167,6 @@ export default function PengumumanPage() {
     setFormModalOpen(true);
   };
 
-  // ── Open edit modal
   const handleOpenEdit = (item: PengumumanItem) => {
     setFormMode('edit');
     setEditTarget(item);
@@ -197,7 +177,6 @@ export default function PengumumanPage() {
     setFormModalOpen(true);
   };
 
-  // ── Submit add/edit form
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -234,7 +213,6 @@ export default function PengumumanPage() {
         }
         showToast('success', json.message ?? 'Pengumuman berhasil ditambahkan.');
       } else {
-        // Edit mode
         const res = await fetch('/api/pengumuman/update', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -262,7 +240,6 @@ export default function PengumumanPage() {
     }
   };
 
-  // ── Delete
   const handleOpenDelete = (item: PengumumanItem) => {
     setDeleteTarget(item);
   };
@@ -295,7 +272,6 @@ export default function PengumumanPage() {
 
   return (
     <div className="space-y-6">
-      {/* ── Page header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Pengumuman</h1>
@@ -313,7 +289,6 @@ export default function PengumumanPage() {
         </Button>
       </div>
 
-      {/* ── Pengumuman table */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -338,7 +313,6 @@ export default function PengumumanPage() {
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loading ? (
-                // Loading skeleton
                 Array.from({ length: 4 }).map((_, i) => (
                   <tr key={i}>
                     <td className="px-4 py-3">
@@ -360,7 +334,6 @@ export default function PengumumanPage() {
                   </tr>
                 ))
               ) : data.length === 0 ? (
-                // Empty state
                 <tr>
                   <td colSpan={5} className="px-4 py-12 text-center">
                     <div className="flex flex-col items-center gap-2 text-slate-400">
@@ -375,14 +348,12 @@ export default function PengumumanPage() {
                   </td>
                 </tr>
               ) : (
-                // Data rows
                 data.map((item) => (
                   <tr
                     key={item.id}
                     className="hover:bg-slate-50 transition-colors cursor-pointer"
                     onClick={() => setViewTarget(item)}
                   >
-                    {/* Judul + preview isi */}
                     <td className="px-4 py-3 max-w-xs">
                       <p className="text-sm font-semibold text-slate-800 truncate">
                         {item.judul}
@@ -396,21 +367,17 @@ export default function PengumumanPage() {
                         </p>
                       )}
                     </td>
-                    {/* Target badge */}
                     <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                       <Badge variant={getTargetBadgeVariant(item.target)}>
                         {item.target}
                       </Badge>
                     </td>
-                    {/* Created by */}
                     <td className="px-4 py-3 hidden md:table-cell">
                       <span className="text-sm text-slate-700">{item.created_by_name}</span>
                     </td>
-                    {/* Created at */}
                     <td className="px-4 py-3 hidden lg:table-cell">
                       <span className="text-sm text-slate-600">{formatDate(item.created_at)}</span>
                     </td>
-                    {/* Actions */}
                     <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-end gap-2">
                         <Button
@@ -444,14 +411,12 @@ export default function PengumumanPage() {
         </div>
       </div>
 
-      {/* ── Total count */}
       {!loading && data.length > 0 && (
         <p className="text-xs text-slate-400 text-right">
           Total {data.length} pengumuman
         </p>
       )}
 
-      {/* ── Add / Edit modal */}
       <Modal
         open={formModalOpen}
         onClose={() => {
@@ -462,7 +427,6 @@ export default function PengumumanPage() {
         closeOnBackdrop={!formLoading}
       >
         <form onSubmit={handleFormSubmit} className="space-y-4">
-          {/* Judul */}
           <Input
             label="Judul Pengumuman"
             type="text"
@@ -477,7 +441,6 @@ export default function PengumumanPage() {
             autoFocus
           />
 
-          {/* Target audiens */}
           <div className="space-y-1.5">
             <label
               htmlFor="target-select"
@@ -509,7 +472,6 @@ export default function PengumumanPage() {
             </select>
           </div>
 
-          {/* Isi */}
           <div className="space-y-1.5">
             <label
               htmlFor="isi-textarea"
@@ -537,14 +499,12 @@ export default function PengumumanPage() {
             />
           </div>
 
-          {/* Error message */}
           {formError && (
             <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
               {formError}
             </div>
           )}
 
-          {/* Footer buttons */}
           <div className="flex justify-end gap-2 pt-1">
             <Button
               type="button"
@@ -565,7 +525,6 @@ export default function PengumumanPage() {
         </form>
       </Modal>
 
-      {/* ── View detail modal */}
       <Modal
         open={Boolean(viewTarget)}
         onClose={() => setViewTarget(null)}
@@ -574,7 +533,6 @@ export default function PengumumanPage() {
       >
         {viewTarget && (
           <div className="space-y-4">
-            {/* Meta info */}
             <div className="flex flex-wrap items-center gap-3 text-sm text-slate-500">
               <Badge variant={getTargetBadgeVariant(viewTarget.target)}>
                 {viewTarget.target}
@@ -591,12 +549,10 @@ export default function PengumumanPage() {
               </p>
             )}
 
-            {/* Isi */}
             <div className="bg-slate-50 rounded-lg p-4 text-sm text-slate-800 whitespace-pre-wrap leading-relaxed">
               {viewTarget.isi}
             </div>
 
-            {/* Footer */}
             <div className="flex justify-end gap-2 pt-1">
               <Button
                 variant="secondary"
@@ -628,7 +584,6 @@ export default function PengumumanPage() {
         )}
       </Modal>
 
-      {/* ── Delete confirmation */}
       <ConfirmDialog
         open={Boolean(deleteTarget)}
         onClose={() => {
@@ -645,7 +600,6 @@ export default function PengumumanPage() {
         loading={deleteLoading}
       />
 
-      {/* ── Toast notifications */}
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
     </div>
   );

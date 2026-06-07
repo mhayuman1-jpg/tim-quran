@@ -3,13 +3,15 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-  LayoutDashboard, Users, BookOpen, ClipboardList,
+  LayoutDashboard, Users, BookOpen,
   FileText, QrCode, BarChart2, Repeat, TrendingUp,
   School, UserCheck, Megaphone, Newspaper, Settings, Globe, X, Eye,
+  CalendarDays,
 } from 'lucide-react';
 import { useSession } from '@/hooks/useSession';
 import { useRole } from '@/hooks/useRole';
 import type { UserRole } from '@/types';
+import { useEffect, useState } from 'react';
 
 interface MenuItem {
   label: string;
@@ -31,8 +33,7 @@ const menuItems: MenuItem[] = [
 
   // ── Akademik ─────────────────────────────────────────────────────────
   { label: 'Data Siswa',     href: '/siswa',              icon: <Users size={16} />,           group: 'Akademik', roles: ['Kabid', 'Tim_Quran', 'Sekretaris'] },
-  { label: 'Hafalan',        href: '/hafalan',            icon: <BookOpen size={16} />,        group: 'Akademik', roles: ['Kabid', 'Tim_Quran'] },
-  { label: 'Tahsin',         href: '/tahsin',             icon: <ClipboardList size={16} />,   group: 'Akademik', roles: ['Kabid', 'Tim_Quran'] },
+  { label: 'Hafalan & Tahsin', href: '/tahsin',           icon: <BookOpen size={16} />,        group: 'Akademik', roles: ['Kabid', 'Tim_Quran'] },
   { label: 'Raport',         href: '/raport',             icon: <FileText size={16} />,        group: 'Akademik', roles: ['Kabid', 'Tim_Quran'] },
 
   // ── Kehadiran ────────────────────────────────────────────────────────
@@ -43,13 +44,14 @@ const menuItems: MenuItem[] = [
   // ── Manajemen ────────────────────────────────────────────────────────
   { label: 'Rekap Bulanan',  href: '/rekap',              icon: <Repeat size={16} />,          group: 'Manajemen', roles: ['Kabid', 'Sekretaris'] },
   { label: 'Laporan',        href: '/laporan',            icon: <TrendingUp size={16} />,      group: 'Manajemen', roles: ['Kabid', 'Sekretaris'] },
+  { label: 'Semester',       href: '/semester',           icon: <CalendarDays size={16} />,     group: 'Manajemen', roles: ['Kabid'] },
   { label: 'Kelas',          href: '/kelas',              icon: <School size={16} />,          group: 'Manajemen', roles: ['Kabid'] },
   { label: "Tim Qur'an",     href: '/tim',                icon: <UserCheck size={16} />,       group: 'Manajemen', roles: ['Kabid'] },
 
   // ── Konten ───────────────────────────────────────────────────────────
-  { label: 'Pengumuman',     href: '/pengumuman',         icon: <Megaphone size={16} />,       group: 'Konten', roles: ['Kabid', 'Tim_Quran', 'Sekretaris'] },
-  { label: 'Artikel',        href: '/kelola-artikel',     icon: <Newspaper size={16} />,       group: 'Konten', roles: ['Kabid', 'Sekretaris'] },
-  { label: 'Kelola Website', href: '/website',            icon: <Globe size={16} />,           group: 'Konten', roles: ['Kabid'] },
+  { label: 'Kelola Pengumuman', href: '/dashboard/pengumuman', icon: <Megaphone size={16} />,       group: 'Konten', roles: ['Kabid', 'Tim_Quran', 'Sekretaris'] },
+  { label: 'Kelola Artikel',    href: '/dashboard/kelola-artikel', icon: <Newspaper size={16} />,       group: 'Konten', roles: ['Kabid', 'Sekretaris'] },
+  { label: 'Kelola Website',    href: '/dashboard/website', icon: <Globe size={16} />,           group: 'Konten', roles: ['Kabid'] },
 
   // ── Akun ─────────────────────────────────────────────────────────────
   { label: 'Pengaturan',     href: '/pengaturan',         icon: <Settings size={16} />,        group: 'Akun' },
@@ -59,18 +61,43 @@ const ROLE_LABELS: Record<UserRole, string> = {
   Kabid:      'Kepala Bidang',
   Tim_Quran:  "Tim Qur'an",
   Sekretaris: 'Sekretaris',
+  Bendahara:  'Bendahara',
 };
 
 const ROLE_COLORS: Record<UserRole, string> = {
   Kabid:      '#a5b4fc',
   Tim_Quran:  '#93c5fd',
   Sekretaris: '#6ee7b7',
+  Bendahara:  '#fcd34d',
 };
 
 export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
   const pathname = usePathname();
   const { userName } = useSession();
   const { role } = useRole();
+  const [navMap, setNavMap] = useState<Record<string, string>>({});
+
+  // Fetch public navigation items and build a map label->href so admin sidebar
+  // uses the same hrefs as the public navbar (keeps menus in sync).
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const res = await fetch('/api/website/navigation');
+        const json = await res.json();
+        if (mounted && json.data && Array.isArray(json.data)) {
+          const map: Record<string, string> = {};
+          json.data.forEach((it: any) => {
+            if (it.label && it.href) map[it.label] = it.href;
+          });
+          setNavMap(map);
+        }
+      } catch {
+        // ignore — fall back to hardcoded menu
+      }
+    })();
+    return () => { mounted = false; };
+  }, []);
 
   const visibleMenus = menuItems.filter(item => {
     if (!item.roles || item.roles.length === 0) return true;
@@ -78,7 +105,11 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
     return item.roles.includes(role);
   });
 
-  const groups = Array.from(new Set(visibleMenus.map(m => m.group)));
+  // If navMap provides alternate hrefs for public items, use them here so
+  // the admin sidebar links point to the same destinations as the public navbar.
+  const visibleMenusWithSyncedHrefs = visibleMenus.map(m => ({ ...m, href: navMap[m.label] ?? m.href }));
+
+  const groups = Array.from(new Set(visibleMenusWithSyncedHrefs.map(m => m.group)));
 
   return (
     <>
@@ -118,7 +149,7 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
         <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-6"
           style={{scrollbarWidth: 'thin', scrollbarColor: 'rgba(255,255,255,0.1) transparent'}}>
           {groups.map(group => {
-            const items = visibleMenus.filter(m => m.group === group);
+            const items = visibleMenusWithSyncedHrefs.filter(m => m.group === group);
             return (
               <div key={group}>
                 <p className="text-[10px] font-bold uppercase tracking-widest px-3 mb-2"

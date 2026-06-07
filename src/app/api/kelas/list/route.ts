@@ -1,8 +1,9 @@
+export const dynamic = 'force-dynamic';
 // src/app/api/kelas/list/route.ts
 // GET: Ambil semua kelas dengan jumlah siswa aktif per kelas
 
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
+import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
 
@@ -17,14 +18,6 @@ export async function GET() {
       );
     }
 
-    // Hanya Kabid yang boleh akses
-    if (session.user.role !== 'Kabid') {
-      return NextResponse.json(
-        { message: 'Akses tidak diizinkan' },
-        { status: 403 }
-      );
-    }
-
     const supabase = createServerClient();
 
     // Ambil semua kelas
@@ -33,17 +26,46 @@ export async function GET() {
       .select('id, name, created_at, teacher1_id, teacher2_id')
       .order('name', { ascending: true });
 
+    let kelasData: Array<{
+      id: any;
+      name: any;
+      created_at: any;
+      teacher1_id?: any;
+      teacher2_id?: any;
+    }> = classes ?? [];
+
     if (classesError) {
-      console.error('Supabase error fetching classes:', classesError);
-      return NextResponse.json(
-        { message: 'Gagal mengambil data kelas.', error: classesError.message },
-        { status: 500 }
-      );
+      const message = String(classesError.message || '').toLowerCase();
+      const missingTeacherColumns = ['teacher1_id', 'teacher2_id'].some(col => message.includes(col));
+
+      if (missingTeacherColumns) {
+        console.warn('Supabase classes query missing teacher columns, retrying without teacher fields.');
+        const { data: fallbackClasses, error: fallbackError } = await supabase
+          .from('classes')
+          .select('id, name, created_at')
+          .order('name', { ascending: true });
+
+        if (fallbackError) {
+          console.error('Supabase error fetching classes fallback:', fallbackError);
+          return NextResponse.json(
+            { message: 'Gagal mengambil data kelas.', error: fallbackError.message },
+            { status: 500 }
+          );
+        }
+
+        kelasData = fallbackClasses ?? [];
+      } else {
+        console.error('Supabase error fetching classes:', classesError);
+        return NextResponse.json(
+          { message: 'Gagal mengambil data kelas.', error: classesError.message },
+          { status: 500 }
+        );
+      }
     }
 
     // Ambil jumlah siswa aktif per kelas
     const classesWithCount = await Promise.all(
-      (classes || []).map(async (kelas) => {
+      (kelasData || []).map(async (kelas) => {
         const { count, error: countError } = await supabase
           .from('santri')
           .select('id', { count: 'exact', head: true })

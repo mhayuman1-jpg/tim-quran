@@ -12,8 +12,12 @@ ADD COLUMN IF NOT EXISTS created_at timestamptz DEFAULT now();
 CREATE TABLE IF NOT EXISTS public.classes (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   name text NOT NULL,
+  teacher1_id uuid REFERENCES public.users(id) ON DELETE SET NULL,
+  teacher2_id uuid REFERENCES public.users(id) ON DELETE SET NULL,
   created_at timestamptz NOT NULL DEFAULT now()
 );
+CREATE INDEX IF NOT EXISTS classes_teacher1_idx ON public.classes(teacher1_id);
+CREATE INDEX IF NOT EXISTS classes_teacher2_idx ON public.classes(teacher2_id);
 
 -- Tambahkan relasi foreign key dari santri ke classes
 DO $$

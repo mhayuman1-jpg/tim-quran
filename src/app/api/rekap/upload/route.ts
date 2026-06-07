@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 // src/app/api/rekap/upload/route.ts
 // POST: Terima file Excel/PDF, upload ke Supabase Storage bucket `rekap`,
 //       simpan metadata ke tabel `rekap_bulanan`

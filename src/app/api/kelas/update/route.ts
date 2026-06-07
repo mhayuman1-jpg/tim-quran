@@ -1,10 +1,11 @@
+export const dynamic = 'force-dynamic';
 // src/app/api/kelas/update/route.ts
 // PUT: Update nama kelas
 // - Cascade update otomatis via FK (handled by database)
 // - Return 409 jika nama duplikat
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
+import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
 

@@ -150,6 +150,7 @@ export default function DashboardPage() {
   const cardRef = useRef<HTMLDivElement>(null);
   const [downloading, setDownloading] = useState<'png' | 'pdf' | null>(null);
   const [profilData, setProfilData] = useState<{ nama_lembaga?: string; logo_url?: string; nama_sekolah?: string; logo_sekolah_url?: string } | null>(null);
+  const [navShortcuts, setNavShortcuts] = useState<{ id: string; label: string; href: string }[]>([]);
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -165,6 +166,24 @@ export default function DashboardPage() {
       .then(r => r.json())
       .then(d => setProfilData(d.data))
       .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const res = await fetch('/api/website/navigation');
+        const json = await res.json();
+        if (mounted && json.data && Array.isArray(json.data)) {
+          // Filter out root and keep first 6 items for shortcuts
+          const items = json.data.filter((it: any) => it.href && it.href !== '/').slice(0, 6);
+          setNavShortcuts(items.map((it: any) => ({ id: it.id, label: it.label, href: it.href })));
+        }
+      } catch {
+          // ignore
+        }
+    })();
+    return () => { mounted = false; };
   }, []);
 
   useEffect(() => {
@@ -356,23 +375,37 @@ export default function DashboardPage() {
             </span>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            {[
-              { href: '/siswa',          icon: <Users size={18} />,       label: 'Data Siswa',     color: '#3b82f6' },
-              { href: '/rekap',          icon: <Repeat size={18} />,      label: 'Rekap Bulanan',  color: '#10b981' },
-              { href: '/laporan',        icon: <TrendingUp size={18} />,  label: 'Laporan',        color: '#f59e0b' },
-              { href: '/pengumuman',     icon: <Megaphone size={18} />,   label: 'Pengumuman',     color: '#8b5cf6' },
-              { href: '/kelola-artikel', icon: <Newspaper size={18} />,   label: 'Artikel',        color: '#ec4899' },
-            ].map(item => (
-              <Link key={item.href} href={item.href}
-                className="flex items-center gap-3 p-4 rounded-xl border border-slate-100 hover:border-slate-200 hover:shadow-sm transition-all group">
-                <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
-                  style={{background: `${item.color}15`, color: item.color}}>
-                  {item.icon}
-                </div>
-                <span className="text-sm font-medium text-slate-700 group-hover:text-slate-900">{item.label}</span>
-                <ArrowRight size={14} className="ml-auto text-slate-300 group-hover:text-slate-500 transition-colors" />
-              </Link>
-            ))}
+            {(navShortcuts.length > 0 ? navShortcuts : [
+              { id: 'siswa', label: 'Data Siswa', href: '/siswa' },
+              { id: 'rekap', label: 'Rekap Bulanan', href: '/rekap' },
+              { id: 'laporan', label: 'Laporan', href: '/laporan' },
+              { id: 'pengumuman', label: 'Kelola Pengumuman', href: '/dashboard/pengumuman' },
+              { id: 'artikel', label: 'Kelola Artikel', href: '/dashboard/kelola-artikel' },
+            ]).map(item => {
+              const ICON_MAP: Record<string, React.ReactNode> = {
+                'Data Siswa': <Users size={18} />,
+                'Rekap Bulanan': <Repeat size={18} />,
+                'Laporan': <TrendingUp size={18} />,
+                'Pengumuman': <Megaphone size={18} />,
+                'Artikel': <Newspaper size={18} />,
+              };
+              const COLOR_MAP: Record<string, string> = {
+                'Data Siswa': '#3b82f6', 'Rekap Bulanan': '#10b981', 'Laporan': '#f59e0b', 'Pengumuman': '#8b5cf6', 'Artikel': '#ec4899'
+              };
+              const icon = ICON_MAP[item.label] ?? <BookOpen size={18} />;
+              const color = COLOR_MAP[item.label] ?? '#64748b';
+              return (
+                <Link key={item.id} href={item.href}
+                  className="flex items-center gap-3 p-4 rounded-xl border border-slate-100 hover:border-slate-200 hover:shadow-sm transition-all group">
+                  <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
+                    style={{background: `${color}15`, color}}>
+                    {icon}
+                  </div>
+                  <span className="text-sm font-medium text-slate-700 group-hover:text-slate-900">{item.label}</span>
+                  <ArrowRight size={14} className="ml-auto text-slate-300 group-hover:text-slate-500 transition-colors" />
+                </Link>
+              );
+            })}
           </div>
         </div>
       )}

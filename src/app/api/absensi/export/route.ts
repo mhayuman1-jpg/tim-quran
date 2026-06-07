@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 // src/app/api/absensi/export/route.ts
 // GET: Export data absensi bulanan ke Excel
 // Query: month=YYYY-MM (wajib), class_id (opsional)

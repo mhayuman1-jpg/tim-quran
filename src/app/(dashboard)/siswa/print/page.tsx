@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useReactToPrint } from "react-to-print";
 import { Printer, ArrowLeft, Loader2, CreditCard, CheckCircle2, Download } from "lucide-react";

@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 // src/app/api/pengumuman/list/route.ts
 // GET: Ambil semua pengumuman diurutkan terbaru
 

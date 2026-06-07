@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 // src/app/api/artikel/add/route.ts
 // POST (Kabid only): Buat artikel baru
 // Slug di-generate otomatis dari judul (lowercase, spasi → tanda hubung, hapus karakter spesial)

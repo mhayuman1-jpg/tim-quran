@@ -6,10 +6,29 @@
 @layer base {
   html {
     scroll-behavior: smooth;
+    min-height: 100%;
+    background-color: #0f172a;
+    color: #f8fafc;
+    box-sizing: border-box;
+  }
+
+  /* Light theme overrides when `.light` class applied to <html> */
+  html.light, html.light body {
+    background-color: #f8fafc;
+    color: #0f172a;
+  }
+
+  *, *::before, *::after {
+    box-sizing: inherit;
   }
 
   body {
     @apply font-sans text-slate-900 antialiased;
+    margin: 0;
+    min-height: 100vh;
+    background-color: #0f172a;
+    color: #f8fafc;
+    font-family: var(--font-inter), Inter, ui-sans-serif, system-ui, sans-serif;
   }
 
   /* Custom scrollbar */
@@ -71,6 +90,12 @@
     -webkit-box-orient: vertical;
     overflow: hidden;
   }
+  .line-clamp-4 {
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
 
   /* Pulse gentle — digantikan oleh animate-pulse-glow di bagian bawah */
 }
@@ -102,6 +127,10 @@
   0%, 100% { transform: translateY(0px); }
   50%       { transform: translateY(-12px); }
 }
+@keyframes fadeInDown {
+  from { opacity: 0; transform: translateY(-12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
 @keyframes pulseGlowGreen {
   0%, 100% { box-shadow: 0 0 20px rgba(16,185,129,0.3); }
   50%       { box-shadow: 0 0 40px rgba(16,185,129,0.6); }
@@ -113,6 +142,7 @@
 .animate-fade-in-up    { animation: fadeInUp 0.7s ease forwards; }
 .animate-fade-in-left  { animation: fadeInLeft 0.7s ease forwards; }
 .animate-fade-in-right { animation: fadeInRight 0.7s ease forwards; }
+.animate-fade-in-down  { animation: fadeInDown 0.35s ease forwards; }
 .animate-scale-in      { animation: scaleIn 0.5s ease forwards; }
 .animate-float         { animation: floatAnim 3s ease-in-out infinite; }
 .animate-pulse-glow    { animation: pulseGlowGreen 2s ease-in-out infinite; }

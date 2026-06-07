@@ -2,15 +2,17 @@
 
 import { usePathname } from 'next/navigation';
 import { signOut } from 'next-auth/react';
-import { LogOut, ExternalLink, Menu } from 'lucide-react';
+import { LogOut, ExternalLink, Menu, Sun, Moon } from 'lucide-react';
 import Link from 'next/link';
+import { useTheme } from '@/app/providers';
 
 const PAGE_TITLES: Record<string, string> = {
   '/dashboard': 'Dashboard',
   '/siswa': 'Data Siswa',
   '/siswa/print': 'Cetak ID Card',
-  '/hafalan': 'Pencatatan Hafalan',
-  '/tahsin': 'Pencatatan Tahsin',
+  '/hafalan': 'Pencatatan Hafalan & Tahsin',
+  '/tahsin': 'Pencatatan Hafalan & Tahsin',
+  '/tahfidz': 'Pencatatan Tahfidz',
   '/absensi': 'Data Absensi',
   '/absensi/monitoring': 'Monitoring Kehadiran',
   '/raport': "Raport Qur'an",
@@ -18,10 +20,12 @@ const PAGE_TITLES: Record<string, string> = {
   '/rekap': 'Rekap Bulanan',
   '/laporan': 'Laporan Progres',
   '/kelas': 'Kelola Kelas',
+  '/semester': 'Semester',
   '/tim': "Manajemen Tim Qur'an",
-  '/pengumuman': 'Pengumuman',
-  '/kelola-artikel': 'Kelola Artikel',
+  '/dashboard/pengumuman': 'Kelola Pengumuman',
+  '/dashboard/kelola-artikel': 'Kelola Artikel',
   '/website': 'Kelola Website',
+  '/dashboard/website': 'Kelola Website',
   '/pengaturan': 'Pengaturan Akun',
 };
 
@@ -36,14 +40,12 @@ function getPageTitle(pathname: string): string {
 export default function Header({ onMenuClick }: { onMenuClick?: () => void }) {
   const pathname = usePathname();
   const title = getPageTitle(pathname);
+  const { theme, toggle } = useTheme();
 
   return (
     <header className="h-14 flex items-center justify-between px-4 sm:px-6 shrink-0"
       style={{
-        background: 'rgba(255,255,255,0.95)',
-        backdropFilter: 'blur(12px)',
-        borderBottom: '1px solid rgba(226,232,240,0.8)',
-        boxShadow: '0 1px 8px rgba(0,0,0,0.04)',
+        borderBottom: '1px solid rgba(226,232,240,0.6)',
       }}>
       {/* Left */}
       <div className="flex items-center gap-3">
@@ -59,6 +61,14 @@ export default function Header({ onMenuClick }: { onMenuClick?: () => void }) {
 
       {/* Right */}
       <div className="flex items-center gap-1">
+        <button
+          onClick={() => toggle()}
+          className="p-1.5 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+          aria-label="Toggle tema"
+          title="Toggle tema"
+        >
+          {theme === 'light' ? <Sun size={16} /> : <Moon size={16} />}
+        </button>
         <Link href="/" target="_blank" rel="noopener noreferrer"
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
           style={{color: '#6366f1'}}
@@ -69,7 +79,7 @@ export default function Header({ onMenuClick }: { onMenuClick?: () => void }) {
           <span className="hidden sm:inline">Website</span>
         </Link>
         <div className="w-px h-4 bg-slate-200 mx-1" />
-        <button onClick={() => signOut({ callbackUrl: '/login' })}
+        <button onClick={() => signOut({ callbackUrl: '/' })}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-500 hover:text-red-600 hover:bg-red-50 transition-colors"
           aria-label="Keluar">
           <LogOut size={13} />
