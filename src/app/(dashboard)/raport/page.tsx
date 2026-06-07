@@ -41,7 +41,7 @@ interface RaportRow {
     classes?: { id: string; name: string } | null;
   } | null;
   users?: { id: string; name: string } | null;
-  raport_tahfidz_detail?: any[];
+  raport_tahfidz_detail?: DetailSurahData[];
 }
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
@@ -81,7 +81,7 @@ export default function RaportPage() {
     contentRef: printRef,
     documentTitle: `Raport_${selected?.santri?.nama ?? 'Siswa'}_${selected?.periode ?? ''}`,
     pageStyle: `
-      @page { size: A4 portrait; margin: 12mm; }
+      @page { size: 210mm 330mm; margin: 12mm; }
       @media print { body { margin: 0; } * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; } }
     `,
   });
@@ -93,36 +93,56 @@ export default function RaportPage() {
     try {
       const { toPng } = await import('html-to-image');
       const { default: jsPDF } = await import('jspdf');
-      
+
       const element = printRef.current;
-      const dataUrl = await toPng(element, { pixelRatio: 2 });
-      
-      // Get image dimensions
+
+      // Make the hidden print portal renderable for html-to-image by temporarily
+      // toggling a class on body that forces the portal to be visible off-screen.
+      document.body.classList.add('render-print-temp');
+      // wait a frame so styles apply
+      await new Promise(requestAnimationFrame);
+
+      const rect = element.getBoundingClientRect();
+      const dataUrl = await toPng(element, {
+        pixelRatio: 3,
+        width: Math.round(rect.width),
+        height: Math.round(rect.height),
+      });
+
+      // cleanup temporary class
+      document.body.classList.remove('render-print-temp');
+
       const img = new Image();
       img.src = dataUrl;
-      await new Promise(resolve => img.onload = resolve);
-      
-      const pdf = new jsPDF({
-        orientation: 'portrait',
-        unit: 'mm',
-        format: 'a4',
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = () => reject(new Error('Gagal memuat gambar untuk PDF'));
       });
-      
-      const imgWidth = 210; // A4 width in mm
-      const imgHeight = (img.height / img.width) * imgWidth;
-      let heightLeft = imgHeight;
-      let position = 0;
-      
-      pdf.addImage(dataUrl, 'PNG', 0, position, imgWidth, imgHeight);
-      heightLeft -= 297; // A4 height in mm
-      
-      while (heightLeft >= 0) {
-        position = heightLeft - imgHeight;
-        pdf.addPage();
-        pdf.addImage(dataUrl, 'PNG', 0, position, imgWidth, imgHeight);
-        heightLeft -= 297;
+
+      const pdf = new jsPDF({ unit: 'mm', format: [210, 330] });
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const margin = 10;
+      const usableWidth = pageWidth - margin * 2;
+      const usableHeight = pageHeight - margin * 2;
+
+      // Calculate image size in mm keeping aspect ratio
+      const ratio = img.width / img.height || 1;
+      const imgWidth = usableWidth;
+      const imgHeight = imgWidth / ratio;
+
+      // Number of pages required
+      const totalPages = Math.max(1, Math.ceil(imgHeight / usableHeight));
+
+      for (let page = 0; page < totalPages; page++) {
+        if (page > 0) pdf.addPage();
+        // y offset in image coordinates -> how much we need to shift the image up
+        const yOffset = page * usableHeight;
+        // draw the same large image, shifted so the correct slice appears on the page
+        const positionY = margin - yOffset;
+        pdf.addImage(dataUrl, 'PNG', margin, positionY, imgWidth, imgHeight);
       }
-      
+
       const filename = `Raport_${selected.santri?.nama ?? 'Siswa'}_${selected.periode ?? 'Undated'}.pdf`;
       pdf.save(filename);
     } catch (error) {
@@ -141,7 +161,7 @@ export default function RaportPage() {
       const XLSX = await import('xlsx');
       
       // Prepare data for Excel
-      const details = selected.raport_tahfidz_detail ?? [];
+      const details = selected.raport_tahfidz_detail ?? [] as DetailSurahData[];
       const rows = [
         ['RAPORT TAHFIDZ & TAHSIN'],
         [],
@@ -167,7 +187,7 @@ export default function RaportPage() {
         [],
         ['Detail Surah'],
         ['Urutan', 'Nama Surah', 'Makhroj', 'Tajwid', 'Lancar', 'Wafa Buku', 'Wafa Halaman'],
-        ...details.map((d: any) => [
+        ...details.map((d: DetailSurahData) => [
           d.urutan ?? '',
           d.nama_surah ?? '',
           d.makhroj ?? '',
@@ -341,7 +361,7 @@ export default function RaportPage() {
     }
   };
 
-  const currentPreviewRaport = selected ? {
+  const currentPreviewRaport: RaportTahfidzData | null = selected ? {
     ...selected,
     ...inlineDraft,
     raport_tahfidz_detail: inlineDraft.detail ?? selected.raport_tahfidz_detail,
@@ -553,16 +573,19 @@ export default function RaportPage() {
 
               {/* Preview card — this is also the print target */}
               <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
-                <div ref={printRef}>
-                  <RaportTahfidzPrintable
-                    raport={currentPreviewRaport as any}
-                    hideButtons
-                    inlineEdit={inlineEdit}
-                    onInlineChange={handleInlineFieldChange}
-                    onInlineDetailChange={handleInlineDetailChange}
-                    onInlineAddRow={handleInlineAddRow}
-                    onInlineRemoveRow={handleInlineRemoveRow}
-                  />
+                  <div>
+                  {currentPreviewRaport && (
+                    <RaportTahfidzPrintable
+                      raport={currentPreviewRaport}
+                      hideButtons
+                      contentRef={printRef}
+                      inlineEdit={inlineEdit}
+                      onInlineChange={handleInlineFieldChange}
+                      onInlineDetailChange={handleInlineDetailChange}
+                      onInlineAddRow={handleInlineAddRow}
+                      onInlineRemoveRow={handleInlineRemoveRow}
+                    />
+                  )}
                 </div>
               </div>
             </div>

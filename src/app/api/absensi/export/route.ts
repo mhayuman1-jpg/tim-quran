@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
+import { normalizeAttendanceRows } from '@/lib/attendance';
 import * as xlsx from 'xlsx';
 
 export async function GET(request: NextRequest) {
@@ -48,19 +49,22 @@ export async function GET(request: NextRequest) {
     const santriIds = santriList.map((s: any) => s.id);
     const { data: attendances } = await supabase
       .from('attendances')
-      .select('santri_id, date, status')
+      .select('*')
       .gte('date', startDate)
       .lte('date', endDate)
-      .in('santri_id', santriIds)
       .order('date');
 
+    const normalizedAttendances = normalizeAttendanceRows(attendances ?? []).filter(
+      (attendance: any) => attendance.santri_id && santriIds.includes(attendance.santri_id)
+    );
+
     // Kumpulkan semua tanggal unik yang ada data
-    const allDatesSet = new Set((attendances ?? []).map((a: any) => a.date));
+    const allDatesSet = new Set(normalizedAttendances.map((a: any) => a.date));
     const allDates = Array.from(allDatesSet).sort();
 
     // Build attendance map: santri_id → date → status
     const attMap = new Map<string, Map<string, string>>();
-    for (const a of (attendances ?? []) as any[]) {
+    for (const a of normalizedAttendances as any[]) {
       if (!attMap.has(a.santri_id)) attMap.set(a.santri_id, new Map());
       attMap.get(a.santri_id)!.set(a.date, a.status);
     }

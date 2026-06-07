@@ -68,18 +68,27 @@ export default function ScanPage() {
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [scannedList, setScannedList] = useState<ScannedStudent[]>([]);
   const [loadingList, setLoadingList] = useState(true);
+  const [pageError, setPageError] = useState<string | null>(null);
 
-  async function fetchTodayList() {
+  const fetchTodayList = useCallback(async () => {
     setLoadingList(true);
+    setPageError(null);
     try {
       const res = await fetch('/api/absensi/today');
+      if (!res.ok) {
+        setPageError(`Error ${res.status}: Gagal memuat data hari ini`);
+        return;
+      }
       const json = await res.json();
-      if (res.ok) setScannedList(json.data ?? []);
-    } catch { /* ignore */ }
-    finally { setLoadingList(false); }
-  }
+      if (json.data) setScannedList(json.data);
+    } catch (err) {
+      setPageError(`Error: ${err instanceof Error ? err.message : 'Tidak dikenal'}`);
+    } finally {
+      setLoadingList(false);
+    }
+  }, []);
 
-  useEffect(() => { fetchTodayList(); }, []);
+  useEffect(() => { fetchTodayList(); }, [fetchTodayList]);
 
   useEffect(() => {
     if (!feedback) return;
@@ -87,18 +96,43 @@ export default function ScanPage() {
     return () => clearTimeout(t);
   }, [feedback]);
 
+
+
   const handleScanSuccess = useCallback((namaSiswa: string) => {
     playSuccessBeep();
     setFeedback({ type: 'success', message: `${namaSiswa} — Absen berhasil!` });
     const jam = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
     setScannedList(prev => [{ nama: namaSiswa, scanned_at: jam }, ...prev]);
-  }, []);
+    fetchTodayList();
+  }, [fetchTodayList]);
 
   const handleScanError = useCallback((pesan: string) => {
     const isWarning = pesan.toLowerCase().includes('sudah absen');
     if (isWarning) playWarningBeep(); else playErrorBeep();
     setFeedback({ type: isWarning ? 'warning' : 'error', message: pesan });
   }, []);
+
+  // Error page if server/network error
+  if (pageError) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-96 py-8 px-4 gap-4">
+        <AlertCircle size={48} className="text-red-500" />
+        <div className="text-center max-w-sm">
+          <h1 className="text-lg font-bold text-slate-900 mb-2">Error Memuat Halaman</h1>
+          <p className="text-sm text-slate-600 mb-4">{pageError}</p>
+          <Button
+            variant="secondary"
+            onClick={() => {
+              setPageError(null);
+              fetchTodayList();
+            }}
+          >
+            Coba Lagi
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -130,6 +164,8 @@ export default function ScanPage() {
             scannedList={scannedList}
             compact
           />
+
+
         </div>
 
         {/* Daftar hadir — desktop: sidebar, mobile: di bawah */}

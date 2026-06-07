@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
+import { queryAttendanceByStudent } from '@/lib/attendance';
 
 export async function GET(request: NextRequest) {
   // Verifikasi sesi
@@ -57,21 +58,12 @@ export async function GET(request: NextRequest) {
     }
 
     // Query attendance untuk siswa ini
-    let query = supabase
-      .from('attendances')
-      .select('id, santri_id, date, status, scanned_at, scanned_by')
-      .eq('santri_id', studentId)
-      .order('date', { ascending: false });
-
-    // Filter date range jika diberikan
-    if (dateFrom) {
-      query = query.gte('date', dateFrom);
-    }
-    if (dateTo) {
-      query = query.lte('date', dateTo);
-    }
-
-    const { data, error } = await query;
+    const { data, error } = await queryAttendanceByStudent(
+      supabase,
+      studentId,
+      dateFrom,
+      dateTo
+    );
 
     if (error) {
       console.error('Fetch attendance error (student):', error);

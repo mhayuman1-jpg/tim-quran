@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
+import { normalizeAttendanceRows } from '@/lib/attendance';
 
 export const dynamic = 'force-dynamic';
 
@@ -70,9 +71,8 @@ export async function GET(request: NextRequest) {
 
     const { data: attendances, error: attendError } = await supabase
       .from('attendances')
-      .select('santri_id, status')
-      .eq('date', date)
-      .in('santri_id', santriIds);
+      .select('*')
+      .eq('date', date);
 
     if (attendError) {
       console.error('Fetch attendances error (harian):', attendError);
@@ -82,12 +82,17 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // 3. Buat map santri_id â†’ status hadir
-    const hadir = new Set<string>(
-      (attendances ?? [])
-        .filter((a: any) => a.status === 'Hadir')
-        .map((a: any) => a.santri_id)
-    );
+    const normalizedAttendances = normalizeAttendanceRows(attendances);
+
+    // 3. Buat map santri_id → status hadir
+    const hadir = new Set<string>();
+    for (const attendance of normalizedAttendances) {
+      if (!attendance.santri_id) continue;
+      if (!santriIds.includes(attendance.santri_id)) continue;
+      if (attendance.status === 'Hadir') {
+        hadir.add(attendance.santri_id);
+      }
+    }
 
     // 4. Gabungkan: setiap santri dengan status hadir/tidak hadir
     const result = (santriList as any[]).map((s) => ({

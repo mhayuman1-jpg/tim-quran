@@ -21,6 +21,7 @@ export default function QRScanner({ onScanSuccess, onScanError, scannedList, com
   const [isScanning, setIsScanning] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const isProcessingRef = useRef(false);
+  const isCleaningRef = useRef(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -70,9 +71,22 @@ export default function QRScanner({ onScanSuccess, onScanError, scannedList, com
     startScanner();
     return () => {
       isMounted = false;
-      if (html5QrcodeRef.current?.isScanning) {
-        html5QrcodeRef.current.stop().catch(() => {});
-      }
+      // Prevent multiple cleanup calls
+      if (isCleaningRef.current || !html5QrcodeRef.current) return;
+      isCleaningRef.current = true;
+
+      (async () => {
+        try {
+          await html5QrcodeRef.current!.stop();
+        } catch {
+          // Ignore stop errors
+        }
+        try {
+          await html5QrcodeRef.current!.clear();
+        } catch {
+          // Ignore clear errors
+        }
+      })();
     };
   }, [onScanError, onScanSuccess]);
 

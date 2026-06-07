@@ -9,7 +9,7 @@
 // - Assign guru per kelas (manual & auto)
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { Plus, Pencil, Trash2, Check, X, UserCheck, Wand2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, Check, X, UserCheck, Wand2, Users } from 'lucide-react';
 
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -34,6 +34,13 @@ interface Kelas {
   teacher2_id?: string | null;
   teacher1?: Teacher | null;
   teacher2?: Teacher | null;
+}
+
+interface Student {
+  id: string;
+  nama: string;
+  nisn: string;
+  class_id?: string | null;
 }
 
 // ─── Page ───────────────────────────────────────────────────────────────────
@@ -71,6 +78,14 @@ export default function KelasPage() {
 
   // ── Auto assign
   const [autoLoading, setAutoLoading] = useState(false);
+
+  // ── Assign student modal
+  const [assignStudentTarget, setAssignStudentTarget] = useState<Kelas | null>(null);
+  const [students, setStudents] = useState<Student[]>([]);
+  const [selectedStudents, setSelectedStudents] = useState<Set<string>>(new Set());
+  const [studentLoading, setStudentLoading] = useState(false);
+  const [assignStudentLoading, setAssignStudentLoading] = useState(false);
+  const [studentSearch, setStudentSearch] = useState('');
 
   // ── Fetch kelas
   const fetchKelas = useCallback(async () => {
@@ -283,6 +298,79 @@ export default function KelasPage() {
     }
   };
 
+  // ── Assign students
+  const handleOpenAssignStudent = async (kelas: Kelas) => {
+    setAssignStudentTarget(kelas);
+    setSelectedStudents(new Set());
+    setStudentSearch('');
+    setStudentLoading(true);
+
+    try {
+      const res = await fetch('/api/siswa/list');
+      const json = await res.json();
+      if (res.ok) {
+        setStudents(json.data ?? []);
+      } else {
+        toast.error('Gagal memuat daftar siswa.');
+        setAssignStudentTarget(null);
+      }
+    } catch {
+      toast.error('Gagal memuat daftar siswa.');
+      setAssignStudentTarget(null);
+    } finally {
+      setStudentLoading(false);
+    }
+  };
+
+  const filteredStudents = students.filter((s) =>
+    s.nama.toLowerCase().includes(studentSearch.toLowerCase()) ||
+    s.nisn.includes(studentSearch)
+  );
+
+  const handleToggleStudent = (id: string) => {
+    const updated = new Set(selectedStudents);
+    if (updated.has(id)) {
+      updated.delete(id);
+    } else {
+      updated.add(id);
+    }
+    setSelectedStudents(updated);
+  };
+
+  const handleSaveAssignStudents = async () => {
+    if (!assignStudentTarget || selectedStudents.size === 0) {
+      toast.error('Pilih minimal satu siswa untuk diassign.');
+      return;
+    }
+
+    setAssignStudentLoading(true);
+    try {
+      const promises = Array.from(selectedStudents).map((studentId) =>
+        fetch('/api/siswa/update', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: studentId, class_id: assignStudentTarget.id }),
+        }).then((r) => r.json())
+      );
+
+      const results = await Promise.all(promises);
+      const errors = results.filter((r) => r.error || !r.message?.includes('berhasil'));
+
+      if (errors.length > 0) {
+        toast.error(`${errors.length} siswa gagal diassign.`);
+      } else {
+        toast.success(`${selectedStudents.size} siswa berhasil diassign ke kelas.`);
+        setAssignStudentTarget(null);
+        setSelectedStudents(new Set());
+        fetchKelas();
+      }
+    } catch (err) {
+      toast.error('Terjadi kesalahan saat assign siswa.');
+    } finally {
+      setAssignStudentLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* ── Page header */}
@@ -432,6 +520,15 @@ export default function KelasPage() {
                     <td className="px-4 py-3">
                       {editingId !== kelas.id && (
                         <div className="flex items-center justify-end gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            leftIcon={<Users size={14} />}
+                            onClick={() => handleOpenAssignStudent(kelas)}
+                            title="Assign siswa ke kelas"
+                          >
+                            Siswa
+                          </Button>
                           <Button
                             variant="ghost"
                             size="sm"
@@ -604,6 +701,90 @@ export default function KelasPage() {
         confirmLabel="Hapus"
         loading={deleteLoading}
       />
+
+      {/* ── Assign students modal */}
+      <Modal
+        open={Boolean(assignStudentTarget)}
+        onClose={() => { if (!assignStudentLoading) setAssignStudentTarget(null); }}
+        title={`Assign Siswa — ${assignStudentTarget?.name ?? ''}`}
+        size="md"
+        closeOnBackdrop={!assignStudentLoading}
+      >
+        <div className="space-y-4 max-h-96 overflow-y-auto">
+          {/* Search input */}
+          <div className="sticky top-0 bg-white pb-2">
+            <Input
+              placeholder="Cari nama siswa atau NISN..."
+              value={studentSearch}
+              onChange={(e) => setStudentSearch(e.target.value)}
+              disabled={studentLoading}
+            />
+          </div>
+
+          {/* Student list */}
+          {studentLoading ? (
+            <div className="flex items-center justify-center py-8 text-slate-400">
+              Memuat daftar siswa...
+            </div>
+          ) : filteredStudents.length === 0 ? (
+            <div className="py-8 text-center text-sm text-slate-400">
+              {studentSearch ? 'Tidak ada siswa yang cocok.' : 'Tidak ada siswa.'}
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {filteredStudents.map((student) => (
+                <label key={student.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={selectedStudents.has(student.id)}
+                    onChange={() => handleToggleStudent(student.id)}
+                    disabled={assignStudentLoading}
+                    className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-slate-800">{student.nama}</p>
+                    <p className="text-xs text-slate-400">{student.nisn}</p>
+                  </div>
+                  {student.class_id && (
+                    <span className="text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded shrink-0">
+                      Sudah di kelas
+                    </span>
+                  )}
+                </label>
+              ))}
+            </div>
+          )}
+
+          {/* Selected count */}
+          {filteredStudents.length > 0 && (
+            <div className="sticky bottom-0 bg-white pt-2 border-t border-slate-100">
+              <p className="text-xs text-slate-500">
+                {selectedStudents.size} dari {filteredStudents.length} siswa dipilih
+              </p>
+            </div>
+          )}
+
+          <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setAssignStudentTarget(null)}
+              disabled={assignStudentLoading}
+            >
+              Batal
+            </Button>
+            <Button
+              type="button"
+              variant="primary"
+              loading={assignStudentLoading}
+              onClick={handleSaveAssignStudents}
+              disabled={selectedStudents.size === 0}
+            >
+              Simpan ({selectedStudents.size})
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

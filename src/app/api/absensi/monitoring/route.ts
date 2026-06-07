@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
+import { normalizeAttendanceRows } from '@/lib/attendance';
 
 export const dynamic = 'force-dynamic';
 
@@ -81,34 +82,27 @@ export async function GET(request: NextRequest) {
     const classId = searchParams.get('class_id')?.trim();
     const supabase = createServerClient();
 
-    // Ambil semua records absensi 'Hadir' dalam rentang tanggal
-    // Hitung distinct santri per hari â†’ count per hari
-    let attendancesQuery = supabase
-      .from('attendances')
-      .select('santri_id, date')
-      .eq('status', 'Hadir')
-      .gte('date', from)
-      .lte('date', to);
-
-    // Filter berdasarkan kelas jika class_id diberikan
+    let kelasIds: string[] | undefined;
     if (classId) {
       const { data: kelasStudents } = await supabase
         .from('santri')
         .select('id')
         .eq('class_id', classId)
         .eq('status', 'Aktif');
-      const kelasIds = (kelasStudents ?? []).map((s: any) => s.id);
-      if (kelasIds.length > 0) {
-        attendancesQuery = attendancesQuery.in('santri_id', kelasIds);
-      } else {
-        // Tidak ada santri di kelas ini â€” return empty
+      kelasIds = (kelasStudents ?? []).map((s: any) => s.id);
+      if (kelasIds.length === 0) {
         const allDates = generateDateRange(from, to);
         const data = allDates.map((date) => ({ date, count: 0 }));
         return NextResponse.json({ data, from, to }, { status: 200 });
       }
     }
 
-    const { data: attendances, error } = await attendancesQuery;
+    const { data: attendances, error } = await supabase
+      .from('attendances')
+      .select('*')
+      .eq('status', 'Hadir')
+      .gte('date', from)
+      .lte('date', to);
 
     if (error) {
       console.error('Fetch attendances error (monitoring):', error);
@@ -118,14 +112,25 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Hitung jumlah distinct santri_id per tanggal
+    const normalizedAttendances = normalizeAttendanceRows(attendances);
+    const kelasIdSet = kelasIds ? new Set(kelasIds) : undefined;
+    const relevantAttendances = normalizedAttendances.filter((attendance) => {
+      const studentId = attendance.santri_id ?? attendance.student_id;
+      if (!studentId) return false;
+      if (!kelasIdSet) return true;
+      return kelasIdSet.has(studentId);
+    });
+
+    // Hitung jumlah distinct santri_id / student_id per tanggal
     const countByDate: Record<string, Set<string>> = {};
-    for (const record of (attendances ?? [])) {
+    for (const record of relevantAttendances) {
+      const studentId = record.santri_id ?? record.student_id;
+      if (!studentId) continue;
       const dateKey = record.date as string;
       if (!countByDate[dateKey]) {
         countByDate[dateKey] = new Set();
       }
-      countByDate[dateKey].add(record.santri_id as string);
+      countByDate[dateKey].add(studentId);
     }
 
     // Generate semua hari dalam range, isi dengan count (0 jika tidak ada)

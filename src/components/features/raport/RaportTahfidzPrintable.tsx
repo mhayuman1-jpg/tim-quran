@@ -65,7 +65,28 @@ interface ProfilData {
 
 const cell = (extra: React.CSSProperties = {}): React.CSSProperties => ({
   border: '1px solid #000',
-  padding: '3px 5px',
+  padding: '8px 10px',
+  verticalAlign: 'middle',
+  ...extra,
+});
+
+const headerCell = (extra: React.CSSProperties = {}): React.CSSProperties => ({
+  ...cell({
+    background: '#f5f5f5',
+    fontWeight: 700,
+    fontSize: '11px',
+    textTransform: 'uppercase',
+    letterSpacing: '0.03em',
+    textAlign: 'center',
+  }),
+  ...extra,
+});
+
+const bodyCell = (extra: React.CSSProperties = {}): React.CSSProperties => ({
+  ...cell({
+    fontSize: '11px',
+    padding: '8px 10px',
+  }),
   ...extra,
 });
 
@@ -174,16 +195,20 @@ const PrintContent = React.forwardRef<HTMLDivElement, {
 
   return (
     <div
+      className="raport-print-root"
       ref={ref}
       style={{
         fontFamily: '"Times New Roman", Times, serif',
         background: '#fff',
         padding: '20px 28px',
-        maxWidth: '760px',
+        width: '210mm',
+        minHeight: '330mm',
+        boxSizing: 'border-box',
         margin: '0 auto',
         fontSize: '12px',
         color: '#000',
         lineHeight: 1.4,
+        boxShadow: 'none',
       }}
     >
       {/* ══ HEADER SEKOLAH ════════════════════════════════════════════════ */}
@@ -315,28 +340,28 @@ const PrintContent = React.forwardRef<HTMLDivElement, {
       <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '8px', fontSize: '11.5px' }}>
         <thead>
           <tr>
-            <th rowSpan={2} style={cell({ textAlign: 'center', width: 28, background: '#f5f5f5' })}>No.</th>
-            <th rowSpan={2} style={cell({ textAlign: 'center', background: '#f5f5f5' })}>SURAH</th>
-            <th colSpan={3} style={cell({ textAlign: 'center', background: '#f5f5f5' })}>NILAI TAHFIDZ</th>
-            {inlineEdit && <th rowSpan={2} style={cell({ textAlign: 'center', width: 70, background: '#f5f5f5' })}>Aksi</th>}
+            <th rowSpan={2} style={headerCell({ width: 34 })}>No.</th>
+            <th rowSpan={2} style={headerCell({ textAlign: 'left' })}>Surah</th>
+            <th colSpan={3} style={headerCell({ width: 240 })}>Nilai Tahfidz</th>
+            {inlineEdit && <th rowSpan={2} style={headerCell({ width: 70 })}>Aksi</th>}
           </tr>
           <tr>
-            <th style={cell({ textAlign: 'center', width: 48, color: '#cc0000', textDecoration: 'underline', background: '#f5f5f5' })}>Makhroj</th>
-            <th style={cell({ textAlign: 'center', width: 44, background: '#f5f5f5' })}>Tajwid</th>
-            <th style={cell({ textAlign: 'center', width: 44, background: '#f5f5f5' })}>Lancar</th>
+            <th style={headerCell({ width: 56, color: '#cc0000', textDecoration: 'underline' })}>Makhroj</th>
+            <th style={headerCell({ width: 56 })}>Tajwid</th>
+            <th style={headerCell({ width: 56 })}>Lancar</th>
           </tr>
         </thead>
         <tbody>
           {n === 0 ? (
             <tr>
-              <td colSpan={inlineEdit ? 6 : 5} style={cell({ textAlign: 'center', color: '#999', padding: '10px' })}>
+              <td colSpan={inlineEdit ? 6 : 5} style={bodyCell({ textAlign: 'center', color: '#666', padding: '14px' })}>
                 Belum ada data surah
               </td>
             </tr>
           ) : detail.map((row, i) => (
-            <tr key={row.id ?? i}>
-              <td style={cell({ textAlign: 'center' })}>{i + 1}</td>
-              <td style={cell({ padding: '3px 7px' })}>
+            <tr key={row.id ?? i} style={{ background: i % 2 === 0 ? '#fff' : '#f8fafc' }}>
+              <td style={bodyCell({ textAlign: 'center' })}>{i + 1}</td>
+              <td style={bodyCell({ textAlign: 'left' })}>
                 {inlineEdit ? (
                   <input
                     type="text"
@@ -347,7 +372,7 @@ const PrintContent = React.forwardRef<HTMLDivElement, {
                   />
                 ) : row.nama_surah}
               </td>
-              <td style={cell({ textAlign: 'center', fontWeight: 700 })}>
+              <td style={bodyCell({ textAlign: 'center', fontWeight: 700 })}>
                 {inlineEdit ? (
                   <input
                     type="text"
@@ -358,7 +383,7 @@ const PrintContent = React.forwardRef<HTMLDivElement, {
                   />
                 ) : row.makhroj || ''}
               </td>
-              <td style={cell({ textAlign: 'center', fontWeight: 700 })}>
+              <td style={bodyCell({ textAlign: 'center', fontWeight: 700 })}>
                 {inlineEdit ? (
                   <input
                     type="text"
@@ -369,7 +394,7 @@ const PrintContent = React.forwardRef<HTMLDivElement, {
                   />
                 ) : row.tajwid || ''}
               </td>
-              <td style={cell({ textAlign: 'center', fontWeight: 700 })}>
+              <td style={bodyCell({ textAlign: 'center', fontWeight: 700 })}>
                 {inlineEdit ? (
                   <input
                     type="text"
@@ -381,7 +406,7 @@ const PrintContent = React.forwardRef<HTMLDivElement, {
                 ) : row.lancar || ''}
               </td>
               {inlineEdit && (
-                <td style={cell({ textAlign: 'center' })}>
+                <td style={bodyCell({ textAlign: 'center' })}>
                   <button
                     type="button"
                     onClick={() => onInlineRemoveRow?.(i)}
@@ -416,12 +441,20 @@ const PrintContent = React.forwardRef<HTMLDivElement, {
       <div style={{ fontSize: '11px', marginBottom: '18px' }}>
         <div style={{ fontWeight: 700, marginBottom: '6px' }}>Penilaian Tahsin</div>
         <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '12px', fontSize: '11px' }}>
+          <thead>
+            <tr>
+              <th style={headerCell({ width: '22%', textAlign: 'left' })}>Metode</th>
+              <th style={headerCell({ width: '28%', textAlign: 'left' })}>Buku</th>
+              <th style={headerCell({ width: '24%', textAlign: 'left' })}>Halaman</th>
+              <th style={headerCell({ textAlign: 'left' })}>Catatan</th>
+            </tr>
+          </thead>
           <tbody>
             <tr>
-              <td style={{ width: '24%', padding: '4px 6px', border: '1px solid #000', fontWeight: 700 }}>Metode</td>
-              <td style={{ width: '26%', padding: '4px 6px', border: '1px solid #000' }}>{renderEditableText('tahsin_metode', raport.tahsin_metode, '—')}</td>
-              <td style={{ width: '24%', padding: '4px 6px', border: '1px solid #000', fontWeight: 700 }}>Halaman</td>
-              <td style={{ width: '26%', padding: '4px 6px', border: '1px solid #000' }}>{renderEditableText('tahsin_halaman', raport.tahsin_halaman, '—')}</td>
+              <td style={bodyCell({ textAlign: 'center', fontWeight: 700 })}>{renderEditableText('tahsin_metode', raport.tahsin_metode, '—')}</td>
+              <td style={bodyCell({ textAlign: 'center', fontWeight: 700 })}>{renderEditableText('tahsin_buku', raport.tahsin_buku, '—')}</td>
+              <td style={bodyCell({ textAlign: 'center', fontWeight: 700 })}>{renderEditableText('tahsin_halaman', raport.tahsin_halaman, '—')}</td>
+              <td style={bodyCell({ textAlign: 'center', fontWeight: 700 })}>{renderEditableText('tahsin_catatan', raport.tahsin_catatan, '—')}</td>
             </tr>
           </tbody>
         </table>
@@ -430,12 +463,12 @@ const PrintContent = React.forwardRef<HTMLDivElement, {
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr>
-                <th style={{ border: '1px solid #000', background: '#f5f5f5', padding: '4px 6px', textAlign: 'left' }}>Makharijul Huruf</th>
+                <th style={headerCell({ textAlign: 'left' })}>Makharijul Huruf</th>
               </tr>
             </thead>
             <tbody>
               <tr>
-                <td style={{ padding: '8px 6px', border: '1px solid #000', textAlign: 'center', fontWeight: 700 }}>{renderEditableText('tahsin_makhroj', raport.tahsin_makhroj, '—')}</td>
+                <td style={bodyCell({ textAlign: 'center', fontWeight: 700 })}>{renderEditableText('tahsin_makhroj', raport.tahsin_makhroj, '—')}</td>
               </tr>
             </tbody>
           </table>
@@ -443,12 +476,12 @@ const PrintContent = React.forwardRef<HTMLDivElement, {
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr>
-                <th style={{ border: '1px solid #000', background: '#f5f5f5', padding: '4px 6px', textAlign: 'left' }}>Tajwid</th>
+                <th style={headerCell({ textAlign: 'left' })}>Tajwid</th>
               </tr>
             </thead>
             <tbody>
               <tr>
-                <td style={{ padding: '8px 6px', border: '1px solid #000', textAlign: 'center', fontWeight: 700 }}>{renderEditableText('tahsin_adab', raport.tahsin_adab, '—')}</td>
+                <td style={bodyCell({ textAlign: 'center', fontWeight: 700 })}>{renderEditableText('tahsin_adab', raport.tahsin_adab, '—')}</td>
               </tr>
             </tbody>
           </table>
@@ -456,12 +489,12 @@ const PrintContent = React.forwardRef<HTMLDivElement, {
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr>
-                <th style={{ border: '1px solid #000', background: '#f5f5f5', padding: '4px 6px', textAlign: 'left' }}>Kelancaran</th>
+                <th style={headerCell({ textAlign: 'left' })}>Kelancaran</th>
               </tr>
             </thead>
             <tbody>
               <tr>
-                <td style={{ padding: '8px 6px', border: '1px solid #000', textAlign: 'center', fontWeight: 700 }}>{renderEditableText('tahsin_kelancaran', raport.tahsin_kelancaran, '—')}</td>
+                <td style={bodyCell({ textAlign: 'center', fontWeight: 700 })}>{renderEditableText('tahsin_kelancaran', raport.tahsin_kelancaran, '—')}</td>
               </tr>
             </tbody>
           </table>
@@ -615,6 +648,7 @@ export default function RaportTahfidzPrintable({
   raport,
   hideButtons,
   inlineEdit = false,
+  contentRef,
   onInlineChange,
   onInlineDetailChange,
   onInlineAddRow,
@@ -623,6 +657,7 @@ export default function RaportTahfidzPrintable({
   raport: RaportTahfidzData;
   hideButtons?: boolean;
   inlineEdit?: boolean;
+  contentRef?: React.Ref<HTMLDivElement>;
   onInlineChange?: (field: keyof RaportTahfidzData, value: string | null) => void;
   onInlineDetailChange?: (index: number, field: keyof DetailSurahData, value: string | null) => void;
   onInlineAddRow?: () => void;
@@ -643,18 +678,53 @@ export default function RaportTahfidzPrintable({
     documentTitle: `Raport_Tahfidz_${raport.santri?.nama ?? 'Siswa'}_${raport.periode}`,
     pageStyle: `
       @page {
-        size: 215mm 330mm;
-        margin: 15mm 18mm 15mm 20mm;
+        size: 210mm 330mm;
+        margin: 12mm 14mm;
       }
       @media print {
-        body { margin: 0; }
-        * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+        html, body {
+          margin: 0;
+          padding: 0;
+          background: #fff;
+          color: #000;
+        }
+        body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+        .raport-print-root {
+          box-shadow: none !important;
+          margin: 0 !important;
+        }
       }
     `,
   });
 
   return (
     <div className="space-y-4">
+      <style>{`
+        .raport-print-portal { display: none; }
+        @media print {
+          .raport-print-portal {
+            display: block !important;
+            position: static !important;
+            left: auto !important;
+            top: auto !important;
+            width: 210mm !important;
+            min-height: 330mm !important;
+            margin: 0 auto !important;
+            opacity: 1 !important;
+            pointer-events: none !important;
+          }
+        }
+        .render-print-temp .raport-print-portal {
+          display: block !important;
+          position: absolute !important;
+          left: -9999px !important;
+          top: 0 !important;
+          width: 210mm !important;
+          min-height: 330mm !important;
+          opacity: 1 !important;
+          pointer-events: none !important;
+        }
+      `}</style>
       {/* Tombol cetak */}
       {!hideButtons && (
         <div className="flex justify-end">
@@ -665,16 +735,9 @@ export default function RaportTahfidzPrintable({
       )}
 
       {/* ── Preview tampilan dokumen langsung ────────────────────────── */}
-      <div className="rounded-xl border border-slate-200 overflow-hidden shadow-sm bg-white">
-        {/* Bar info */}
-        <div className="bg-emerald-700 px-4 py-2.5 flex items-center justify-between">
-          <p className="text-white text-sm font-semibold">Preview Raport Tahfidz &amp; Tahsin</p>
-          <span className="text-emerald-200 text-xs">{raport.santri?.nama} · {raport.periode}</span>
-        </div>
-
-        {/* Render PrintContent langsung sebagai preview — bukan hidden */}
-        <div className="overflow-x-auto p-2 sm:p-4 bg-gray-100">
-          <div className="min-w-[680px] bg-white shadow-md rounded">
+      <div className="overflow-hidden bg-white no-print">
+        <div className="overflow-x-auto p-2 sm:p-4 bg-slate-100">
+          <div className="bg-white" style={{ width: '210mm', minHeight: '330mm', margin: '0 auto' }}>
             <PrintContent
               raport={raport}
               profil={profil}
@@ -683,15 +746,15 @@ export default function RaportTahfidzPrintable({
               onInlineDetailChange={onInlineDetailChange}
               onInlineAddRow={onInlineAddRow}
               onInlineRemoveRow={onInlineRemoveRow}
-              ref={null}
+              ref={undefined}
             />
           </div>
         </div>
       </div>
 
-      {/* Hidden print target */}
-      <div style={{ display: 'none' }}>
-        <PrintContent ref={printRef} raport={raport} profil={profil} />
+      {/* Hidden print target (portal for printing/capture) */}
+      <div className="raport-print-portal" style={{ position: 'absolute', left: '-9999px', top: 0, width: '210mm', opacity: 0, pointerEvents: 'none' }}>
+        <PrintContent ref={contentRef ?? printRef} raport={raport} profil={profil} />
       </div>
     </div>
   );

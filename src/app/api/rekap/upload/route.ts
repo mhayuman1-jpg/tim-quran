@@ -95,17 +95,38 @@ export async function POST(request: NextRequest) {
     const buffer = Buffer.from(arrayBuffer);
 
     // Upload ke Supabase Storage bucket `rekap`
-    const { error: uploadError } = await supabase.storage
-      .from('rekap')
-      .upload(storagePath, buffer, {
-        contentType: file.type || 'application/octet-stream',
-        upsert: false,
-      });
+    const attemptUpload = async () => {
+      return await supabase.storage
+        .from('rekap')
+        .upload(storagePath, buffer, {
+          contentType: file.type || 'application/octet-stream',
+          upsert: false,
+        });
+    };
 
-    if (uploadError) {
-      console.error('Supabase storage upload error:', uploadError);
+    let uploadResult = await attemptUpload();
+
+    // Jika gagal karena bucket tidak ada/akses, coba buat bucket (private) lalu ulangi sekali
+    if (uploadResult.error) {
+      console.warn('Initial upload error, attempting to create bucket:', uploadResult.error.message);
+      try {
+        const { data: createData, error: createError } = await supabase.storage.createBucket('rekap', { public: false });
+        if (createError) {
+          console.error('Failed to create bucket `rekap`:', createError);
+        } else {
+          console.log('Bucket `rekap` created:', createData);
+          // retry upload
+          uploadResult = await attemptUpload();
+        }
+      } catch (e) {
+        console.error('Exception while creating bucket `rekap`:', e);
+      }
+    }
+
+    if (uploadResult.error) {
+      console.error('Supabase storage upload error after retry:', uploadResult.error);
       return NextResponse.json(
-        { message: 'Gagal mengunggah file ke storage.', error: uploadError.message },
+        { message: 'Gagal mengunggah file ke storage.', error: uploadResult.error.message },
         { status: 500 }
       );
     }

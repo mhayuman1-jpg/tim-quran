@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
 
     // Ambil semua data tahfidz dalam 6 bulan terakhir
     const { data: tahfidzData, error: tahfidzError } = await supabase
-      .from('tahfidz')
+      .from('hafalan')
       .select('tanggal, makhroj, tajwid, lancar')
       .gte('tanggal', fromDate)
       .lt('tanggal', toDate);

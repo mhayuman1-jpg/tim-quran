@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
+import { insertAttendanceRecord, isMissingSantriIdError } from '@/lib/attendance';
 
 export const dynamic = 'force-dynamic';
 
@@ -46,13 +47,24 @@ export async function POST(request: NextRequest) {
     // 2. Tanggal hari ini format YYYY-MM-DD
     const today = new Date().toISOString().split('T')[0];
 
-    // 3. Cek duplikat: cari record di attendances dengan santri_id & date = hari ini
-    const { data: existing, error: checkError } = await supabase
+    // 3. Cek duplikat: cari record di attendances dengan santri_id / student_id & date = hari ini
+    let checkResult = await supabase
       .from('attendances')
       .select('id')
       .eq('santri_id', siswa.id)
       .eq('date', today)
       .maybeSingle();
+
+    if (checkResult.error && isMissingSantriIdError(checkResult.error)) {
+      checkResult = await supabase
+        .from('attendances')
+        .select('id')
+        .eq('student_id', siswa.id)
+        .eq('date', today)
+        .maybeSingle();
+    }
+
+    const { data: existing, error: checkError } = checkResult;
 
     if (checkError) {
       console.error('Duplikat check error:', checkError);
@@ -71,13 +83,12 @@ export async function POST(request: NextRequest) {
     }
 
     // 4. Insert ke tabel attendances
-    const { error: insertError } = await supabase
-      .from('attendances')
-      .insert({
-        santri_id: siswa.id,
-        date: today,
-        status: 'Hadir',
-      });
+    const { error: insertError } = await insertAttendanceRecord(
+      supabase,
+      siswa.id,
+      today,
+      'Hadir'
+    );
 
     if (insertError) {
       // Fallback: constraint UNIQUE violation (code 23505) â€” race condition

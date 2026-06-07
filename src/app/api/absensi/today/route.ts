@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
+import { normalizeAttendanceRows } from '@/lib/attendance';
 
 export async function GET(_request: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -20,7 +21,7 @@ export async function GET(_request: NextRequest) {
 
     const { data: attData, error } = await supabase
       .from('attendances')
-      .select('id, santri_id, created_at')
+      .select('*')
       .eq('date', today)
       .eq('status', 'Hadir')
       .order('created_at', { ascending: false });
@@ -34,7 +35,8 @@ export async function GET(_request: NextRequest) {
     }
 
     // Ambil nama santri
-    const rawIds = (attData ?? []).map((r: any) => r.santri_id).filter(Boolean);
+    const normalized = normalizeAttendanceRows(attData);
+    const rawIds = normalized.map((r: any) => r.santri_id).filter(Boolean);
     const santriIds = Array.from(new Set(rawIds));
     let namaMap: Record<string, string> = {};
     if (santriIds.length > 0) {
@@ -43,7 +45,7 @@ export async function GET(_request: NextRequest) {
       for (const s of santriData ?? []) namaMap[s.id] = s.nama;
     }
 
-    const list = (attData ?? []).map((row: any) => ({
+    const list = normalized.map((row: any) => ({
       nama: namaMap[row.santri_id] ?? 'Tidak diketahui',
       scanned_at: new Date(row.created_at).toLocaleTimeString('id-ID', {
         hour: '2-digit',

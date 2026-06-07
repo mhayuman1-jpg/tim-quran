@@ -232,13 +232,41 @@ export default function DashboardPage() {
     try {
       const { toPng } = await import('html-to-image');
       const { default: jsPDF } = await import('jspdf');
-      const dataUrl = await toPng(cardRef.current, { pixelRatio: 3 });
+
+      const element = cardRef.current;
+      const rect = element.getBoundingClientRect();
+      const dataUrl = await toPng(element, {
+        pixelRatio: 3,
+        width: Math.round(rect.width),
+        height: Math.round(rect.height),
+      });
+
+      const img = new Image();
+      img.src = dataUrl;
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = () => reject(new Error('Gagal memuat gambar ID Card'));
+      });
+
       const pdf = new jsPDF({
         orientation: 'landscape',
         unit: 'mm',
         format: [85.6, 54],
       });
-      pdf.addImage(dataUrl, 'PNG', 0, 0, 85.6, 54);
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const ratio = img.width / img.height;
+      let imgWidth = pageWidth;
+      let imgHeight = pageWidth / ratio;
+
+      if (imgHeight > pageHeight) {
+        imgHeight = pageHeight;
+        imgWidth = pageHeight * ratio;
+      }
+
+      const x = (pageWidth - imgWidth) / 2;
+      const y = (pageHeight - imgHeight) / 2;
+      pdf.addImage(dataUrl, 'PNG', x, y, imgWidth, imgHeight);
       pdf.save(`idcard-${sanitizeName(session?.user?.name ?? 'staff')}.pdf`);
       toast.success('ID Card PDF berhasil diunduh.');
     } catch {

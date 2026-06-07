@@ -29,11 +29,11 @@ export async function GET() {
 
     const supabase = createServerClient();
 
-    // Ambil semua user dengan role Tim_Quran, Sekretaris, atau Bendahara
+    // Ambil semua user dengan role Tim_Quran, Sekretaris, Bendahara, atau Kabid
     const { data: timQuran, error } = await supabase
       .from('users')
       .select('id, name, email, role, status, created_at, photo_url')
-      .in('role', ['Tim_Quran', 'Sekretaris', 'Bendahara'])
+      .in('role', ['Tim_Quran', 'Sekretaris', 'Bendahara', 'Kabid'])
       .order('name', { ascending: true });
 
     if (error) {

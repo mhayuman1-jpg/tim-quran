@@ -34,7 +34,7 @@ function getSixMonthRange(): { label: string; key: string }[] {
 
 async function getMonthlyProgressData(): Promise<MonthlyProgressPoint[]> {
   try {
-    const res = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/landing/monthly-progress`, {
+    const res = await fetch('/api/landing/monthly-progress', {
       cache: 'no-store',
     });
 

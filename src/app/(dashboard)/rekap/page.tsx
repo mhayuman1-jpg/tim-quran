@@ -7,6 +7,7 @@
 // - Kedua role (Kabid dan Tim_Quran) dapat upload dan melihat rekap
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import Image from 'next/image';
 import { Upload, Download, FileSpreadsheet, FileText, X, Calendar } from 'lucide-react';
 
 import Button from '@/components/ui/Button';
@@ -139,6 +140,14 @@ export default function RekapPage() {
   // ── Download loading state (per item)
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
+  // ── Profil website untuk header laporan
+  const [profilData, setProfilData] = useState<{
+    nama_lembaga?: string;
+    logo_url?: string;
+    nama_sekolah?: string;
+    logo_sekolah_url?: string;
+  } | null>(null);
+
   // ── Toast notifications
   const [toasts, setToasts] = useState<Toast[]>([]);
 
@@ -174,6 +183,19 @@ export default function RekapPage() {
   useEffect(() => {
     fetchRekap();
   }, [fetchRekap]);
+
+  useEffect(() => {
+    fetch('/api/website/profil')
+      .then((res) => res.json())
+      .then((json) => {
+        if (json?.data) setProfilData(json.data);
+      })
+      .catch(() => null);
+  }, []);
+
+  const latestUpload = data.length > 0 ? data.reduce((latest, item) => {
+    return new Date(item.created_at).getTime() > new Date(latest.created_at).getTime() ? item : latest;
+  }, data[0]) : null;
 
   // ── Open upload modal
   const handleOpenUpload = () => {
@@ -272,47 +294,155 @@ export default function RekapPage() {
     }
   };
 
+  // ── Download template file
+  const handleDownloadTemplate = async () => {
+    try {
+      const res = await fetch('/api/rekap/template');
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        showToast('error', json.message ?? 'Gagal mengunduh template.');
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Rekap_Template.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      showToast('success', 'Template rekap berhasil diunduh.');
+    } catch (err) {
+      showToast('error', 'Terjadi kesalahan saat mengunduh template.');
+    }
+  };
+
   const monthOptions = buildMonthOptions();
 
   return (
     <div className="space-y-6">
       {/* ── Page header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Rekap Bulanan</h1>
-          <p className="text-sm text-slate-500 mt-0.5">
-            Unggah dan kelola file rekap kehadiran serta nilai bulanan.
-          </p>
+      <div className="grid gap-5">
+        <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+          <div className="flex flex-col gap-4 border-b border-slate-200 bg-slate-50 p-5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="grid h-20 w-20 place-items-center rounded-3xl border border-slate-200 bg-white">
+              {profilData?.logo_sekolah_url ? (
+                <Image src={profilData.logo_sekolah_url} alt={profilData.nama_sekolah ?? 'Logo Sekolah'} width={72} height={72} className="object-contain" />
+              ) : (
+                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-100 text-slate-400 text-xs">Logo</div>
+              )}
+            </div>
+
+            <div className="text-center">
+              <p className="text-xs uppercase tracking-[0.25em] text-slate-500">Laporan Resmi</p>
+              <h1 className="text-3xl font-bold text-slate-900">Rekap Bulanan</h1>
+              <p className="mt-1 text-sm text-slate-600">{profilData?.nama_sekolah ?? 'SDIT Al Hilmi Dompu'}</p>
+              <p className="text-sm text-slate-600">{profilData?.nama_lembaga ?? 'Lembaga Pendidikan'}</p>
+            </div>
+
+            <div className="grid h-20 w-20 place-items-center rounded-3xl border border-slate-200 bg-white">
+              {profilData?.logo_url ? (
+                <Image src={profilData.logo_url} alt={profilData.nama_lembaga ?? 'Logo Tim'} width={72} height={72} className="object-contain" />
+              ) : (
+                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-100 text-slate-400 text-xs">Logo</div>
+              )}
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm text-slate-500">Periode</p>
+              <p className="text-lg font-semibold text-slate-900">{latestUpload ? formatPeriode(latestUpload.periode) : 'Belum tersedia'}</p>
+            </div>
+            <div>
+              <p className="text-sm text-slate-500">Jumlah File Rekap</p>
+              <p className="text-lg font-semibold text-slate-900">{data.length}</p>
+            </div>
+            <div>
+              <p className="text-sm text-slate-500">Upload Terakhir</p>
+              <p className="text-lg font-semibold text-slate-900">{latestUpload ? formatDate(latestUpload.created_at) : '–'}</p>
+            </div>
+          </div>
         </div>
 
-        <Button
-          variant="primary"
-          leftIcon={<Upload size={15} />}
-          onClick={handleOpenUpload}
-        >
-          Unggah Rekap
-        </Button>
+        <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-sm font-semibold text-slate-700">Unggah Rekap Bulanan</p>
+              <p className="text-sm text-slate-500">Isi file rekap yang valid dan pilih periode.</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button variant="ghost" leftIcon={<Download size={15} />} onClick={handleDownloadTemplate}>
+                Unduh Template
+              </Button>
+              <Button variant="primary" leftIcon={<Upload size={15} />} onClick={handleOpenUpload}>
+                Unggah
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="overflow-hidden rounded-3xl border border-slate-200 shadow-sm bg-white">
+        <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5 shadow-sm">
+          <div className="flex items-center gap-4">
+            <div className="grid h-14 w-14 place-items-center rounded-2xl bg-emerald-700 text-white">
+              <FileText size={24} />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-slate-500">Status Rekap Bulanan</p>
+              <p className="text-3xl font-semibold text-slate-900">{data.length}</p>
+            </div>
+          </div>
+          <div className="mt-5 grid gap-3 sm:grid-cols-2">
+            <div className="rounded-2xl border border-slate-200 bg-white p-4">
+              <p className="text-xs uppercase tracking-[0.16em] text-slate-400">Total File</p>
+              <p className="mt-2 text-lg font-semibold text-slate-900">{data.length}</p>
+            </div>
+            <div className="rounded-2xl border border-slate-200 bg-white p-4">
+              <p className="text-xs uppercase tracking-[0.16em] text-slate-400">Periode Terbaru</p>
+              <p className="mt-2 text-lg font-semibold text-slate-900">{latestUpload ? formatPeriode(latestUpload.periode) : '–'}</p>
+            </div>
+            <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:col-span-2">
+              <p className="text-xs uppercase tracking-[0.16em] text-slate-400">Unggahan Terakhir</p>
+              <p className="mt-2 text-lg font-semibold text-slate-900">{latestUpload ? formatDate(latestUpload.created_at) : '–'}</p>
+              {latestUpload && (
+                <p className="mt-1 text-sm text-slate-500">{latestUpload.uploader_name}</p>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+          <p className="text-sm font-semibold text-slate-700">Petunjuk</p>
+          <ul className="mt-3 space-y-2 text-sm text-slate-600">
+            <li>1. Pastikan file rekap menggunakan format resmi.</li>
+            <li>2. Periode ditentukan bulan/tahun.</li>
+            <li>3. Unduh kembali jika URL kadaluarsa.</li>
+          </ul>
+        </div>
       </div>
 
       {/* ── Rekap table */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+      <div className="overflow-hidden rounded-3xl border border-slate-200 shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full">
+          <table className="min-w-full divide-y divide-slate-200">
             <thead>
-              <tr className="bg-slate-50 border-b border-slate-200">
-                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
+              <tr className="bg-slate-900 text-white">
+                <th className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-[0.2em]">
                   File
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                <th className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-[0.2em]">
                   Periode
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                <th className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-[0.2em]">
                   Diunggah Oleh
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                <th className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-[0.2em]">
                   Tanggal Unggah
                 </th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                <th className="px-4 py-4 text-right text-xs font-semibold uppercase tracking-[0.2em]">
                   Aksi
                 </th>
               </tr>

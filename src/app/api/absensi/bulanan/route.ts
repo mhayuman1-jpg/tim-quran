@@ -10,6 +10,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
+import { normalizeAttendanceRows } from '@/lib/attendance';
 
 export async function GET(request: NextRequest) {
   // Verifikasi sesi
@@ -91,11 +92,10 @@ export async function GET(request: NextRequest) {
     // 2. Ambil semua records absensi 'Hadir' dalam rentang bulan untuk santri yang relevan
     const { data: attendances, error: attendError } = await supabase
       .from('attendances')
-      .select('santri_id, date')
+      .select('*')
       .eq('status', 'Hadir')
       .gte('date', dateFrom)
-      .lt('date', dateTo)
-      .in('santri_id', santriIds);
+      .lt('date', dateTo);
 
     if (attendError) {
       console.error('Fetch attendances error (bulanan):', attendError);
@@ -105,7 +105,9 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const records: { santri_id: string; date: string }[] = attendances ?? [];
+    const records = normalizeAttendanceRows(attendances ?? []).filter(
+      (attendance: any) => attendance.santri_id && santriIds.includes(attendance.santri_id)
+    );
 
     // 3. Hitung total hari aktif = distinct dates yang punya SETIDAKNYA satu record
     const uniqueDates = new Set(records.map((r) => r.date));

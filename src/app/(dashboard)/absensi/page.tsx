@@ -119,7 +119,8 @@ function TabHarian({ showToast, classId }: TabProps) {
       setLoading(true);
       setFetched(false);
       try {
-        const url = `/api/absensi/harian?date=${encodeURIComponent(d)}&class_id=${classId}`;
+        const url = `/api/absensi/harian?date=${encodeURIComponent(d)}` +
+        (classId ? `&class_id=${classId}` : '');
         const res = await fetch(url);
         const json = await res.json();
         if (!res.ok) {

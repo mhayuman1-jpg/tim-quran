@@ -68,6 +68,7 @@ export default function MonitoringAbsensiPage() {
   const { data: session, status: sessionStatus } = useSession();
   const router = useRouter();
   const { toast } = useToast();
+  const [mounted, setMounted] = useState(false);
 
   // Default: 30 hari terakhir
   const defaultTo = toDateInputValue(new Date());
@@ -92,6 +93,11 @@ export default function MonitoringAbsensiPage() {
 
   // Redirect jika bukan Kabid
   useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
     if (sessionStatus === 'loading') return;
     if (!session) {
       router.replace('/login');
@@ -100,7 +106,7 @@ export default function MonitoringAbsensiPage() {
     if (session.user?.role !== 'Kabid') {
       router.replace('/dashboard?error=forbidden');
     }
-  }, [session, sessionStatus, router]);
+  }, [mounted, session, sessionStatus, router]);
 
   // Fetch kelas list
   useEffect(() => {
@@ -160,8 +166,8 @@ export default function MonitoringAbsensiPage() {
     fetchData(newFrom, newTo, selectedClass?.id);
   };
 
-  // Loading sesi
-  if (sessionStatus === 'loading') {
+  // Loading sesi atau belum mounting
+  if (!mounted || sessionStatus === 'loading') {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="w-8 h-8 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
