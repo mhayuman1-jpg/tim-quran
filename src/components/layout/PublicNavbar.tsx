@@ -150,30 +150,30 @@ export default function PublicNavbar({
         <div className="flex items-center justify-between h-16 md:h-[70px]">
 
           {/* ── Brand ───────────────────────────────────────── */}
-          <Link href="/" className="flex items-center gap-3 group shrink-0 no-underline">
+          <Link href="/" className="flex items-center gap-3 group shrink-0 no-underline transition-all duration-300">
             {cachedLogoUrl && !hasLogoError ? (
-              <div className="relative w-9 h-9 rounded-xl overflow-hidden ring-2 ring-amber-400/30 group-hover:ring-amber-400/60 transition-all shrink-0">
+              <div className="relative w-9 h-9 rounded-xl overflow-hidden ring-2 ring-amber-400/30 group-hover:ring-amber-400/60 group-hover:shadow-lg group-hover:shadow-amber-400/20 transition-all duration-300 shrink-0 will-change-transform group-hover:scale-110">
                 <Image
                   src={cachedLogoUrl}
                   alt={namaLembaga}
                   fill
                   priority
-                  className="object-cover"
+                  className="object-cover transition-transform duration-300 group-hover:scale-125"
                   sizes="36px"
                   onError={() => setHasLogoError(true)}
                 />
               </div>
             ) : (
-              <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-all group-hover:scale-105"
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-all duration-300 group-hover:scale-110 group-hover:shadow-lg group-hover:shadow-sky-500/30 will-change-transform"
                 style={{background: 'linear-gradient(135deg, #0ea5e9, #06b6d4)', boxShadow: '0 4px 16px rgba(14,165,233,0.35)'}}>
-                <BookOpen size={16} className="text-white" />
+                <BookOpen size={16} className="text-white transition-transform duration-300" />
               </div>
             )}
             <div className="hidden sm:block">
-              <span className="font-semibold text-white text-base leading-tight block tracking-tight">
+              <span className="font-semibold text-white text-base leading-tight block tracking-tight transition-colors duration-300 group-hover:text-sky-200">
                 {namaLembaga.replace("'", '\u2019')}
               </span>
-              <span className="text-amber-400/60 text-[11px] leading-none">
+              <span className="text-amber-400/60 text-[11px] leading-none transition-colors duration-300 group-hover:text-amber-300/80">
                 {namaSekolah ?? 'Tahfidz & Tahsin'}
               </span>
             </div>
@@ -181,17 +181,25 @@ export default function PublicNavbar({
 
           {/* ── Desktop nav ──────────────────────────────────── */}
           <nav className="hidden lg:flex items-center gap-2">
-            {navLinks.map((link) => {
+            {navLinks.map((link, idx) => {
               const active = isActive(link.href);
               return (
                 <Link
                   key={link.href}
                   href={link.href}
-                  className={`relative inline-flex items-center px-4 py-2 text-sm font-medium rounded-full transition duration-200 ${active ? 'text-white bg-gradient-to-r from-sky-500/20 to-teal-300/10 ring-1 ring-cyan-300' : 'text-white/85 bg-white/3 hover:bg-white/6'}`}
+                  style={{
+                    animationDelay: `${idx * 50}ms`,
+                  }}
+                  className={`relative inline-flex items-center px-4 py-2 text-sm font-medium rounded-full transition-all duration-300 ease-out will-change-colors group ${active ? 'text-white bg-gradient-to-r from-sky-500/20 to-teal-300/10 ring-1 ring-cyan-300' : 'text-white/85 bg-white/3 hover:bg-white/6 hover:text-white'}`}
                   title={link.label}
                 >
                   {link.label}
-                  {active && <span className="absolute inset-x-3 -bottom-0.5 h-0.5 rounded-full bg-gradient-to-r from-cyan-300 to-sky-400" />}
+                  {active && (
+                    <span className="absolute inset-x-3 -bottom-0.5 h-0.5 rounded-full bg-gradient-to-r from-cyan-300 to-sky-400 animate-pulse-soft" style={{willChange: 'transform'}} />
+                  )}
+                  {!active && (
+                    <span className="absolute inset-x-3 -bottom-0.5 h-0.5 rounded-full bg-gradient-to-r from-cyan-300 to-sky-400 scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left" style={{willChange: 'transform'}} />
+                  )}
                 </Link>
               );
             })}
@@ -201,54 +209,72 @@ export default function PublicNavbar({
           <div className="flex items-center gap-2">
             <Link
               href="/auth/login"
-              className="hidden sm:inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold text-white bg-gradient-to-r from-sky-500 to-cyan-400 shadow-md hover:opacity-95 active:scale-95"
+              className="hidden sm:inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold text-white bg-gradient-to-r from-sky-500 to-cyan-400 shadow-md shadow-sky-500/30 hover:shadow-lg hover:shadow-sky-500/50 active:scale-95 transition-all duration-300 will-change-transform group"
             >
-              <LogIn size={15} />
+              <LogIn size={15} className="transition-transform duration-300 group-hover:scale-110" />
               Masuk
             </Link>
             <button
-              className="lg:hidden p-2 rounded-lg transition-colors"
+              className="lg:hidden p-2 rounded-lg transition-all duration-300 will-change-colors"
               style={{color: 'rgba(255,255,255,0.7)'}}
               onClick={() => setMenuOpen(p => !p)}
               aria-label={menuOpen ? 'Tutup menu' : 'Buka menu'}
-              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(245,158,11,0.12)'; (e.currentTarget as HTMLElement).style.color = 'white'; }}
-              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.7)'; }}
+              onMouseEnter={e => { 
+                (e.currentTarget as HTMLElement).style.background = 'rgba(245,158,11,0.15)'; 
+                (e.currentTarget as HTMLElement).style.color = 'white'; 
+                (e.currentTarget as HTMLElement).style.transform = 'scale(1.05)';
+              }}
+              onMouseLeave={e => { 
+                (e.currentTarget as HTMLElement).style.background = 'transparent'; 
+                (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.7)'; 
+                (e.currentTarget as HTMLElement).style.transform = 'scale(1)';
+              }}
             >
-              {menuOpen ? <X size={20} /> : <Menu size={20} />}
+              {menuOpen ? <X size={20} className="animate-rotate" /> : <Menu size={20} />}
             </button>
           </div>
         </div>
       </div>
 
       {/* ── Mobile dropdown ──────────────────────────────────── */}
-      <div className={`lg:hidden overflow-hidden transition-all duration-300 ${menuOpen ? 'max-h-[420px] opacity-100' : 'max-h-0 opacity-0'}`} style={{ background: 'rgba(2, 24, 43, 0.98)', backdropFilter: 'blur(18px)' }}>
+      <div className={`lg:hidden overflow-hidden transition-all duration-400 ${menuOpen ? 'max-h-[420px] opacity-100 visible' : 'max-h-0 opacity-0 invisible'}`} style={{ background: 'rgba(2, 24, 43, 0.98)', backdropFilter: 'blur(18px)' }}>
         <div className="px-4 py-4 space-y-2">
-          {navLinks.map((link) => {
+          {navLinks.map((link, idx) => {
             const active = isActive(link.href);
             return (
               <Link
                 key={link.href}
                 href={link.href}
                 onClick={() => setMenuOpen(false)}
-                className="flex items-center justify-between px-4 py-3 rounded-2xl text-sm font-medium transition-all duration-200"
                 style={{
-                  color: active ? '#ffffff' : 'rgba(255,255,255,0.82)',
-                  background: active ? 'linear-gradient(135deg, rgba(56,189,252,0.22), rgba(6,182,212,0.14))' : 'rgba(255,255,255,0.03)',
-                  border: active ? '1px solid rgba(56,189,252,0.2)' : '1px solid rgba(255,255,255,0.06)',
-                  boxShadow: active ? '0 14px 36px rgba(56,189,252,0.12)' : 'none',
+                  animationDelay: menuOpen ? `${idx * 50}ms` : '0ms',
+                  animation: menuOpen ? `slideDown 0.4s ease-out backwards` : 'none',
+                }}
+                className="flex items-center justify-between px-4 py-3 rounded-2xl text-sm font-medium transition-all duration-300 ease-out hover:scale-105 will-change-transform"
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLElement).style.background = active 
+                    ? 'linear-gradient(135deg, rgba(56,189,252,0.32), rgba(6,182,212,0.24))'
+                    : 'rgba(255,255,255,0.08)';
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLElement).style.background = active 
+                    ? 'linear-gradient(135deg, rgba(56,189,252,0.22), rgba(6,182,212,0.14))'
+                    : 'rgba(255,255,255,0.03)';
                 }}
               >
-                {link.label}
-                <span className={`h-2 w-2 rounded-full transition ${active ? 'bg-cyan-300' : 'bg-white/20'}`} />
+                <span style={{color: active ? '#ffffff' : 'rgba(255,255,255,0.82)'}}>
+                  {link.label}
+                </span>
+                <span className={`h-2 w-2 rounded-full transition-all duration-300 ${active ? 'bg-cyan-300 scale-125' : 'bg-white/20'}`} />
               </Link>
             );
           })}
 
-          <div className="pt-3 border-t border-slate-800 mt-2">
+          <div className="pt-3 border-t border-slate-800 mt-2" style={{animation: menuOpen ? 'slideUp 0.4s ease-out 0.15s backwards' : 'none'}}>
             <Link
               href="/auth/login"
               onClick={() => setMenuOpen(false)}
-              className="flex items-center justify-center gap-2 w-full px-4 py-3 rounded-full text-sm font-semibold text-white bg-gradient-to-r from-sky-500 to-cyan-400"
+              className="flex items-center justify-center gap-2 w-full px-4 py-3 rounded-full text-sm font-semibold text-white bg-gradient-to-r from-sky-500 to-cyan-400 transition-all duration-300 hover:shadow-lg hover:shadow-sky-500/50 active:scale-95 will-change-transform"
             >
               <LogIn size={15} />
               Masuk ke Dashboard

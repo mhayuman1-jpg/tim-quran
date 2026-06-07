@@ -8,6 +8,7 @@ import { default as nextDynamic } from 'next/dynamic';
 import Link from 'next/link';
 import { AtSign, Globe, Mail, MapPin, Phone, PlayCircle } from 'lucide-react';
 import PublicNavbar from '@/components/layout/PublicNavbar';
+import { ScrollAnimatedCard, ScrollAnimatedItem, ScrollAnimatedSection } from '@/components/features/AnimatedComponents';
 import { createServerClient } from '@/lib/supabase/server';
 
 const StudentProgressChart = nextDynamic(
@@ -216,12 +217,12 @@ export default async function LandingPage() {
 
         <section id="tentang" className="bg-[#031b36] py-20">
           <div className="mx-auto max-w-6xl px-6">
-            <div className="mb-10 text-center">
-              <p className="text-sm uppercase tracking-[0.3em] text-sky-300/80">Tentang Singkat</p>
-              <h2 className="mt-3 text-3xl font-bold text-white">Siapa kami dan apa misi kami</h2>
-            </div>
+            <ScrollAnimatedCard className="mb-10 text-center">
+              <p className="text-sm uppercase tracking-[0.3em] text-sky-300/80 animate-on-scroll in-view">Tentang Singkat</p>
+              <h2 className="mt-3 text-3xl font-bold text-white animate-on-scroll in-view-delay-1">Siapa kami dan apa misi kami</h2>
+            </ScrollAnimatedCard>
             <div className="grid gap-8 lg:grid-cols-[0.95fr_0.65fr]">
-              <div className="rounded-[32px] border border-slate-800 bg-slate-950/85 p-10 shadow-2xl shadow-slate-950/30">
+              <ScrollAnimatedItem className="rounded-[32px] border border-slate-800 bg-slate-950/85 p-10 shadow-2xl shadow-slate-950/30 hover-lift">
                 <p className="text-slate-300 leading-relaxed">{profil.deskripsi}</p>
                 <div className="mt-8 space-y-4">
                   <div>
@@ -240,36 +241,36 @@ export default async function LandingPage() {
                     </ul>
                   </div>
                 </div>
-              </div>
-              <div className="rounded-[32px] border border-slate-800 bg-slate-900/85 p-10 shadow-2xl shadow-slate-950/30">
+              </ScrollAnimatedItem>
+              <ScrollAnimatedItem index={1} className="rounded-[32px] border border-slate-800 bg-slate-900/85 p-10 shadow-2xl shadow-slate-950/30 hover-lift">
                 <p className="text-sm uppercase tracking-[0.3em] text-sky-300/80">Filosofi Kami</p>
                 <h3 className="mt-3 text-2xl font-bold text-white">Pembelajaran Al-Qur'an yang Berkelanjutan</h3>
                 <p className="mt-4 text-slate-300 leading-relaxed">Kami percaya bahwa setiap santri berhak mendapatkan pendidikan yang seimbang antara hafalan, tajwid, dan akhlak.</p>
                 <div className="mt-8 grid gap-4">
-                  <div className="rounded-3xl border border-slate-800 bg-slate-950/90 p-4">
+                  <div className="rounded-3xl border border-slate-800 bg-slate-950/90 p-4 hover-lift">
                     <p className="text-sm text-slate-400">Kelas intensif</p>
                     <p className="mt-2 font-semibold text-white">Pendampingan personal</p>
                   </div>
-                  <div className="rounded-3xl border border-slate-800 bg-slate-950/90 p-4">
+                  <div className="rounded-3xl border border-slate-800 bg-slate-950/90 p-4 hover-lift">
                     <p className="text-sm text-slate-400">Lingkungan rapi</p>
                     <p className="mt-2 font-semibold text-white">Kondusif dan fokus</p>
                   </div>
                 </div>
-              </div>
+              </ScrollAnimatedItem>
             </div>
           </div>
         </section>
 
         <section id="layanan" className="py-20">
           <div className="mx-auto max-w-6xl px-6">
-            <div className="mb-10 text-center">
-              <p className="text-sm uppercase tracking-[0.3em] text-sky-300/80">Layanan Utama</p>
-              <h2 className="mt-3 text-3xl font-bold text-white">Program dan fitur unggulan kami</h2>
-            </div>
+            <ScrollAnimatedCard className="mb-10 text-center">
+              <p className="text-sm uppercase tracking-[0.3em] text-sky-300/80 animate-on-scroll in-view">Layanan Utama</p>
+              <h2 className="mt-3 text-3xl font-bold text-white animate-on-scroll in-view-delay-1">Program dan fitur unggulan kami</h2>
+            </ScrollAnimatedCard>
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {programCards.length > 0 ? (
-                programCards.map((program) => (
-                  <div key={program.id} className="group flex min-h-[240px] flex-col justify-between rounded-[32px] border border-slate-800 bg-slate-950/85 p-6 shadow-lg shadow-slate-950/20 transition duration-200 hover:-translate-y-1 hover:border-sky-400/40">
+                programCards.map((program, idx) => (
+                  <ScrollAnimatedItem key={program.id} index={idx} className="group flex min-h-[240px] flex-col justify-between rounded-[32px] border border-slate-800 bg-slate-950/85 p-6 shadow-lg shadow-slate-950/20 hover:-translate-y-2 hover:border-sky-400/40 hover:shadow-sky-500/20 transition-all duration-300 hover-lift">
                     <div>
                       <p className="text-sm uppercase tracking-[0.28em] text-sky-300/80">Program</p>
                       <h3 className="mt-4 text-xl font-semibold text-white">{program.nama ?? 'Program'}</h3>
@@ -283,7 +284,7 @@ export default async function LandingPage() {
                         →
                       </span>
                     </div>
-                  </div>
+                  </ScrollAnimatedItem>
                 ))
               ) : (
                 <div className="rounded-[32px] border border-slate-800 bg-slate-950/85 p-8 text-center text-slate-400">Belum ada layanan atau program yang dipublikasikan.</div>
@@ -401,21 +402,21 @@ export default async function LandingPage() {
 
         <section id="statistik" className="bg-[#031b36] py-20">
           <div className="mx-auto max-w-6xl px-6">
-            <div className="mb-10 text-center">
-              <p className="text-sm uppercase tracking-[0.3em] text-sky-300/80">Statistik</p>
-              <h2 className="mt-3 text-3xl font-bold text-white">Data penting secara ringkas</h2>
-            </div>
+            <ScrollAnimatedCard className="mb-10 text-center">
+              <p className="text-sm uppercase tracking-[0.3em] text-sky-300/80 animate-on-scroll in-view">Statistik</p>
+              <h2 className="mt-3 text-3xl font-bold text-white animate-on-scroll in-view-delay-1">Data penting secara ringkas</h2>
+            </ScrollAnimatedCard>
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
               {[
                 { label: 'Santri Aktif', value: totalSantri },
                 { label: 'Agenda', value: Array.isArray(agendas) ? agendas.length : 0 },
                 { label: 'Artikel', value: Array.isArray(artikels) ? artikels.length : 0 },
                 { label: 'Pengumuman', value: Array.isArray(pengumumans) ? pengumumans.length : 0 },
-              ].map((item) => (
-                <div key={item.label} className="rounded-[32px] border border-slate-800 bg-slate-900/85 p-8 text-center shadow-lg shadow-slate-950/20">
+              ].map((item, idx) => (
+                <ScrollAnimatedItem key={item.label} index={idx} className="rounded-[32px] border border-slate-800 bg-slate-900/85 p-8 text-center shadow-lg shadow-slate-950/20 hover-lift">
                   <p className="text-sm uppercase tracking-[0.3em] text-slate-400">{item.label}</p>
                   <p className="mt-4 text-4xl font-bold text-white">{item.value}</p>
-                </div>
+                </ScrollAnimatedItem>
               ))}
             </div>
           </div>

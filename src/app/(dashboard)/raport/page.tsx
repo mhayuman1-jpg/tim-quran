@@ -4,7 +4,7 @@
 // Halaman Raport Tahfidz — tampilkan preview langsung + inline edit
 
 import React, { useState, useCallback, useRef } from 'react';
-import { Plus, Search, Edit2, ClipboardList, Trash2, Printer, ChevronLeft } from 'lucide-react';
+import { Plus, Search, Edit2, ClipboardList, Trash2, Printer, ChevronLeft, FileDown } from 'lucide-react';
 import { useReactToPrint } from 'react-to-print';
 import Modal from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
@@ -49,6 +49,7 @@ interface RaportRow {
 export default function RaportPage() {
   const { isKabid } = useRole();
   const printRef = useRef<HTMLDivElement>(null);
+  const [downloadingFormat, setDownloadingFormat] = useState<'pdf' | 'xlsx' | null>(null);
 
   // ── States ────────────────────────────────────────────────────────────────
   const [raportList, setRaportList] = useState<RaportRow[]>([]);
@@ -84,6 +85,127 @@ export default function RaportPage() {
       @media print { body { margin: 0; } * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; } }
     `,
   });
+
+  // ── Download PDF ──────────────────────────────────────────────────────────
+  const handleDownloadPdf = async () => {
+    if (!printRef.current || !selected || downloadingFormat) return;
+    setDownloadingFormat('pdf');
+    try {
+      const { toPng } = await import('html-to-image');
+      const { default: jsPDF } = await import('jspdf');
+      
+      const element = printRef.current;
+      const dataUrl = await toPng(element, { pixelRatio: 2 });
+      
+      // Get image dimensions
+      const img = new Image();
+      img.src = dataUrl;
+      await new Promise(resolve => img.onload = resolve);
+      
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4',
+      });
+      
+      const imgWidth = 210; // A4 width in mm
+      const imgHeight = (img.height / img.width) * imgWidth;
+      let heightLeft = imgHeight;
+      let position = 0;
+      
+      pdf.addImage(dataUrl, 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= 297; // A4 height in mm
+      
+      while (heightLeft >= 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(dataUrl, 'PNG', 0, position, imgWidth, imgHeight);
+        heightLeft -= 297;
+      }
+      
+      const filename = `Raport_${selected.santri?.nama ?? 'Siswa'}_${selected.periode ?? 'Undated'}.pdf`;
+      pdf.save(filename);
+    } catch (error) {
+      console.error('Error downloading PDF:', error);
+      alert('Gagal mengunduh PDF. Silakan coba lagi.');
+    } finally {
+      setDownloadingFormat(null);
+    }
+  };
+
+  // ── Download Excel ────────────────────────────────────────────────────────
+  const handleDownloadExcel = async () => {
+    if (!selected || downloadingFormat) return;
+    setDownloadingFormat('xlsx');
+    try {
+      const XLSX = await import('xlsx');
+      
+      // Prepare data for Excel
+      const details = selected.raport_tahfidz_detail ?? [];
+      const rows = [
+        ['RAPORT TAHFIDZ & TAHSIN'],
+        [],
+        ['Data Siswa'],
+        ['Nama Siswa', selected.santri?.nama ?? '—'],
+        ['NISN', selected.santri?.nisn ?? '—'],
+        ['Kelas', selected.santri?.classes?.name ?? '—'],
+        [],
+        ['Data Raport'],
+        ['Periode', selected.periode ?? '—'],
+        ['Tahun Ajaran', selected.tahun_ajaran ?? '—'],
+        ['Juz', selected.juz ?? '—'],
+        ['Catatan', selected.catatan ?? '—'],
+        [],
+        ['Data Tahsin'],
+        ['Metode', selected.tahsin_metode ?? '—'],
+        ['Buku', selected.tahsin_buku ?? '—'],
+        ['Halaman', selected.tahsin_halaman ?? '—'],
+        ['Makhroj', selected.tahsin_makhroj ?? '—'],
+        ['Kelancaran', selected.tahsin_kelancaran ?? '—'],
+        ['Adab', selected.tahsin_adab ?? '—'],
+        ['Catatan', selected.tahsin_catatan ?? '—'],
+        [],
+        ['Detail Surah'],
+        ['Urutan', 'Nama Surah', 'Makhroj', 'Tajwid', 'Lancar', 'Wafa Buku', 'Wafa Halaman'],
+        ...details.map((d: any) => [
+          d.urutan ?? '',
+          d.nama_surah ?? '',
+          d.makhroj ?? '',
+          d.tajwid ?? '',
+          d.lancar ?? '',
+          d.wafa_buku ?? '',
+          d.wafa_halaman ?? '',
+        ]),
+        [],
+        ['Tandatangan'],
+        ['Guru Kelas', selected.nama_guru_kelas ?? '—'],
+        ['NIY', selected.niy_guru_kelas ?? '—'],
+        [],
+        ['Kabid', selected.nama_kabid ?? '—'],
+        ['NIY', selected.niy_kabid ?? '—'],
+        [],
+        ['Kepala Sekolah', selected.nama_kepala_sekolah ?? '—'],
+        ['NIY', selected.niy_kepala_sekolah ?? '—'],
+      ];
+      
+      const ws = XLSX.utils.aoa_to_sheet(rows);
+      ws['!cols'] = [
+        { wch: 15 }, { wch: 20 }, { wch: 15 }, { wch: 12 },
+        { wch: 12 }, { wch: 12 }, { wch: 15 },
+      ];
+      
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Raport');
+      
+      const filename = `Raport_${selected.santri?.nama ?? 'Siswa'}_${selected.periode ?? 'Undated'}.xlsx`;
+      XLSX.writeFile(wb, filename);
+    } catch (error) {
+      console.error('Error downloading Excel:', error);
+      alert('Gagal mengunduh Excel. Silakan coba lagi.');
+    } finally {
+      setDownloadingFormat(null);
+    }
+  };
 
   // ── Fetch list ─────────────────────────────────────────────────────────────
   const fetchRaport = useCallback(async () => {
@@ -419,6 +541,12 @@ export default function RaportPage() {
                   )}
                   <Button variant="primary" leftIcon={<Printer size={14} />} onClick={() => handlePrint()}>
                     Cetak
+                  </Button>
+                  <Button variant="secondary" leftIcon={<FileDown size={14} />} onClick={handleDownloadPdf} loading={downloadingFormat === 'pdf'}>
+                    Download PDF
+                  </Button>
+                  <Button variant="secondary" leftIcon={<FileDown size={14} />} onClick={handleDownloadExcel} loading={downloadingFormat === 'xlsx'}>
+                    Download Excel
                   </Button>
                 </div>
               </div>
