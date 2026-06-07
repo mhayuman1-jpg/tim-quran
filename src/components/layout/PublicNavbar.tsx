@@ -57,6 +57,7 @@ export default function PublicNavbar({
       { label: 'Pengumuman', href: '/pengumuman' },
       { label: 'Artikel',    href: '/artikel' },
       { label: 'Agenda',     href: '/agenda' },
+      { label: 'Daftar Tasmi', href: 'https://tasmi-alquran-app.firebaseapp.com/' },
     ];
   });
 
@@ -183,10 +184,13 @@ export default function PublicNavbar({
           <nav className="hidden lg:flex items-center gap-2">
             {navLinks.map((link, idx) => {
               const active = isActive(link.href);
+              const isExternal = /^https?:\/\//.test(link.href);
               return (
                 <Link
                   key={link.href}
                   href={link.href}
+                  target={isExternal ? '_blank' : undefined}
+                  rel={isExternal ? 'noopener noreferrer' : undefined}
                   style={{
                     animationDelay: `${idx * 50}ms`,
                   }}
@@ -194,10 +198,10 @@ export default function PublicNavbar({
                   title={link.label}
                 >
                   {link.label}
-                  {active && (
+                  {active && !isExternal && (
                     <span className="absolute inset-x-3 -bottom-0.5 h-0.5 rounded-full bg-gradient-to-r from-cyan-300 to-sky-400 animate-pulse-soft" style={{willChange: 'transform'}} />
                   )}
-                  {!active && (
+                  {!active && !isExternal && (
                     <span className="absolute inset-x-3 -bottom-0.5 h-0.5 rounded-full bg-gradient-to-r from-cyan-300 to-sky-400 scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left" style={{willChange: 'transform'}} />
                   )}
                 </Link>
@@ -241,31 +245,34 @@ export default function PublicNavbar({
         <div className="px-4 py-4 space-y-2">
           {navLinks.map((link, idx) => {
             const active = isActive(link.href);
+            const isExternal = /^https?:\/\//.test(link.href);
             return (
               <Link
                 key={link.href}
                 href={link.href}
-                onClick={() => setMenuOpen(false)}
+                target={isExternal ? '_blank' : undefined}
+                rel={isExternal ? 'noopener noreferrer' : undefined}
+                onClick={() => !isExternal && setMenuOpen(false)}
                 style={{
                   animationDelay: menuOpen ? `${idx * 50}ms` : '0ms',
                   animation: menuOpen ? `slideDown 0.4s ease-out backwards` : 'none',
                 }}
                 className="flex items-center justify-between px-4 py-3 rounded-2xl text-sm font-medium transition-all duration-300 ease-out hover:scale-105 will-change-transform"
                 onMouseEnter={(e) => {
-                  (e.currentTarget as HTMLElement).style.background = active 
+                  (e.currentTarget as HTMLElement).style.background = active && !isExternal
                     ? 'linear-gradient(135deg, rgba(56,189,252,0.32), rgba(6,182,212,0.24))'
                     : 'rgba(255,255,255,0.08)';
                 }}
                 onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLElement).style.background = active 
+                  (e.currentTarget as HTMLElement).style.background = active && !isExternal
                     ? 'linear-gradient(135deg, rgba(56,189,252,0.22), rgba(6,182,212,0.14))'
                     : 'rgba(255,255,255,0.03)';
                 }}
               >
-                <span style={{color: active ? '#ffffff' : 'rgba(255,255,255,0.82)'}}>
+                <span style={{color: active && !isExternal ? '#ffffff' : 'rgba(255,255,255,0.82)'}}>
                   {link.label}
                 </span>
-                <span className={`h-2 w-2 rounded-full transition-all duration-300 ${active ? 'bg-cyan-300 scale-125' : 'bg-white/20'}`} />
+                <span className={`h-2 w-2 rounded-full transition-all duration-300 ${active && !isExternal ? 'bg-cyan-300 scale-125' : 'bg-white/20'}`} />
               </Link>
             );
           })}
