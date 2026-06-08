@@ -20,8 +20,18 @@ export function normalizeAttendanceRows(rows: any[] | null | undefined) {
 }
 
 function isColumnDoesNotExistError(error: any, column: string) {
-  const message = String(error?.message ?? '').toLowerCase();
+  if (!error) return false;
+  const message = String(error.message ?? '').toLowerCase();
+  const code = String(error.code ?? '').toLowerCase();
   const normalizedColumn = column.toLowerCase();
+
+  // PostgREST code for column not found in schema cache
+  if (code === 'pgrst204') return true;
+
+  // Search string patterns
+  if (message.includes(`could not find the '${normalizedColumn}' column`)) return true;
+  if (message.includes(`could not find the "${normalizedColumn}" column`)) return true;
+
   const regex = new RegExp(
     `column\\s+(?:\\"[^\\"]+\\"\\.)?(?:\\"${normalizedColumn}\\"|(?:[^.\\s]+\\.)?${normalizedColumn})\\s+does not exist`
   );
