@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint \"src/**/*.{js,ts,jsx,tsx}\" --ext .ts,.tsx,.js,.jsx || true",
-    "create-admin": "node scripts/create-admin.js"
+    "create-admin": "node scripts/create-admin.js",
+    "postinstall": "npx playwright install chromium"
   },
   "dependencies": {
     "@auth/supabase-adapter": "^1.11.2",
@@ -19,6 +20,10 @@
     "@tiptap/extension-highlight": "^2.11.7",
     "@tiptap/extension-image": "^2.11.7",
     "@tiptap/extension-link": "^2.11.7",
+    "@tiptap/extension-table": "^2.27.2",
+    "@tiptap/extension-table-cell": "^2.27.2",
+    "@tiptap/extension-table-header": "^2.27.2",
+    "@tiptap/extension-table-row": "^2.27.2",
     "@tiptap/extension-text-align": "^2.11.7",
     "@tiptap/extension-text-style": "^2.11.7",
     "@tiptap/extension-underline": "^2.11.7",
@@ -26,6 +31,8 @@
     "@tiptap/starter-kit": "^2.11.7",
     "@types/bcryptjs": "2.4.6",
     "bcryptjs": "3.0.3",
+    "docx": "^9.7.1",
+    "docxtemplater": "^3.68.7",
     "dotenv": "^17.4.2",
     "html-to-image": "^1.11.11",
     "html5-qrcode": "^2.3.8",
@@ -34,6 +41,8 @@
     "lucide-react": "^1.17.0",
     "next": "^14.2.35",
     "next-auth": "^4.24.14",
+    "pizzip": "^3.2.0",
+    "playwright": "^1.60.0",
     "qrcode": "^1.5.4",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
@@ -44,6 +53,7 @@
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
+    "@playwright/test": "^1.60.0",
     "@types/node": "^20",
     "@types/qrcode": "^1.5.6",
     "@types/react": "^18",

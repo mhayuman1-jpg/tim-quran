@@ -7,7 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { createServerClient } from '@/lib/supabase/server';
+import { createServerClient, withRetry } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,6 +15,7 @@ const HEADER_SELECT = `
   id, student_id, teacher_id, periode, tahun_ajaran, juz, catatan,
   nama_guru_kelas, niy_guru_kelas, nama_kabid, niy_kabid, nama_kepala_sekolah, niy_kepala_sekolah,
   tahsin_metode, tahsin_buku, tahsin_halaman, tahsin_makhroj, tahsin_kelancaran, tahsin_adab, tahsin_catatan,
+  html_custom,
   created_at, updated_at,
   santri ( id, nama, nisn, classes ( id, name ) ),
   users ( id, name )
@@ -34,11 +35,11 @@ export async function GET(request: NextRequest) {
 
     // Fetch single raport + detail surah
     if (id) {
-      const { data: raport, error } = await supabase
+      const { data: raport, error } = await withRetry(() => supabase
         .from('raport_tahfidz')
         .select(`${HEADER_SELECT}, raport_tahfidz_detail ( * )`)
         .eq('id', id)
-        .single();
+        .single());
 
       if (error || !raport) {
         return NextResponse.json({ message: 'Raport tidak ditemukan.' }, { status: 404 });
@@ -57,16 +58,16 @@ export async function GET(request: NextRequest) {
 
     // Tim_Quran hanya lihat siswa tanggung jawabnya
     if (session.user.role === 'Tim_Quran') {
-      const { data: myStudents } = await supabase
+      const { data: myStudents } = await withRetry(() => supabase
         .from('santri')
         .select('id')
-        .eq('assigned_teacher_id', session.user.id);
+        .eq('assigned_teacher_id', session.user.id));
       const ids = (myStudents ?? []).map((s: any) => s.id);
       if (ids.length === 0) return NextResponse.json({ data: [] }, { status: 200 });
       query = query.in('student_id', ids);
     }
 
-    const { data, error } = await query;
+    const { data, error } = await withRetry(() => query);
     if (error) return NextResponse.json({ message: 'Gagal mengambil data.', error: error.message }, { status: 500 });
 
     return NextResponse.json({ data: data ?? [] }, { status: 200 });
@@ -199,7 +200,7 @@ export async function PUT(request: NextRequest) {
             nama_guru_kelas, niy_guru_kelas, nama_kabid, niy_kabid,
             nama_kepala_sekolah, niy_kepala_sekolah,
             tahsin_metode, tahsin_buku, tahsin_halaman, tahsin_makhroj, tahsin_kelancaran, tahsin_adab, tahsin_catatan,
-            detail } = body;
+            html_custom, detail } = body;
 
     if (!id) return NextResponse.json({ message: 'id raport wajib.' }, { status: 400 });
 
@@ -241,6 +242,7 @@ export async function PUT(request: NextRequest) {
     if (tahsin_kelancaran !== undefined) updateHeader.tahsin_kelancaran = tahsin_kelancaran || null;
     if (tahsin_adab !== undefined) updateHeader.tahsin_adab = tahsin_adab || null;
     if (tahsin_catatan !== undefined) updateHeader.tahsin_catatan = tahsin_catatan?.trim() || null;
+    if (html_custom !== undefined) updateHeader.html_custom = html_custom || null;
 
     const { error: headerErr } = await supabase.from('raport_tahfidz').update(updateHeader).eq('id', id);
     if (headerErr) {

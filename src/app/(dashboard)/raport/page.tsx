@@ -4,13 +4,18 @@
 // Halaman Raport Tahfidz — tampilkan preview langsung + inline edit
 
 import React, { useState, useCallback, useRef } from 'react';
-import { Plus, Search, Edit2, ClipboardList, Trash2, Printer, ChevronLeft, FileDown } from 'lucide-react';
+import { Plus, Search, Edit2, ClipboardList, Trash2, Printer, ChevronLeft, FileDown, FileText, PenLine, RotateCcw } from 'lucide-react';
 import { useReactToPrint } from 'react-to-print';
 import Modal from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
 import RaportTahfidzForm, { type RaportTahfidzFormData } from '@/components/features/raport/RaportTahfidzForm';
 import RaportTahfidzPrintable, { type RaportTahfidzData, type DetailSurahData } from '@/components/features/raport/RaportTahfidzPrintable';
 import { useRole } from '@/hooks/useRole';
+import { triggerRaportPdfDownload, sanitizePdfFilename } from '@/lib/raport/pdf-renderer';
+import { triggerRaportDocxDownload, sanitizeDocxFilename } from '@/lib/raport/docx-renderer';
+import { RAPORT_BROWSER_PRINT_STYLE } from '@/lib/raport/print-config';
+import RaportDocumentEditor from '@/components/features/raport/RaportDocumentEditor';
+import { buildRaportHtmlTemplate } from '@/lib/raport/raport-html-template';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -33,6 +38,7 @@ interface RaportRow {
   tahsin_kelancaran?: string | null;
   tahsin_adab?: string | null;
   tahsin_catatan?: string | null;
+  html_custom?: string | null;
   created_at?: string;
   santri?: {
     id: string;
@@ -49,7 +55,8 @@ interface RaportRow {
 export default function RaportPage() {
   const { isKabid } = useRole();
   const printRef = useRef<HTMLDivElement>(null);
-  const [downloadingFormat, setDownloadingFormat] = useState<'pdf' | 'xlsx' | null>(null);
+  const downloadingLockRef = useRef(false);
+  const [downloadingFormat, setDownloadingFormat] = useState<'pdf' | 'docx' | 'xlsx' | null>(null);
 
   // ── States ────────────────────────────────────────────────────────────────
   const [raportList, setRaportList] = useState<RaportRow[]>([]);
@@ -62,6 +69,8 @@ export default function RaportPage() {
   const [selected, setSelected] = useState<RaportRow | null>(null);
   const [selectedLoading, setSelectedLoading] = useState(false);
   const [inlineEdit, setInlineEdit] = useState(false);
+  const [visualEdit, setVisualEdit] = useState(false);
+  const [visualHtmlDraft, setVisualHtmlDraft] = useState('');
   const [inlineDraft, setInlineDraft] = useState<Partial<RaportTahfidzData> & { detail?: DetailSurahData[] }>({});
 
   // Form modal
@@ -80,77 +89,63 @@ export default function RaportPage() {
   const handlePrint = useReactToPrint({
     contentRef: printRef,
     documentTitle: `Raport_${selected?.santri?.nama ?? 'Siswa'}_${selected?.periode ?? ''}`,
-    pageStyle: `
-      @page { size: 210mm 330mm; margin: 12mm; }
-      @media print { body { margin: 0; } * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; } }
-    `,
+    pageStyle: RAPORT_BROWSER_PRINT_STYLE,
   });
 
   // ── Download PDF ──────────────────────────────────────────────────────────
-  const handleDownloadPdf = async () => {
-    if (!printRef.current || !selected || downloadingFormat) return;
+  const handleDownloadPdf = () => {
+    if (!selected || downloadingLockRef.current || downloadingFormat) return;
+
+    const filename = sanitizePdfFilename(
+      `Raport_${selected.santri?.nama ?? 'Siswa'}_${selected.periode ?? 'Undated'}.pdf`
+    );
+
+    downloadingLockRef.current = true;
     setDownloadingFormat('pdf');
+
     try {
-      const { toPng } = await import('html-to-image');
-      const { default: jsPDF } = await import('jspdf');
-
-      const element = printRef.current;
-
-      // Make the hidden print portal renderable for html-to-image by temporarily
-      // toggling a class on body that forces the portal to be visible off-screen.
-      document.body.classList.add('render-print-temp');
-      // wait a frame so styles apply
-      await new Promise(requestAnimationFrame);
-
-      const rect = element.getBoundingClientRect();
-      const dataUrl = await toPng(element, {
-        pixelRatio: 3,
-        width: Math.round(rect.width),
-        height: Math.round(rect.height),
-      });
-
-      // cleanup temporary class
-      document.body.classList.remove('render-print-temp');
-
-      const img = new Image();
-      img.src = dataUrl;
-      await new Promise<void>((resolve, reject) => {
-        img.onload = () => resolve();
-        img.onerror = () => reject(new Error('Gagal memuat gambar untuk PDF'));
-      });
-
-      const pdf = new jsPDF({ unit: 'mm', format: [210, 330] });
-      const pageWidth = pdf.internal.pageSize.getWidth();
-      const pageHeight = pdf.internal.pageSize.getHeight();
-      const margin = 10;
-      const usableWidth = pageWidth - margin * 2;
-      const usableHeight = pageHeight - margin * 2;
-
-      // Calculate image size in mm keeping aspect ratio
-      const ratio = img.width / img.height || 1;
-      const imgWidth = usableWidth;
-      const imgHeight = imgWidth / ratio;
-
-      // Number of pages required
-      const totalPages = Math.max(1, Math.ceil(imgHeight / usableHeight));
-
-      for (let page = 0; page < totalPages; page++) {
-        if (page > 0) pdf.addPage();
-        // y offset in image coordinates -> how much we need to shift the image up
-        const yOffset = page * usableHeight;
-        // draw the same large image, shifted so the correct slice appears on the page
-        const positionY = margin - yOffset;
-        pdf.addImage(dataUrl, 'PNG', margin, positionY, imgWidth, imgHeight);
-      }
-
-      const filename = `Raport_${selected.santri?.nama ?? 'Siswa'}_${selected.periode ?? 'Undated'}.pdf`;
-      pdf.save(filename);
+      // Satu request GET via iframe — tidak pakai fetch+blob (hindari dobel unduh IDM)
+      triggerRaportPdfDownload(selected.id, filename);
     } catch (error) {
       console.error('Error downloading PDF:', error);
-      alert('Gagal mengunduh PDF. Silakan coba lagi.');
-    } finally {
+      alert(`Gagal mengunduh PDF: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      downloadingLockRef.current = false;
       setDownloadingFormat(null);
+      return;
     }
+
+    // Reset loading setelah estimasi generate Playwright selesai
+    window.setTimeout(() => {
+      downloadingLockRef.current = false;
+      setDownloadingFormat(null);
+    }, 12000);
+  };
+
+  // ── Download Word ─────────────────────────────────────────────────────────
+  const handleDownloadWord = () => {
+    if (!selected || downloadingLockRef.current || downloadingFormat) return;
+
+    const filename = sanitizeDocxFilename(
+      `Raport_${selected.santri?.nama ?? 'Siswa'}_${selected.periode ?? 'Undated'}.docx`
+    );
+
+    downloadingLockRef.current = true;
+    setDownloadingFormat('docx');
+
+    try {
+      triggerRaportDocxDownload(selected.id, filename);
+    } catch (error) {
+      console.error('Error downloading Word:', error);
+      alert(`Gagal mengunduh Word: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      downloadingLockRef.current = false;
+      setDownloadingFormat(null);
+      return;
+    }
+
+    window.setTimeout(() => {
+      downloadingLockRef.current = false;
+      setDownloadingFormat(null);
+    }, 8000);
   };
 
   // ── Download Excel ────────────────────────────────────────────────────────
@@ -257,10 +252,14 @@ export default function RaportPage() {
       setSelected(json.data ?? row);
       setInlineDraft({});
       setInlineEdit(false);
+      setVisualEdit(false);
+      setVisualHtmlDraft('');
     } catch {
       setSelected(row);
       setInlineDraft({});
       setInlineEdit(false);
+      setVisualEdit(false);
+      setVisualHtmlDraft('');
     } finally {
       setSelectedLoading(false);
     }
@@ -365,7 +364,87 @@ export default function RaportPage() {
     ...selected,
     ...inlineDraft,
     raport_tahfidz_detail: inlineDraft.detail ?? selected.raport_tahfidz_detail,
+    html_custom: visualEdit ? visualHtmlDraft : (inlineDraft.html_custom ?? selected.html_custom),
   } : selected;
+
+  const handleOpenVisualEdit = async () => {
+    if (!selected) return;
+    setInlineEdit(false);
+    setFormError(null);
+
+    let profil: Record<string, string | null | undefined> = {};
+    try {
+      const profilRes = await fetch('/api/website/profil');
+      if (profilRes.ok) {
+        const json = await profilRes.json();
+        profil = json.data ?? {};
+      }
+    } catch { /* fallback template */ }
+
+    const base: RaportTahfidzData = {
+      ...selected,
+      ...inlineDraft,
+      raport_tahfidz_detail: inlineDraft.detail ?? selected.raport_tahfidz_detail,
+    };
+
+    const html = selected.html_custom?.trim()
+      || buildRaportHtmlTemplate(base, profil);
+
+    setVisualHtmlDraft(html);
+    setVisualEdit(true);
+  };
+
+  const handleSaveVisualEdit = async () => {
+    if (!selected) return;
+    setFormSubmitting(true);
+    setFormError(null);
+    try {
+      const res = await fetch('/api/raport/tahfidz', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: selected.id, html_custom: visualHtmlDraft }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setFormError(json.message ?? 'Gagal menyimpan dokumen.');
+        return;
+      }
+      setSelected(json.data ?? { ...selected, html_custom: visualHtmlDraft });
+      setVisualEdit(false);
+      setFormSuccess('Dokumen raport berhasil disimpan.');
+      setTimeout(() => setFormSuccess(null), 3000);
+    } catch {
+      setFormError('Terjadi kesalahan saat menyimpan dokumen.');
+    } finally {
+      setFormSubmitting(false);
+    }
+  };
+
+  const handleResetVisualTemplate = async () => {
+    if (!selected || !confirm('Kembalikan ke template default? Perubahan dokumen Word akan hilang.')) return;
+    setFormSubmitting(true);
+    try {
+      const res = await fetch('/api/raport/tahfidz', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: selected.id, html_custom: null }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        alert(json.message ?? 'Gagal reset template.');
+        return;
+      }
+      setSelected(json.data ?? selected);
+      setVisualEdit(false);
+      setVisualHtmlDraft('');
+      setFormSuccess('Template default dipulihkan.');
+      setTimeout(() => setFormSuccess(null), 3000);
+    } catch {
+      alert('Gagal reset template.');
+    } finally {
+      setFormSubmitting(false);
+    }
+  };
 
   const handleInlineFieldChange = (field: keyof RaportTahfidzData, value: string | null) => {
     setInlineDraft(prev => ({ ...prev, [field]: value }));
@@ -551,13 +630,30 @@ export default function RaportPage() {
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <Button variant={inlineEdit ? 'secondary' : 'ghost'} leftIcon={<Edit2 size={14} />} onClick={() => setInlineEdit(p => !p)}>
+                  <Button variant={inlineEdit ? 'secondary' : 'ghost'} leftIcon={<Edit2 size={14} />}
+                    onClick={() => { setVisualEdit(false); setInlineEdit(p => !p); }}
+                    disabled={visualEdit}>
                     {inlineEdit ? 'Batal Edit Langsung' : 'Edit Langsung'}
+                  </Button>
+                  <Button variant={visualEdit ? 'secondary' : 'ghost'} leftIcon={<PenLine size={14} />}
+                    onClick={() => visualEdit ? setVisualEdit(false) : handleOpenVisualEdit()}
+                    disabled={inlineEdit}>
+                    {visualEdit ? 'Tutup Editor' : 'Edit Dokumen'}
                   </Button>
                   {inlineEdit && (
                     <Button variant="primary" leftIcon={<Edit2 size={14} />} onClick={handleSaveInline} loading={formSubmitting}>
                       Simpan Perubahan
                     </Button>
+                  )}
+                  {visualEdit && (
+                    <>
+                      <Button variant="primary" leftIcon={<Edit2 size={14} />} onClick={handleSaveVisualEdit} loading={formSubmitting}>
+                        Simpan Dokumen
+                      </Button>
+                      <Button variant="ghost" leftIcon={<RotateCcw size={14} />} onClick={handleResetVisualTemplate} disabled={formSubmitting}>
+                        Reset Template
+                      </Button>
+                    </>
                   )}
                   <Button variant="primary" leftIcon={<Printer size={14} />} onClick={() => handlePrint()}>
                     Cetak
@@ -565,28 +661,40 @@ export default function RaportPage() {
                   <Button variant="secondary" leftIcon={<FileDown size={14} />} onClick={handleDownloadPdf} loading={downloadingFormat === 'pdf'}>
                     Download PDF
                   </Button>
+                  <Button variant="secondary" leftIcon={<FileText size={14} />} onClick={handleDownloadWord} loading={downloadingFormat === 'docx'}>
+                    Download Word
+                  </Button>
                   <Button variant="secondary" leftIcon={<FileDown size={14} />} onClick={handleDownloadExcel} loading={downloadingFormat === 'xlsx'}>
                     Download Excel
                   </Button>
                 </div>
               </div>
 
-              {/* Preview card — this is also the print target */}
+              {formError && (
+                <div className="rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-700">{formError}</div>
+              )}
+
+              {/* Preview / Editor dokumen */}
               <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
-                  <div>
-                  {currentPreviewRaport && (
-                    <RaportTahfidzPrintable
-                      raport={currentPreviewRaport}
-                      hideButtons
-                      contentRef={printRef}
-                      inlineEdit={inlineEdit}
-                      onInlineChange={handleInlineFieldChange}
-                      onInlineDetailChange={handleInlineDetailChange}
-                      onInlineAddRow={handleInlineAddRow}
-                      onInlineRemoveRow={handleInlineRemoveRow}
-                    />
-                  )}
-                </div>
+                {visualEdit ? (
+                  <RaportDocumentEditor
+                    value={visualHtmlDraft}
+                    onChange={setVisualHtmlDraft}
+                    disabled={formSubmitting}
+                  />
+                ) : currentPreviewRaport ? (
+                  <RaportTahfidzPrintable
+                    key={selected.id}
+                    raport={currentPreviewRaport}
+                    hideButtons
+                    contentRef={printRef}
+                    inlineEdit={inlineEdit}
+                    onInlineChange={handleInlineFieldChange}
+                    onInlineDetailChange={handleInlineDetailChange}
+                    onInlineAddRow={handleInlineAddRow}
+                    onInlineRemoveRow={handleInlineRemoveRow}
+                  />
+                ) : null}
               </div>
             </div>
           ) : (

@@ -47,6 +47,7 @@ export const config = {
     '/tahsin/:path*',
     '/absensi/:path*',
     '/raport/:path*',
+    '/raport/print/:path*',
     '/scan/:path*',
     '/rekap/:path*',
     '/dashboard/pengumuman/:path*',
