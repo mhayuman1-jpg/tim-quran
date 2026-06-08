@@ -1,4 +1,4 @@
-﻿// src/app/api/hafalan/update/route.ts
+// src/app/api/hafalan/update/route.ts
 // PUT: Update catatan hafalan berdasarkan id
 // - Bisa update: tanggal, surah_juz, halaman, catatan
 // - Jika surah_juz berubah DAN update_juz_terakhir=true, update juz_terakhir di tabel santri
@@ -126,7 +126,7 @@ export async function PUT(request: NextRequest) {
         .update(updateData)
         .eq('id', id.trim())
         .select(
-          `id, student_id, teacher_id, tanggal, surah_juz, halaman, catatan, created_at,
+          `id, student_id, teacher_id, tanggal, surah_juz, halaman, makhroj, tajwid, lancar, catatan, created_at,
            santri ( id, nama ),
            users ( id, name )`
         )

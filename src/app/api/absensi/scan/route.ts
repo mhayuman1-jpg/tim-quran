@@ -1,4 +1,4 @@
-﻿// src/app/api/absensi/scan/route.ts
+// src/app/api/absensi/scan/route.ts
 // POST: terima qr_code, cari siswa di tabel santri, cek duplikat absensi hari ini,
 // insert ke tabel attendances, return nama siswa.
 
@@ -47,8 +47,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 2. Tanggal hari ini format YYYY-MM-DD
-    const today = new Date().toISOString().split('T')[0];
+    // 2. Tanggal hari ini format YYYY-MM-DD (WITA)
+    const today = new Intl.DateTimeFormat('sv-SE', {
+      timeZone: 'Asia/Makassar',
+    }).format(new Date());
 
     // 3. Cek duplikat: cari record absensi hari ini di kolom santri_id / student_id
     const { data: existing, error: checkError } = await queryAttendanceByStudentMaybeSingle(

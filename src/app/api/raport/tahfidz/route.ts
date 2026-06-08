@@ -1,4 +1,4 @@
-﻿// src/app/api/raport/tahfidz/route.ts
+// src/app/api/raport/tahfidz/route.ts
 // GET  : list raport tahfidz (dengan detail surah)
 // POST : buat raport baru + detail surah
 // PUT  : update raport header + detail surah
@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
         .from('raport_tahfidz')
         .select(`${HEADER_SELECT}, raport_tahfidz_detail ( * )`)
         .eq('id', id)
-        .single());
+        .single() as any);
 
       if (error || !raport) {
         return NextResponse.json({ message: 'Raport tidak ditemukan.' }, { status: 404 });
@@ -61,13 +61,13 @@ export async function GET(request: NextRequest) {
       const { data: myStudents } = await withRetry(() => supabase
         .from('santri')
         .select('id')
-        .eq('assigned_teacher_id', session.user.id));
-      const ids = (myStudents ?? []).map((s: any) => s.id);
+        .eq('assigned_teacher_id', session.user.id) as any);
+      const ids = ((myStudents as any) ?? []).map((s: any) => s.id);
       if (ids.length === 0) return NextResponse.json({ data: [] }, { status: 200 });
       query = query.in('student_id', ids);
     }
 
-    const { data, error } = await withRetry(() => query);
+    const { data, error } = await withRetry(() => query as any);
     if (error) return NextResponse.json({ message: 'Gagal mengambil data.', error: error.message }, { status: 500 });
 
     return NextResponse.json({ data: data ?? [] }, { status: 200 });

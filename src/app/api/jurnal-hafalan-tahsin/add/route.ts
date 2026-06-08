@@ -25,6 +25,63 @@ interface DetailRow {
 
 export const dynamic = 'force-dynamic';
 
+export async function GET(request: NextRequest) {
+  const session = await getServerSession(authOptions);
+  if (!session || !session.user) {
+    return NextResponse.json({ message: 'Sesi tidak valid, silakan login kembali.' }, { status: 401 });
+  }
+
+  try {
+    const { searchParams } = new URL(request.url);
+    const studentId = searchParams.get('student_id')?.trim();
+    const tanggal = searchParams.get('tanggal')?.trim();
+
+    if (!studentId || !tanggal) {
+      return NextResponse.json({ message: 'student_id dan tanggal wajib diisi.' }, { status: 400 });
+    }
+
+    const supabase = createServerClient();
+
+    // 1. Ambil data hafalan
+    const { data: hafalanData, error: hErr } = await supabase
+      .from('hafalan')
+      .select('id, surah_juz, halaman, makhroj, tajwid, lancar, buku, catatan')
+      .eq('student_id', studentId)
+      .eq('tanggal', tanggal)
+      .order('created_at', { ascending: true });
+
+    if (hErr) {
+      console.error('Fetch hafalan error:', hErr);
+      return NextResponse.json({ message: 'Gagal mengambil data hafalan.', error: hErr.message }, { status: 500 });
+    }
+
+    // 2. Ambil data tahsin
+    const { data: tahsinData, error: tErr } = await supabase
+      .from('tahsin')
+      .select('id, metode, buku, halaman, makhroj, kelancaran, adab, catatan')
+      .eq('student_id', studentId)
+      .eq('tanggal', tanggal)
+      .limit(1)
+      .maybeSingle();
+
+    if (tErr) {
+      console.error('Fetch tahsin error:', tErr);
+      return NextResponse.json({ message: 'Gagal mengambil data tahsin.', error: tErr.message }, { status: 500 });
+    }
+
+    return NextResponse.json({
+      data: {
+        hafalan: hafalanData ?? [],
+        tahsin: tahsinData ?? null
+      }
+    }, { status: 200 });
+
+  } catch (error) {
+    console.error('Route GET error /api/jurnal-hafalan-tahsin/add:', error);
+    return NextResponse.json({ message: 'Terjadi kesalahan pada server.' }, { status: 500 });
+  }
+}
+
 export async function POST(request: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session || !session.user) {
@@ -146,6 +203,30 @@ export async function POST(request: NextRequest) {
         buku: typeof row.buku === 'string' && row.buku.trim() !== '' ? row.buku.trim() : null,
       };
     });
+
+    // Hapus data hafalan & tahsin harian lama untuk mencegah duplikasi (Mode Edit/Overwrite)
+    const { error: deleteHafalanError } = await supabase
+      .from('hafalan')
+      .delete()
+      .eq('student_id', student_id.trim())
+      .eq('tanggal', tanggal);
+
+    if (deleteHafalanError) {
+      console.error('Supabase delete hafalan error:', deleteHafalanError);
+      return NextResponse.json({ message: 'Gagal membersihkan data hafalan sebelumnya.', error: deleteHafalanError.message }, { status: 500 });
+    }
+
+    const { error: deleteTahsinError } = await supabase
+      .from('tahsin')
+      .delete()
+      .eq('student_id', student_id.trim())
+      .eq('tanggal', tanggal);
+
+    if (deleteTahsinError) {
+      console.error('Supabase delete tahsin error:', deleteTahsinError);
+      return NextResponse.json({ message: 'Gagal membersihkan data tahsin sebelumnya.', error: deleteTahsinError.message }, { status: 500 });
+    }
+
     const { error: hafalanError } = await supabase.from('hafalan').insert(hafalanRecords);
     if (hafalanError) {
       console.error('Supabase insert hafalan error:', hafalanError);

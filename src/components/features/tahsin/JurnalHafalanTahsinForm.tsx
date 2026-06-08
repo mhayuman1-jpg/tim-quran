@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Plus, Trash2, ChevronDown } from 'lucide-react';
+import { Plus, Trash2, ChevronDown, Loader2, Edit2 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import type { TahsinMetode } from '@/types';
@@ -150,6 +150,10 @@ export default function JurnalHafalanTahsinForm({ loading = false, onSubmit, onC
   const [studentsLoading, setStudentsLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  // Cek apakah jurnal sudah ada pada tanggal ini untuk siswa terpilih
+  const [isCheckingJournal, setIsCheckingJournal] = useState(false);
+  const [isEditingExisting, setIsEditingExisting] = useState(false);
+
   useEffect(() => {
     let cancelled = false;
     setStudentsLoading(true);
@@ -175,6 +179,69 @@ export default function JurnalHafalanTahsinForm({ loading = false, onSubmit, onC
 
     return () => { cancelled = true; };
   }, []);
+
+  useEffect(() => {
+    if (!form.student_id || !form.tanggal) {
+      setIsEditingExisting(false);
+      return;
+    }
+
+    let cancelled = false;
+    setIsCheckingJournal(true);
+
+    fetch(`/api/jurnal-hafalan-tahsin/add?student_id=${form.student_id}&tanggal=${form.tanggal}`)
+      .then((res) => (res.ok ? res.json() : { data: null }))
+      .then((json) => {
+        if (cancelled) return;
+        const data = json.data;
+        if (data && (data.hafalan?.length > 0 || data.tahsin)) {
+          // Ada data jurnal eksis -> Muat ke form (Edit mode)
+          setIsEditingExisting(true);
+          setForm((prev) => ({
+            ...prev,
+            detail: data.hafalan.map((h: any) => ({
+              nama_surah: h.surah_juz || '',
+              makhroj: h.makhroj || '',
+              tajwid: h.tajwid || '',
+              lancar: h.lancar || '',
+              buku: h.buku || '',
+              halaman: h.halaman || 1,
+            })),
+            tahsin_metode: data.tahsin?.metode || 'Wafa',
+            tahsin_buku: data.tahsin?.buku || '',
+            tahsin_halaman: data.tahsin?.halaman || 1,
+            tahsin_makhroj: data.tahsin?.makhroj || '',
+            tahsin_kelancaran: data.tahsin?.kelancaran || '',
+            tahsin_adab: data.tahsin?.adab || '',
+            tahsin_catatan: data.tahsin?.catatan || '',
+          }));
+        } else {
+          // Tidak ada data harian -> Reset input ke default (Mode Baru)
+          setIsEditingExisting(false);
+          setForm((prev) => ({
+            ...prev,
+            tahsin_metode: 'Wafa',
+            tahsin_buku: '',
+            tahsin_halaman: 1,
+            tahsin_makhroj: '',
+            tahsin_kelancaran: '',
+            tahsin_adab: '',
+            tahsin_catatan: '',
+            detail: [emptyRow()],
+          }));
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setIsEditingExisting(false);
+      })
+      .finally(() => {
+        if (!cancelled) setIsCheckingJournal(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [form.student_id, form.tanggal]);
 
   const setField = <K extends keyof JurnalHafalanTahsinFormData>(key: K, value: JurnalHafalanTahsinFormData[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -249,6 +316,51 @@ export default function JurnalHafalanTahsinForm({ loading = false, onSubmit, onC
 
   return (
     <form onSubmit={handleSubmit} noValidate className="space-y-6">
+      {/* Indicator Mode Jurnal */}
+      {form.student_id && form.tanggal && (
+        <div className={`rounded-xl border p-4 transition-all duration-300 ${
+          isCheckingJournal 
+            ? 'bg-slate-50 border-slate-200 text-slate-600 animate-pulse'
+            : isEditingExisting
+              ? 'bg-amber-50 border-amber-200 text-amber-800'
+              : 'bg-emerald-50 border-emerald-200 text-emerald-800'
+        }`}>
+          <div className="flex items-center gap-3">
+            <div className={`p-2 rounded-lg ${
+              isCheckingJournal
+                ? 'bg-slate-200 text-slate-500'
+                : isEditingExisting
+                  ? 'bg-amber-100 text-amber-600'
+                  : 'bg-emerald-100 text-emerald-600'
+            }`}>
+              {isCheckingJournal ? (
+                <Loader2 className="animate-spin" size={16} />
+              ) : isEditingExisting ? (
+                <Edit2 size={16} />
+              ) : (
+                <Plus size={16} />
+              )}
+            </div>
+            <div>
+              <p className="text-sm font-bold">
+                {isCheckingJournal 
+                  ? 'Memeriksa riwayat jurnal harian...' 
+                  : isEditingExisting 
+                    ? 'Mode Edit Jurnal (Perkembangan Harian)' 
+                    : 'Membuat Jurnal Baru'}
+              </p>
+              <p className="text-xs opacity-80 mt-0.5">
+                {isCheckingJournal
+                  ? 'Harap tunggu, sedang mencari catatan jurnal...'
+                  : isEditingExisting
+                    ? 'Data untuk siswa ini pada tanggal tersebut sudah ada. Mengubah nilai di bawah akan memperbarui catatan harian yang ada.'
+                    : 'Belum ada catatan jurnal pada tanggal tersebut. Data akan disimpan sebagai entri baru.'}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="flex flex-col gap-1">
           <label className="text-sm font-medium text-slate-700">Siswa <span className="text-red-500">*</span></label>

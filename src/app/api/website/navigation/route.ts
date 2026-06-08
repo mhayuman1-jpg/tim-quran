@@ -12,7 +12,7 @@ export async function GET() {
         .from('navigation_items')
         .select('*')
         .eq('is_active', true)
-        .order('urutan', { ascending: true }),
+        .order('urutan', { ascending: true }) as any,
       3, // max retries
       1000 // initial delay in ms
     );

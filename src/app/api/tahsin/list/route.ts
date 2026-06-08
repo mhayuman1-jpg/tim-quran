@@ -1,4 +1,4 @@
-﻿// src/app/api/tahsin/list/route.ts
+// src/app/api/tahsin/list/route.ts
 // GET: Ambil riwayat tahsin
 // - Filter by student_id (opsional) dan date range (opsional)
 // - Tim_Quran hanya bisa lihat tahsin siswa yang menjadi tanggung jawabnya
@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
     let query = supabase
       .from('tahsin')
       .select(
-        `id, student_id, teacher_id, tanggal, metode, buku, halaman, catatan, created_at,
+        `id, student_id, teacher_id, tanggal, metode, makhroj, kelancaran, adab, buku, halaman, catatan, created_at,
          santri ( id, nama, assigned_teacher_id ),
          users ( id, name )`
       )

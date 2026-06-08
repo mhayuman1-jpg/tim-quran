@@ -1,4 +1,4 @@
-﻿// src/app/api/dashboard/stats/route.ts
+// src/app/api/dashboard/stats/route.ts
 // GET: return statistik dashboard dalam satu response:
 //   - total santri aktif
 //   - persentase kehadiran hari ini (hadir/total aktif Ã— 100, boleh >100%)
@@ -23,7 +23,9 @@ export async function GET(_request: NextRequest) {
 
   try {
     const supabase = createServerClient();
-    const today = new Date().toISOString().split('T')[0];
+    const today = new Intl.DateTimeFormat('sv-SE', {
+      timeZone: 'Asia/Makassar',
+    }).format(new Date());
 
     // 1. Total santri aktif
     const { count: totalSantriAktif, error: santriError } = await supabase

@@ -17,7 +17,9 @@ export async function GET(_request: NextRequest) {
 
   try {
     const supabase = createServerClient();
-    const today = new Date().toISOString().split('T')[0];
+    const today = new Intl.DateTimeFormat('sv-SE', {
+      timeZone: 'Asia/Makassar',
+    }).format(new Date());
 
     const { data: attData, error } = await supabase
       .from('attendances')
@@ -48,6 +50,7 @@ export async function GET(_request: NextRequest) {
     const list = normalized.map((row: any) => ({
       nama: namaMap[row.santri_id] ?? 'Tidak diketahui',
       scanned_at: new Date(row.created_at).toLocaleTimeString('id-ID', {
+        timeZone: 'Asia/Makassar',
         hour: '2-digit',
         minute: '2-digit',
       }),

@@ -4,7 +4,7 @@
 // Halaman Raport Tahfidz — tampilkan preview langsung + inline edit
 
 import React, { useState, useCallback, useRef } from 'react';
-import { Plus, Search, Edit2, ClipboardList, Trash2, Printer, ChevronLeft, FileDown, FileText, PenLine, RotateCcw } from 'lucide-react';
+import { Plus, Search, Edit2, ClipboardList, Trash2, Printer, ChevronLeft, FileDown, FileText } from 'lucide-react';
 import { useReactToPrint } from 'react-to-print';
 import Modal from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
@@ -14,8 +14,6 @@ import { useRole } from '@/hooks/useRole';
 import { triggerRaportPdfDownload, sanitizePdfFilename } from '@/lib/raport/pdf-renderer';
 import { triggerRaportDocxDownload, sanitizeDocxFilename } from '@/lib/raport/docx-renderer';
 import { RAPORT_BROWSER_PRINT_STYLE } from '@/lib/raport/print-config';
-import RaportDocumentEditor from '@/components/features/raport/RaportDocumentEditor';
-import { buildRaportHtmlTemplate } from '@/lib/raport/raport-html-template';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -69,8 +67,6 @@ export default function RaportPage() {
   const [selected, setSelected] = useState<RaportRow | null>(null);
   const [selectedLoading, setSelectedLoading] = useState(false);
   const [inlineEdit, setInlineEdit] = useState(false);
-  const [visualEdit, setVisualEdit] = useState(false);
-  const [visualHtmlDraft, setVisualHtmlDraft] = useState('');
   const [inlineDraft, setInlineDraft] = useState<Partial<RaportTahfidzData> & { detail?: DetailSurahData[] }>({});
 
   // Form modal
@@ -252,14 +248,10 @@ export default function RaportPage() {
       setSelected(json.data ?? row);
       setInlineDraft({});
       setInlineEdit(false);
-      setVisualEdit(false);
-      setVisualHtmlDraft('');
     } catch {
       setSelected(row);
       setInlineDraft({});
       setInlineEdit(false);
-      setVisualEdit(false);
-      setVisualHtmlDraft('');
     } finally {
       setSelectedLoading(false);
     }
@@ -364,87 +356,8 @@ export default function RaportPage() {
     ...selected,
     ...inlineDraft,
     raport_tahfidz_detail: inlineDraft.detail ?? selected.raport_tahfidz_detail,
-    html_custom: visualEdit ? visualHtmlDraft : (inlineDraft.html_custom ?? selected.html_custom),
+    html_custom: inlineDraft.html_custom ?? selected.html_custom,
   } : selected;
-
-  const handleOpenVisualEdit = async () => {
-    if (!selected) return;
-    setInlineEdit(false);
-    setFormError(null);
-
-    let profil: Record<string, string | null | undefined> = {};
-    try {
-      const profilRes = await fetch('/api/website/profil');
-      if (profilRes.ok) {
-        const json = await profilRes.json();
-        profil = json.data ?? {};
-      }
-    } catch { /* fallback template */ }
-
-    const base: RaportTahfidzData = {
-      ...selected,
-      ...inlineDraft,
-      raport_tahfidz_detail: inlineDraft.detail ?? selected.raport_tahfidz_detail,
-    };
-
-    const html = selected.html_custom?.trim()
-      || buildRaportHtmlTemplate(base, profil);
-
-    setVisualHtmlDraft(html);
-    setVisualEdit(true);
-  };
-
-  const handleSaveVisualEdit = async () => {
-    if (!selected) return;
-    setFormSubmitting(true);
-    setFormError(null);
-    try {
-      const res = await fetch('/api/raport/tahfidz', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: selected.id, html_custom: visualHtmlDraft }),
-      });
-      const json = await res.json();
-      if (!res.ok) {
-        setFormError(json.message ?? 'Gagal menyimpan dokumen.');
-        return;
-      }
-      setSelected(json.data ?? { ...selected, html_custom: visualHtmlDraft });
-      setVisualEdit(false);
-      setFormSuccess('Dokumen raport berhasil disimpan.');
-      setTimeout(() => setFormSuccess(null), 3000);
-    } catch {
-      setFormError('Terjadi kesalahan saat menyimpan dokumen.');
-    } finally {
-      setFormSubmitting(false);
-    }
-  };
-
-  const handleResetVisualTemplate = async () => {
-    if (!selected || !confirm('Kembalikan ke template default? Perubahan dokumen Word akan hilang.')) return;
-    setFormSubmitting(true);
-    try {
-      const res = await fetch('/api/raport/tahfidz', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: selected.id, html_custom: null }),
-      });
-      const json = await res.json();
-      if (!res.ok) {
-        alert(json.message ?? 'Gagal reset template.');
-        return;
-      }
-      setSelected(json.data ?? selected);
-      setVisualEdit(false);
-      setVisualHtmlDraft('');
-      setFormSuccess('Template default dipulihkan.');
-      setTimeout(() => setFormSuccess(null), 3000);
-    } catch {
-      alert('Gagal reset template.');
-    } finally {
-      setFormSubmitting(false);
-    }
-  };
 
   const handleInlineFieldChange = (field: keyof RaportTahfidzData, value: string | null) => {
     setInlineDraft(prev => ({ ...prev, [field]: value }));
@@ -631,29 +544,13 @@ export default function RaportPage() {
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <Button variant={inlineEdit ? 'secondary' : 'ghost'} leftIcon={<Edit2 size={14} />}
-                    onClick={() => { setVisualEdit(false); setInlineEdit(p => !p); }}
-                    disabled={visualEdit}>
+                    onClick={() => { setInlineEdit(p => !p); }}>
                     {inlineEdit ? 'Batal Edit Langsung' : 'Edit Langsung'}
-                  </Button>
-                  <Button variant={visualEdit ? 'secondary' : 'ghost'} leftIcon={<PenLine size={14} />}
-                    onClick={() => visualEdit ? setVisualEdit(false) : handleOpenVisualEdit()}
-                    disabled={inlineEdit}>
-                    {visualEdit ? 'Tutup Editor' : 'Edit Dokumen'}
                   </Button>
                   {inlineEdit && (
                     <Button variant="primary" leftIcon={<Edit2 size={14} />} onClick={handleSaveInline} loading={formSubmitting}>
                       Simpan Perubahan
                     </Button>
-                  )}
-                  {visualEdit && (
-                    <>
-                      <Button variant="primary" leftIcon={<Edit2 size={14} />} onClick={handleSaveVisualEdit} loading={formSubmitting}>
-                        Simpan Dokumen
-                      </Button>
-                      <Button variant="ghost" leftIcon={<RotateCcw size={14} />} onClick={handleResetVisualTemplate} disabled={formSubmitting}>
-                        Reset Template
-                      </Button>
-                    </>
                   )}
                   <Button variant="primary" leftIcon={<Printer size={14} />} onClick={() => handlePrint()}>
                     Cetak
@@ -674,15 +571,9 @@ export default function RaportPage() {
                 <div className="rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-700">{formError}</div>
               )}
 
-              {/* Preview / Editor dokumen */}
+              {/* Preview dokumen */}
               <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
-                {visualEdit ? (
-                  <RaportDocumentEditor
-                    value={visualHtmlDraft}
-                    onChange={setVisualHtmlDraft}
-                    disabled={formSubmitting}
-                  />
-                ) : currentPreviewRaport ? (
+                {currentPreviewRaport ? (
                   <RaportTahfidzPrintable
                     key={selected.id}
                     raport={currentPreviewRaport}

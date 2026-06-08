@@ -1,4 +1,4 @@
-﻿// src/app/api/hafalan/list/route.ts
+// src/app/api/hafalan/list/route.ts
 // GET: Ambil riwayat hafalan
 // - Filter by student_id (opsional) dan date range (opsional)
 // - Tim_Quran hanya bisa lihat hafalan siswa yang menjadi tanggung jawabnya
@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
     let query = supabase
       .from('hafalan')
       .select(
-        `id, student_id, teacher_id, tanggal, surah_juz, halaman, catatan, created_at,
+        `id, student_id, teacher_id, tanggal, surah_juz, halaman, makhroj, tajwid, lancar, catatan, created_at,
          santri ( id, nama, assigned_teacher_id ),
          users ( id, name )`
       )

@@ -153,6 +153,23 @@ export default function RaportTahfidzForm({
       .finally(() => setStudentsLoading(false));
   }, []);
 
+  // Fetch active semester config to pre-fill periode (only when not in edit mode)
+  useEffect(() => {
+    if (!isEdit) {
+      fetch('/api/semester/config')
+        .then(r => r.ok ? r.json() : { data: null })
+        .then(j => {
+          if (j.data && j.data.semester_name) {
+            setForm(p => ({
+              ...p,
+              periode: j.data.semester_name
+            }));
+          }
+        })
+        .catch(() => {});
+    }
+  }, [isEdit]);
+
   // Populate form saat edit
   useEffect(() => {
     if (initialData) {
@@ -199,29 +216,33 @@ export default function RaportTahfidzForm({
       const json = await res.json();
       if (!res.ok) { setAutoMsg(`Gagal: ${json.message}`); return; }
 
-      const { detail_surah, catatan_terbaru, tahsin_summary, stats } = json.data;
+      const { detail_surah, catatan_terbaru, tahsin_summary, stats, juz, kehadiran_summary } = json.data;
 
-      if (detail_surah?.length > 0) {
+      if (detail_surah?.length > 0 || tahsin_summary?.length > 0 || kehadiran_summary) {
         setForm(p => ({
           ...p,
-          detail: detail_surah.map((d: any) => ({
+          juz: juz !== undefined && juz !== null ? Number(juz) : p.juz,
+          detail: detail_surah?.length > 0 ? detail_surah.map((d: any) => ({
             nama_surah: d.nama_surah,
             makhroj: d.makhroj || '',
             tajwid: d.tajwid || '',
             lancar: d.lancar || '',
             wafa_buku: d.wafa_buku || '',
             wafa_halaman: d.wafa_halaman || '',
-          })),
-          catatan: catatan_terbaru || p.catatan,
+          })) : p.detail,
+          catatan: `${kehadiran_summary || ''}${catatan_terbaru || ''}`.trim() || p.catatan,
           // Isi tahsin dari data terbaru
           tahsin_metode: tahsin_summary?.[0]?.metode || p.tahsin_metode,
           tahsin_buku: tahsin_summary?.[0]?.buku || p.tahsin_buku,
           tahsin_halaman: tahsin_summary?.[0]?.halaman ? String(tahsin_summary[0].halaman) : p.tahsin_halaman,
+          tahsin_makhroj: tahsin_summary?.[0]?.makhroj || p.tahsin_makhroj,
+          tahsin_kelancaran: tahsin_summary?.[0]?.kelancaran || p.tahsin_kelancaran,
+          tahsin_adab: tahsin_summary?.[0]?.adab || p.tahsin_adab,
           tahsin_catatan: tahsin_summary?.[0]?.catatan || p.tahsin_catatan,
         }));
-        setAutoMsg(`✓ Dimuat: ${stats.surah_hafal} surah dari ${stats.total_hafalan} catatan hafalan, ${stats.total_tahsin} catatan tahsin`);
+        setAutoMsg(`✓ Dimuat: ${stats?.surah_hafal || 0} surah dari ${stats?.total_hafalan || 0} catatan hafalan, ${stats?.total_tahsin || 0} catatan tahsin`);
       } else {
-        setAutoMsg('Tidak ada data hafalan ditemukan untuk siswa ini.');
+        setAutoMsg('Tidak ada data jurnal atau absensi ditemukan untuk siswa ini.');
       }
     } catch {
       setAutoMsg('Gagal memuat data. Silakan isi manual.');

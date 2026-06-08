@@ -16,20 +16,35 @@ interface QRScannerProps {
 
 const QR_READER_ID = 'qr-reader-container';
 
+// Module-level variables to track active scanner lifecycle across mounts
+let globalHtml5Qrcode: Html5Qrcode | null = null;
+let globalCleanupPromise: Promise<void> = Promise.resolve();
+
 export default function QRScanner({ onScanSuccess, onScanError, scannedList, compact = false }: QRScannerProps) {
   const html5QrcodeRef = useRef<Html5Qrcode | null>(null);
   const [isScanning, setIsScanning] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const isProcessingRef = useRef(false);
-  const isCleaningRef = useRef(false);
 
   useEffect(() => {
     let isMounted = true;
 
     async function startScanner() {
+      // Tunggu hingga proses pembersihan instance sebelumnya selesai sepenuhnya
+      await globalCleanupPromise;
+
+      if (!isMounted) return;
+
       try {
+        // Pastikan container bersih sebelum inisialisasi baru
+        const container = document.getElementById(QR_READER_ID);
+        if (container) {
+          container.innerHTML = '';
+        }
+
         const html5Qrcode = new Html5Qrcode(QR_READER_ID);
         html5QrcodeRef.current = html5Qrcode;
+        globalHtml5Qrcode = html5Qrcode;
 
         await html5Qrcode.start(
           { facingMode: 'environment' },
@@ -56,9 +71,31 @@ export default function QRScanner({ onScanSuccess, onScanError, scannedList, com
           () => {}
         );
 
-        if (isMounted) setIsScanning(true);
+        if (!isMounted) {
+          // Komponen di-unmount saat start() sedang berjalan.
+          // Bersihkan secara asinkron lewat globalCleanupPromise.
+          globalCleanupPromise = (async () => {
+            try {
+              await html5Qrcode.stop();
+            } catch (e) {}
+            try {
+              await html5Qrcode.clear();
+            } catch (e) {}
+            if (globalHtml5Qrcode === html5Qrcode) {
+              globalHtml5Qrcode = null;
+            }
+            const container = document.getElementById(QR_READER_ID);
+            if (container) {
+              container.innerHTML = '';
+            }
+          })();
+          return;
+        }
+
+        setIsScanning(true);
       } catch (err: unknown) {
         if (!isMounted) return;
+        console.error('Error starting scanner:', err);
         const msg = err instanceof Error ? err.message : 'Tidak dapat mengakses kamera.';
         setCameraError(
           msg.includes('Permission')
@@ -69,22 +106,30 @@ export default function QRScanner({ onScanSuccess, onScanError, scannedList, com
     }
 
     startScanner();
+
     return () => {
       isMounted = false;
-      // Prevent multiple cleanup calls
-      if (isCleaningRef.current || !html5QrcodeRef.current) return;
-      isCleaningRef.current = true;
+      const currentScanner = html5QrcodeRef.current;
+      if (!currentScanner) return;
 
-      (async () => {
+      // Catat pembersihan ke promise global agar dimount berikutnya menunggu proses ini selesai
+      globalCleanupPromise = (async () => {
         try {
-          await html5QrcodeRef.current!.stop();
-        } catch {
-          // Ignore stop errors
+          await currentScanner.stop();
+        } catch (e) {
+          // Abaikan jika sudah di-stop
         }
         try {
-          await html5QrcodeRef.current!.clear();
-        } catch {
-          // Ignore clear errors
+          await currentScanner.clear();
+        } catch (e) {
+          // Abaikan jika gagal clear
+        }
+        if (globalHtml5Qrcode === currentScanner) {
+          globalHtml5Qrcode = null;
+        }
+        const container = document.getElementById(QR_READER_ID);
+        if (container) {
+          container.innerHTML = '';
         }
       })();
     };
