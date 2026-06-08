@@ -65,8 +65,15 @@ export default function PublicNavbar({
       const items = navigationItems
         .filter((item) => item.is_active ?? true)
         .map((item) => ({ label: item.label, href: normalizeHref(item.href) }));
-      // Merge with default items, but API items take precedence for ordering/customization
-      setNavLinks(items.length > 0 ? items : defaultNavLinks);
+      
+      // Always merge with default items to ensure critical items like 'Daftar Tasmi' are present
+      if (items.length > 0) {
+        const apiLabels = new Set(items.map(i => i.label.toLowerCase()));
+        const missingDefaults = defaultNavLinks.filter(d => !apiLabels.has(d.label.toLowerCase()));
+        setNavLinks([...items, ...missingDefaults]);
+      } else {
+        setNavLinks(defaultNavLinks);
+      }
       setNavLoading(false);
       return;
     }
@@ -78,7 +85,7 @@ export default function PublicNavbar({
         if (json.data && Array.isArray(json.data) && json.data.length > 0) {
           const apiItems = json.data.map((item: any) => ({ label: item.label, href: normalizeHref(item.href) }));
           // Merge: Keep API items in their order, but add missing default items at the end
-          const apiLabels = new Set(apiItems.map(i => i.label.toLowerCase()));
+          const apiLabels = new Set(apiItems.map((i: { label: string; href: string }) => i.label.toLowerCase()));
           const missingDefaults = defaultNavLinks.filter(d => !apiLabels.has(d.label.toLowerCase()));
           setNavLinks([...apiItems, ...missingDefaults]);
         } else {

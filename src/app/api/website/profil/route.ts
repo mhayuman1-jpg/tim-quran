@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
+import { revalidatePath } from 'next/cache';
 
 export const dynamic = 'force-dynamic';
 
@@ -84,6 +85,7 @@ export async function PUT(request: NextRequest) {
       }
 
       console.log('[profil PUT] updated successfully:', updated?.id, 'logo_url:', updated?.logo_url?.slice(0, 50));
+      try { revalidatePath('/'); } catch (e) { console.warn('revalidatePath failed', e); }
       return NextResponse.json({ message: 'Profil berhasil diperbarui.', data: updated }, { status: 200 });
 
     } else {
@@ -99,6 +101,7 @@ export async function PUT(request: NextRequest) {
         return NextResponse.json({ message: `Gagal insert: ${insertErr.message}` }, { status: 500 });
       }
 
+      try { revalidatePath('/'); } catch (e) { console.warn('revalidatePath failed', e); }
       return NextResponse.json({ message: 'Profil berhasil dibuat.', data: inserted }, { status: 200 });
     }
 

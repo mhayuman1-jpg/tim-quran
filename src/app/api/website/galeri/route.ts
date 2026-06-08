@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
+import { revalidatePath } from 'next/cache';
 
 export const dynamic = 'force-dynamic';
 
@@ -47,6 +48,10 @@ export async function POST(request: NextRequest) {
       .select('*').single();
 
     if (error) return NextResponse.json({ message: error.message }, { status: 500 });
+
+    // Invalidate landing page and galeri page so website shows latest changes
+    try { revalidatePath('/'); revalidatePath('/galeri'); } catch (e) { console.warn('revalidatePath failed', e); }
+
     return NextResponse.json({ message: 'Foto berhasil ditambahkan.', data }, { status: 201 });
   } catch {
     return NextResponse.json({ message: 'Terjadi kesalahan.' }, { status: 500 });
@@ -72,6 +77,10 @@ export async function PUT(request: NextRequest) {
       .select('*').single();
 
     if (error) return NextResponse.json({ message: error.message }, { status: 500 });
+
+    // Revalidate landing and galeri pages
+    try { revalidatePath('/'); revalidatePath('/galeri'); } catch (e) { console.warn('revalidatePath failed', e); }
+
     return NextResponse.json({ message: 'Foto berhasil diperbarui.', data }, { status: 200 });
   } catch {
     return NextResponse.json({ message: 'Terjadi kesalahan.' }, { status: 500 });
@@ -92,6 +101,10 @@ export async function DELETE(request: NextRequest) {
     const supabase = createServerClient();
     const { error } = await supabase.from('galeri').delete().eq('id', id);
     if (error) return NextResponse.json({ message: error.message }, { status: 500 });
+
+    // Revalidate landing and galeri pages
+    try { revalidatePath('/'); revalidatePath('/galeri'); } catch (e) { console.warn('revalidatePath failed', e); }
+
     return NextResponse.json({ message: 'Foto berhasil dihapus.' }, { status: 200 });
   } catch {
     return NextResponse.json({ message: 'Terjadi kesalahan.' }, { status: 500 });

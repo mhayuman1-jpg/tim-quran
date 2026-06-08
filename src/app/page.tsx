@@ -32,9 +32,20 @@ function getSixMonthRange(): { label: string; key: string }[] {
   });
 }
 
+function getBaseUrl(): string {
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`;
+  }
+  if (process.env.NEXTAUTH_URL) {
+    return process.env.NEXTAUTH_URL;
+  }
+  return 'http://localhost:3000';
+}
+
 async function getMonthlyProgressData(): Promise<MonthlyProgressPoint[]> {
   try {
-    const res = await fetch('/api/landing/monthly-progress', {
+    const baseUrl = getBaseUrl();
+    const res = await fetch(`${baseUrl}/api/landing/monthly-progress`, {
       cache: 'no-store',
     });
 

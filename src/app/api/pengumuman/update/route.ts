@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
+import { revalidatePath } from 'next/cache';
 import type { AnnouncementTarget } from '@/types';
 
 export const dynamic = 'force-dynamic';
@@ -98,6 +99,7 @@ export async function PUT(request: NextRequest) {
       );
     }
 
+    try { revalidatePath('/'); } catch (e) { console.warn('revalidatePath failed', e); }
     return NextResponse.json(
       { message: 'Pengumuman berhasil diperbarui.', data },
       { status: 200 }

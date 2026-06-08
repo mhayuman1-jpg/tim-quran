@@ -21,7 +21,11 @@ export function normalizeAttendanceRows(rows: any[] | null | undefined) {
 
 function isColumnDoesNotExistError(error: any, column: string) {
   const message = String(error?.message ?? '').toLowerCase();
-  return message.includes(`column \"${column}\" does not exist`);
+  const normalizedColumn = column.toLowerCase();
+  const regex = new RegExp(
+    `column\\s+(?:\\"[^\\"]+\\"\\.)?(?:\\"${normalizedColumn}\\"|(?:[^.\\s]+\\.)?${normalizedColumn})\\s+does not exist`
+  );
+  return regex.test(message);
 }
 
 export function isMissingSantriIdError(error: any) {
@@ -52,6 +56,23 @@ export async function queryAttendanceByStudent(
 
   result = await buildQuery('student_id');
   return { data: normalizeAttendanceRows(result.data), error: result.error };
+}
+
+export async function queryAttendanceByStudentMaybeSingle(
+  supabase: any,
+  studentId: string,
+  date: string
+) {
+  const buildQuery = (column: string) =>
+    supabase.from('attendances').select('id').eq(column, studentId).eq('date', date).maybeSingle();
+
+  let result = await buildQuery('santri_id');
+  if (!result.error || !isMissingSantriIdError(result.error)) {
+    return { data: result.data, error: result.error };
+  }
+
+  result = await buildQuery('student_id');
+  return { data: result.data, error: result.error };
 }
 
 export async function insertAttendanceRecord(

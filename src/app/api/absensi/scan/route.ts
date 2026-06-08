@@ -6,7 +6,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
-import { insertAttendanceRecord, isMissingSantriIdError } from '@/lib/attendance';
+import {
+  insertAttendanceRecord,
+  queryAttendanceByStudentMaybeSingle,
+} from '@/lib/attendance';
 
 export const dynamic = 'force-dynamic';
 
@@ -47,24 +50,12 @@ export async function POST(request: NextRequest) {
     // 2. Tanggal hari ini format YYYY-MM-DD
     const today = new Date().toISOString().split('T')[0];
 
-    // 3. Cek duplikat: cari record di attendances dengan santri_id / student_id & date = hari ini
-    let checkResult = await supabase
-      .from('attendances')
-      .select('id')
-      .eq('santri_id', siswa.id)
-      .eq('date', today)
-      .maybeSingle();
-
-    if (checkResult.error && isMissingSantriIdError(checkResult.error)) {
-      checkResult = await supabase
-        .from('attendances')
-        .select('id')
-        .eq('student_id', siswa.id)
-        .eq('date', today)
-        .maybeSingle();
-    }
-
-    const { data: existing, error: checkError } = checkResult;
+    // 3. Cek duplikat: cari record absensi hari ini di kolom santri_id / student_id
+    const { data: existing, error: checkError } = await queryAttendanceByStudentMaybeSingle(
+      supabase,
+      siswa.id,
+      today
+    );
 
     if (checkError) {
       console.error('Duplikat check error:', checkError);

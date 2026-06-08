@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
+import { revalidatePath } from 'next/cache';
 
 /**
  * Generate slug dari judul:
@@ -105,6 +106,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    try { revalidatePath('/'); } catch (e) { console.warn('revalidatePath failed', e); }
     return NextResponse.json(
       { message: 'Artikel berhasil ditambahkan.', data },
       { status: 201 }

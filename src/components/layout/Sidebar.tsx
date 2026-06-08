@@ -139,9 +139,10 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
             <p className="text-indigo-400/60 text-xs leading-tight">Dashboard</p>
           </div>
           <button onClick={onClose}
-            className="lg:hidden p-1 rounded-lg text-white/30 hover:text-white/70 hover:bg-white/10 transition-colors"
+            className="lg:hidden p-2 rounded-lg text-white/30 hover:text-white/70 hover:bg-white/10 transition-colors"
+            style={{minWidth: '44px', minHeight: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center'}}
             aria-label="Tutup sidebar">
-            <X size={16} />
+            <X size={20} />
           </button>
         </div>
 
@@ -165,7 +166,7 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
 
                     return (
                       <Link key={item.href} href={item.href}
-                        className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium transition-all relative"
+                        className="flex items-center gap-2.5 px-3 py-3 rounded-xl text-sm font-medium transition-all relative min-h-[44px]"
                         style={{
                           background: isActive ? 'rgba(99,102,241,0.2)' : 'transparent',
                           color: isActive ? '#a5b4fc' : 'rgba(255,255,255,0.5)',

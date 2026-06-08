@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
+import { revalidatePath } from 'next/cache';
 
 export const dynamic = 'force-dynamic';
 
@@ -39,6 +40,7 @@ export async function POST(request: NextRequest) {
       .select('*')
       .single();
     if (error) return NextResponse.json({ message: error.message }, { status: 500 });
+    try { revalidatePath('/'); } catch (e) { console.warn('revalidatePath failed', e); }
     return NextResponse.json({ message: 'Program berhasil ditambahkan.', data }, { status: 201 });
   } catch {
     return NextResponse.json({ message: 'Terjadi kesalahan pada server.' }, { status: 500 });
@@ -63,6 +65,7 @@ export async function PUT(request: NextRequest) {
       .select('*')
       .single();
     if (error) return NextResponse.json({ message: error.message }, { status: 500 });
+    try { revalidatePath('/'); } catch (e) { console.warn('revalidatePath failed', e); }
     return NextResponse.json({ message: 'Program berhasil diperbarui.', data }, { status: 200 });
   } catch {
     return NextResponse.json({ message: 'Terjadi kesalahan pada server.' }, { status: 500 });
@@ -81,6 +84,7 @@ export async function DELETE(request: NextRequest) {
     const supabase = createServerClient();
     const { error } = await supabase.from('program').delete().eq('id', id);
     if (error) return NextResponse.json({ message: error.message }, { status: 500 });
+    try { revalidatePath('/'); } catch (e) { console.warn('revalidatePath failed', e); }
     return NextResponse.json({ message: 'Program berhasil dihapus.' }, { status: 200 });
   } catch {
     return NextResponse.json({ message: 'Terjadi kesalahan pada server.' }, { status: 500 });

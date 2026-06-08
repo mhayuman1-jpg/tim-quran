@@ -9,6 +9,14 @@
 /* Smooth scroll behavior */
 html {
   scroll-behavior: smooth;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+}
+
+body {
+  -webkit-user-select: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 /* Performance-optimized transitions */
@@ -36,6 +44,32 @@ html {
 
   .hover-glow {
     @apply hover:shadow-lg hover:shadow-sky-500/50 transition-all duration-300;
+  }
+
+  /* Mobile optimizations */
+  .touch-target {
+    @apply min-w-[44px] min-h-[44px] flex items-center justify-center;
+  }
+
+  .safe-bottom {
+    @apply pb-20 md:pb-0;
+    padding-bottom: max(5rem, env(safe-area-inset-bottom));
+  }
+
+  .text-mobile {
+    @apply text-sm md:text-base;
+  }
+
+  .text-mobile-lg {
+    @apply text-base md:text-lg;
+  }
+
+  .px-mobile {
+    @apply px-3 sm:px-4 md:px-6;
+  }
+
+  .py-mobile {
+    @apply py-3 sm:py-4 md:py-6;
   }
 }
 

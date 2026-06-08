@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { revalidatePath } from 'next/cache';
 export const dynamic = 'force-dynamic';
 
 async function checkAdminRole() {
@@ -76,6 +77,7 @@ export async function POST(req: NextRequest) {
 
     if (error) throw error;
 
+    try { revalidatePath('/'); } catch (e) { console.warn('revalidatePath failed', e); }
     return NextResponse.json({ data, error: null });
   } catch (err: any) {
     console.error('[POST /api/website/navigation/manage]', err);
@@ -132,6 +134,7 @@ export async function PUT(req: NextRequest) {
       if (error) throw error;
     }
 
+    try { revalidatePath('/'); } catch (e) { console.warn('revalidatePath failed', e); }
     return NextResponse.json({ error: null, message: 'Menu items updated' });
   } catch (err: any) {
     console.error('[PUT /api/website/navigation/manage]', err);
@@ -176,6 +179,7 @@ export async function DELETE(req: NextRequest) {
 
     if (error) throw error;
 
+    try { revalidatePath('/'); } catch (e) { console.warn('revalidatePath failed', e); }
     return NextResponse.json({ error: null, message: 'Menu item deleted' });
   } catch (err: any) {
     console.error('[DELETE /api/website/navigation/manage]', err);

@@ -86,6 +86,8 @@ export default function KelasPage() {
   const [studentLoading, setStudentLoading] = useState(false);
   const [assignStudentLoading, setAssignStudentLoading] = useState(false);
   const [studentSearch, setStudentSearch] = useState('');
+  // ── Split students loading state (class id)
+  const [splitLoadingId, setSplitLoadingId] = useState<string | null>(null);
 
   // ── Fetch kelas
   const fetchKelas = useCallback(async () => {
@@ -322,6 +324,39 @@ export default function KelasPage() {
     }
   };
 
+  // ── Split students between teacher1 and teacher2 for a class
+  const handleSplitStudents = async (kelas: Kelas) => {
+    if (!kelas) return;
+    if (!kelas.teacher1_id || !kelas.teacher2_id) {
+      toast.error('Pastikan Guru 1 dan Guru 2 sudah ditetapkan untuk kelas ini.');
+      return;
+    }
+
+    const ok = window.confirm(`Bagikan siswa di kelas "${kelas.name}" secara merata ke Guru 1 dan Guru 2?`);
+    if (!ok) return;
+
+    setSplitLoadingId(kelas.id);
+    try {
+      const res = await fetch('/api/kelas/split-students', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ class_id: kelas.id }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        toast.error(json.message ?? 'Gagal membagi siswa.');
+        return;
+      }
+      const counts = json.counts ?? {};
+      toast.success(json.message ?? `Dibagi: ${counts.teacher1 ?? 0} / ${counts.teacher2 ?? 0}`);
+      fetchKelas();
+    } catch (err) {
+      toast.error('Terjadi kesalahan saat membagi siswa.');
+    } finally {
+      setSplitLoadingId(null);
+    }
+  };
+
   const filteredStudents = students.filter((s) =>
     s.nama.toLowerCase().includes(studentSearch.toLowerCase()) ||
     s.nisn.includes(studentSearch)
@@ -537,6 +572,16 @@ export default function KelasPage() {
                             title="Atur guru"
                           >
                             Atur Guru
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            leftIcon={<Users size={14} />}
+                            onClick={() => handleSplitStudents(kelas)}
+                            loading={splitLoadingId === kelas.id}
+                            title="Bagi siswa ke Guru 1 & Guru 2"
+                          >
+                            Split Siswa
                           </Button>
                           <Button
                             variant="ghost"

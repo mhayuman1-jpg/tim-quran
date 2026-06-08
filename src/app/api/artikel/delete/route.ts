@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
+import { revalidatePath } from 'next/cache';
 
 export async function DELETE(request: NextRequest) {
   try {
@@ -67,6 +68,7 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
+    try { revalidatePath('/'); } catch (e) { console.warn('revalidatePath failed', e); }
     return NextResponse.json(
       { message: 'Artikel berhasil dihapus.' },
       { status: 200 }
