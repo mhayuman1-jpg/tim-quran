@@ -137,13 +137,12 @@ export async function GET(request: NextRequest) {
     // Tambahkan data tahsin ke surah yang ada (update nilai)
     for (const t of (tahsinData ?? [])) {
       const buku = t.buku?.trim();
-      const hal  = t.halaman ? String(t.halaman) : '';
       // Coba cocokkan dengan surah yang sudah ada, atau tambah sebagai entry sendiri
       if (buku) {
         // Update wafa_buku pada semua surah yang belum punya nilai
         surahMap.forEach((v, k) => {
           if (!v.wafa_buku) {
-            surahMap.set(k, { ...v, wafa_buku: buku, wafa_halaman: hal });
+            surahMap.set(k, { ...v, wafa_buku: buku });
           }
         });
       }

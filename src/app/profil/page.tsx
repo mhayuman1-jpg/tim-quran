@@ -3,6 +3,7 @@
 import Image from 'next/image';
 import { Globe, MapPin, Mail, Phone, AtSign, PlayCircle } from 'lucide-react';
 import { createServerClient } from '@/lib/supabase/server';
+import { toImageUrl } from '@/lib/storage/urls';
 
 export const dynamic = 'force-dynamic';
 
@@ -60,12 +61,12 @@ export default async function ProfilPage() {
           <div className="flex justify-center items-center gap-6 mb-8 flex-wrap">
             {profil.logo_sekolah_url && (
               <div className="w-20 h-20 rounded-2xl overflow-hidden bg-white/90 p-1.5 shadow-lg">
-                <Image src={profil.logo_sekolah_url} alt={profil.nama_sekolah ?? 'Sekolah'} width={72} height={72} className="object-contain w-full h-full" />
+                <Image src={toImageUrl(profil.logo_sekolah_url) || ''} alt={profil.nama_sekolah ?? 'Sekolah'} width={72} height={72} className="object-contain w-full h-full" />
               </div>
             )}
             {profil.logo_url && (
               <div className="w-20 h-20 rounded-2xl overflow-hidden bg-white/90 p-1.5 shadow-lg">
-                <Image src={profil.logo_url} alt={profil.nama_lembaga} width={72} height={72} className="object-contain w-full h-full" />
+                <Image src={toImageUrl(profil.logo_url) || ''} alt={profil.nama_lembaga} width={72} height={72} className="object-contain w-full h-full" />
               </div>
             )}
           </div>

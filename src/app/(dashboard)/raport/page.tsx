@@ -13,7 +13,7 @@ import RaportTahfidzPrintable, { type RaportTahfidzData, type DetailSurahData } 
 import { useRole } from '@/hooks/useRole';
 import { triggerRaportPdfDownload, sanitizePdfFilename } from '@/lib/raport/pdf-renderer';
 import { triggerRaportDocxDownload, sanitizeDocxFilename } from '@/lib/raport/docx-renderer';
-import { RAPORT_BROWSER_PRINT_STYLE } from '@/lib/raport/print-config';
+import { getRaportBrowserPrintStyle } from '@/lib/raport/print-config';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -37,6 +37,7 @@ interface RaportRow {
   tahsin_adab?: string | null;
   tahsin_catatan?: string | null;
   html_custom?: string | null;
+  pdf_path?: string | null;
   created_at?: string;
   santri?: {
     id: string;
@@ -85,11 +86,11 @@ export default function RaportPage() {
   const handlePrint = useReactToPrint({
     contentRef: printRef,
     documentTitle: `Raport_${selected?.santri?.nama ?? 'Siswa'}_${selected?.periode ?? ''}`,
-    pageStyle: RAPORT_BROWSER_PRINT_STYLE,
+    pageStyle: getRaportBrowserPrintStyle(selected?.juz),
   });
 
   // ── Download PDF ──────────────────────────────────────────────────────────
-  const handleDownloadPdf = async () => {
+  const handleDownloadPdf = () => {
     if (!selected || downloadingLockRef.current || downloadingFormat) return;
 
     const filename = sanitizePdfFilename(
@@ -100,14 +101,28 @@ export default function RaportPage() {
     setDownloadingFormat('pdf');
 
     try {
-      await triggerRaportPdfDownload(selected.id, filename);
+      // Server-side smart download: jika pdf_path ada → signed URL instan;
+      // jika belum → Playwright render + upload ke Supabase Storage
+      triggerRaportPdfDownload(selected.id, filename);
     } catch (error) {
       console.error('Error downloading PDF:', error);
       alert(`Gagal mengunduh PDF: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    } finally {
       downloadingLockRef.current = false;
       setDownloadingFormat(null);
+      return;
     }
+
+    // Jika sudah tersimpan di storage: download instan (~3 detik)
+    // Jika pertama kali: Playwright render + upload (~18 detik)
+    const estimatedMs = selected.pdf_path ? 4000 : 18000;
+    window.setTimeout(() => {
+      downloadingLockRef.current = false;
+      setDownloadingFormat(null);
+      // Refresh agar badge "⚡ Cached" muncul setelah generate pertama kali
+      if (!selected.pdf_path) {
+        handleSelect(selected);
+      }
+    }, estimatedMs);
   };
 
   // ── Download Word ─────────────────────────────────────────────────────────
@@ -548,8 +563,23 @@ export default function RaportPage() {
                   <Button variant="primary" leftIcon={<Printer size={14} />} onClick={() => handlePrint()}>
                     Cetak
                   </Button>
-                  <Button variant="secondary" leftIcon={<FileDown size={14} />} onClick={handleDownloadPdf} loading={downloadingFormat === 'pdf'}>
+                  <Button
+                    variant="secondary"
+                    leftIcon={<FileDown size={14} />}
+                    onClick={handleDownloadPdf}
+                    loading={downloadingFormat === 'pdf'}
+                    title={selected.pdf_path ? 'PDF tersimpan di cloud — unduh instan' : 'Akan di-render terlebih dahulu'}
+                  >
                     Download PDF
+                    {selected.pdf_path ? (
+                      <span className="ml-1.5 inline-flex items-center rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700">
+                        ⚡ Cached
+                      </span>
+                    ) : (
+                      <span className="ml-1.5 inline-flex items-center rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">
+                        ⏳ Baru
+                      </span>
+                    )}
                   </Button>
                   <Button variant="secondary" leftIcon={<FileText size={14} />} onClick={handleDownloadWord} loading={downloadingFormat === 'docx'}>
                     Download Word

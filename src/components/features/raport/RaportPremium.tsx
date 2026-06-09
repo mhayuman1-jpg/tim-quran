@@ -9,6 +9,7 @@
 
 import React from 'react';
 import Image from 'next/image';
+import { toImageUrl } from '@/lib/storage/urls';
 
 // ─── Data Interface ──────────────────────────────────────────────────────────
 
@@ -293,7 +294,7 @@ const RaportPremium = React.forwardRef<HTMLDivElement, { data: RaportPremiumData
           }}>
             {profil.logo_sekolah_url ? (
               <Image
-                src={profil.logo_sekolah_url}
+                src={toImageUrl(profil.logo_sekolah_url) || ''}
                 alt="Logo Sekolah"
                 width={56}
                 height={56}
@@ -358,7 +359,7 @@ const RaportPremium = React.forwardRef<HTMLDivElement, { data: RaportPremiumData
           }}>
             {profil.logo_url ? (
               <Image
-                src={profil.logo_url}
+                src={toImageUrl(profil.logo_url) || ''}
                 alt="Logo Tim"
                 width={56}
                 height={56}
@@ -405,7 +406,7 @@ const RaportPremium = React.forwardRef<HTMLDivElement, { data: RaportPremiumData
           }}>
             {santri.photo_url ? (
               <Image
-                src={santri.photo_url}
+                src={toImageUrl(santri.photo_url) || ''}
                 alt={santri.nama}
                 width={76}
                 height={76}

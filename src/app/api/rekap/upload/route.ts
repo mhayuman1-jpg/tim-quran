@@ -1,12 +1,13 @@
 export const dynamic = 'force-dynamic';
 // src/app/api/rekap/upload/route.ts
-// POST: Terima file Excel/PDF, upload ke Supabase Storage bucket `rekap`,
+// POST: Terima file Excel/PDF, upload ke Tigris Storage bucket `rekap`,
 //       simpan metadata ke tabel `rekap_bulanan`
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
+import { storageUpload, storageDelete } from '@/lib/storage/tigris';
 
 export async function POST(request: NextRequest) {
   try {
@@ -83,8 +84,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const supabase = createServerClient();
-
     // Buat nama file unik di storage: {periode}/{timestamp}_{original_filename}
     const timestamp = Date.now();
     const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
@@ -94,42 +93,10 @@ export async function POST(request: NextRequest) {
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    // Upload ke Supabase Storage bucket `rekap`
-    const attemptUpload = async () => {
-      return await supabase.storage
-        .from('rekap')
-        .upload(storagePath, buffer, {
-          contentType: file.type || 'application/octet-stream',
-          upsert: false,
-        });
-    };
+    // Upload ke Tigris Storage bucket `rekap`
+    await storageUpload('timquran-rekap', storagePath, buffer, file.type || 'application/octet-stream');
 
-    let uploadResult = await attemptUpload();
-
-    // Jika gagal karena bucket tidak ada/akses, coba buat bucket (private) lalu ulangi sekali
-    if (uploadResult.error) {
-      console.warn('Initial upload error, attempting to create bucket:', uploadResult.error.message);
-      try {
-        const { data: createData, error: createError } = await supabase.storage.createBucket('rekap', { public: false });
-        if (createError) {
-          console.error('Failed to create bucket `rekap`:', createError);
-        } else {
-          console.log('Bucket `rekap` created:', createData);
-          // retry upload
-          uploadResult = await attemptUpload();
-        }
-      } catch (e) {
-        console.error('Exception while creating bucket `rekap`:', e);
-      }
-    }
-
-    if (uploadResult.error) {
-      console.error('Supabase storage upload error after retry:', uploadResult.error);
-      return NextResponse.json(
-        { message: 'Gagal mengunggah file ke storage.', error: uploadResult.error.message },
-        { status: 500 }
-      );
-    }
+    const supabase = createServerClient();
 
     // Simpan metadata ke tabel `rekap_bulanan`
     const { data: rekapData, error: dbError } = await supabase
@@ -149,7 +116,7 @@ export async function POST(request: NextRequest) {
     if (dbError) {
       console.error('Supabase insert rekap_bulanan error:', dbError);
       // Hapus file dari storage jika insert DB gagal (rollback manual)
-      await supabase.storage.from('rekap').remove([storagePath]);
+      await storageDelete('timquran-rekap', storagePath);
       return NextResponse.json(
         { message: 'Gagal menyimpan metadata rekap.', error: dbError.message },
         { status: 500 }

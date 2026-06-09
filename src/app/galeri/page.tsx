@@ -3,6 +3,7 @@
 import Image from 'next/image';
 import { Camera } from 'lucide-react';
 import { createServerClient } from '@/lib/supabase/server';
+import { toImageUrl } from '@/lib/storage/urls';
 
 export const dynamic = 'force-dynamic';
 
@@ -67,7 +68,7 @@ export default async function GaleriPage() {
               <div key={item.id} className="group overflow-hidden rounded-3xl bg-slate-900 shadow-lg border border-slate-800 hover:shadow-slate-950 transition-all">
                 <div className="relative aspect-[4/3] bg-slate-800">
                   <Image
-                    src={item.foto_url}
+                    src={toImageUrl(item.foto_url) || ''}
                     alt={item.judul}
                     fill
                     className="object-cover transition-transform duration-300 group-hover:scale-105"

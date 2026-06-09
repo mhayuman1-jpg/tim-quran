@@ -1,6 +1,7 @@
 import React from 'react';
 import type { RaportTahfidzData, DetailSurahData, ProfilRaportData } from './raport-tahfidz-types';
 import { isJuz30Raport } from '@/lib/raport/print-config';
+import { toImageUrl } from '@/lib/storage/urls';
 
 export type { RaportTahfidzData, DetailSurahData, ProfilRaportData } from './raport-tahfidz-types';
 
@@ -8,7 +9,7 @@ export type { RaportTahfidzData, DetailSurahData, ProfilRaportData } from './rap
 
 const cell = (extra: React.CSSProperties = {}): React.CSSProperties => ({
   border: '1px solid #000',
-  padding: '4px 6px',
+  padding: '2px 4px',
   verticalAlign: 'middle',
   ...extra,
 });
@@ -17,10 +18,11 @@ const headerCell = (extra: React.CSSProperties = {}): React.CSSProperties => ({
   ...cell({
     background: '#f5f5f5',
     fontWeight: 700,
-    fontSize: '9.5px',
+    fontSize: '8px',
     textTransform: 'uppercase',
     letterSpacing: '0.03em',
     textAlign: 'center',
+    padding: '1px 4px',
   }),
   ...extra,
 });
@@ -254,7 +256,7 @@ const RaportTahfidzDocument = React.forwardRef<HTMLDivElement, RaportTahfidzDocu
               {profil.logo_sekolah_url ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  src={profil.logo_sekolah_url}
+                  src={toImageUrl(profil.logo_sekolah_url) || ''}
                   alt="Logo"
                   width={90}
                   height={90}
@@ -349,7 +351,7 @@ const RaportTahfidzDocument = React.forwardRef<HTMLDivElement, RaportTahfidzDocu
               {profil.logo_url ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  src={profil.logo_url}
+                  src={toImageUrl(profil.logo_url) || ''}
                   alt="Logo Tim"
                   width={85}
                   height={85}
@@ -596,7 +598,7 @@ const RaportTahfidzDocument = React.forwardRef<HTMLDivElement, RaportTahfidzDocu
     );
 
     const tailSection = (
-      <>
+      <div style={multiPage ? { pageBreakBefore: 'always', breakBefore: 'page' } : undefined}>
         {/* ══ PENILAIAN TAHSIN ═══════════════════════════════════════════════ */}
         <div style={{ fontSize: '10px', marginBottom: '12px' }}>
           <div style={{ fontWeight: 700, marginBottom: '4px', fontSize: '10px' }}>Penilaian Tahsin</div>
@@ -796,7 +798,7 @@ const RaportTahfidzDocument = React.forwardRef<HTMLDivElement, RaportTahfidzDocu
           )}
         </div>
 
-      </>
+      </div>
     );
 
     return (

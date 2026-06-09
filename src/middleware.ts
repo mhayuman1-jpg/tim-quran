@@ -2,7 +2,8 @@
 // Auth + RBAC middleware
 // - Semua protected routes memerlukan JWT yang valid (redirect ke /login jika tidak ada)
 // - KABID_ONLY_ROUTES hanya bisa diakses oleh role 'Kabid'
-//   Tim_Quran yang mencoba akses akan di-redirect ke /dashboard?error=forbidden
+// - /raport/print/:path* DIKECUALIKAN dari middleware — auth ditangani di page.tsx
+//   menggunakan Node.js crypto (tidak tersedia di Edge Runtime).
 
 import { withAuth, NextRequestWithAuth } from 'next-auth/middleware';
 import { NextResponse } from 'next/server';
@@ -38,7 +39,10 @@ export default withAuth(
   }
 );
 
-// Matcher mencakup semua protected routes
+// Matcher mencakup semua protected routes.
+// /raport/print/* DIKECUALIKAN via regex negative lookahead agar Playwright
+// bisa mengakses halaman cetak dengan signed print-token tanpa session cookie.
+// Auth untuk /raport/print dikerjakan di page.tsx (Node.js runtime, bukan Edge).
 export const config = {
   matcher: [
     '/dashboard/:path*',
@@ -46,8 +50,8 @@ export const config = {
     '/hafalan/:path*',
     '/tahsin/:path*',
     '/absensi/:path*',
-    '/raport/:path*',
-    '/raport/print/:path*',
+    // Cocokkan /raport/* KECUALI /raport/print/* (untuk Playwright)
+    '/raport/((?!print/).*)',
     '/scan/:path*',
     '/rekap/:path*',
     '/dashboard/pengumuman/:path*',

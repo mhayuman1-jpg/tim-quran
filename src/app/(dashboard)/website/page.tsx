@@ -10,6 +10,7 @@ import Badge from '@/components/ui/Badge';
 import ConfirmDialog from '@/components/shared/ConfirmDialog';
 import ImageUpload from '@/components/shared/ImageUpload';
 import { useToast } from '@/lib/toast';
+import { toImageUrl } from '@/lib/storage/urls';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 interface Profil {
@@ -204,7 +205,7 @@ function ProfilTab({ toast }: { toast: ReturnType<typeof useToast>['toast'] }) {
           <div className="flex items-center gap-3">
             {profil.logo_url ? (
               <div className="relative w-10 h-10 rounded-xl overflow-hidden border border-emerald-400/30 shrink-0">
-                <Image src={profil.logo_url} alt="Logo Tim" fill className="object-cover" sizes="40px" />
+                <Image src={toImageUrl(profil.logo_url) || ''} alt="Logo Tim" fill className="object-cover" sizes="40px" />
               </div>
             ) : (
               <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center shrink-0">
@@ -218,7 +219,7 @@ function ProfilTab({ toast }: { toast: ReturnType<typeof useToast>['toast'] }) {
               <p className="text-xs font-semibold text-emerald-400 uppercase tracking-wide mt-5 mb-3">Preview ID Card (Header)</p>
               <div className="flex items-center gap-3 bg-emerald-800/40 rounded-lg px-4 py-3">
                 <div className="relative w-8 h-8 rounded-md overflow-hidden bg-white/90 p-0.5 shrink-0">
-                  <Image src={profil.logo_sekolah_url} alt="Logo Sekolah" fill className="object-contain" sizes="32px" />
+                  <Image src={toImageUrl(profil.logo_sekolah_url) || ''} alt="Logo Sekolah" fill className="object-contain" sizes="32px" />
                 </div>
                 <div className="flex-1 text-center">
                   <p className="text-white text-[10px] font-bold uppercase tracking-wide">{profil.nama_sekolah || 'Nama Sekolah'}</p>
@@ -226,7 +227,7 @@ function ProfilTab({ toast }: { toast: ReturnType<typeof useToast>['toast'] }) {
                 </div>
                 <div className="relative w-8 h-8 rounded-md overflow-hidden bg-white/90 p-0.5 shrink-0">
                   {profil.logo_url
-                    ? <Image src={profil.logo_url} alt="Logo Tim" fill className="object-contain" sizes="32px" />
+                    ? <Image src={toImageUrl(profil.logo_url) || ''} alt="Logo Tim" fill className="object-contain" sizes="32px" />
                     : <div className="w-full h-full flex items-center justify-center"><BookOpen size={14} className="text-emerald-600" /></div>
                   }
                 </div>
@@ -245,7 +246,7 @@ function ProfilTab({ toast }: { toast: ReturnType<typeof useToast>['toast'] }) {
               label="Logo Tim Qur'an"
               value={profil.logo_url || null}
               onUpload={(url) => handleLogoUpload('logo_url', url)}
-              bucket="assets" folder="logo" shape="square"
+              bucket="timquran-assets" folder="logo" shape="square"
               helperText={logoSaving === 'logo_url' ? '⏳ Menyimpan...' : 'Tersimpan otomatis setelah upload'}
             />
           </div>
@@ -255,7 +256,7 @@ function ProfilTab({ toast }: { toast: ReturnType<typeof useToast>['toast'] }) {
               label="Logo Sekolah / Yayasan"
               value={profil.logo_sekolah_url || null}
               onUpload={(url) => handleLogoUpload('logo_sekolah_url', url)}
-              bucket="assets" folder="logo" shape="square"
+              bucket="timquran-assets" folder="logo" shape="square"
               helperText={logoSaving === 'logo_sekolah_url' ? '⏳ Menyimpan...' : 'Tersimpan otomatis setelah upload'}
             />
             <Input
@@ -623,7 +624,7 @@ function GaleriTab({ toast }: { toast: ReturnType<typeof useToast>['toast'] }) {
           {items.map(item => (
             <div key={item.id} className="group relative rounded-xl overflow-hidden border border-slate-200 bg-white shadow-sm">
               <div className="aspect-square relative">
-                <Image src={item.foto_url} alt={item.judul} fill className="object-cover" sizes="(max-width:640px) 50vw, 33vw" />
+                <Image src={toImageUrl(item.foto_url) || ''} alt={item.judul} fill className="object-cover" sizes="(max-width:640px) 50vw, 33vw" />
                 {!item.is_published && (
                   <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
                     <span className="text-white text-xs font-medium bg-black/60 px-2 py-1 rounded">Draft</span>
@@ -649,7 +650,7 @@ function GaleriTab({ toast }: { toast: ReturnType<typeof useToast>['toast'] }) {
             label="Foto Kegiatan"
             value={form.foto_url || null}
             onUpload={(url) => setForm(f => ({ ...f, foto_url: url }))}
-            bucket="assets" folder="galeri" shape="wide"
+            bucket="timquran-assets" folder="galeri" shape="wide"
           />
           <Input label="Judul" value={form.judul} onChange={e => setForm(f => ({ ...f, judul: e.target.value }))} required />
           <div className="space-y-1.5">

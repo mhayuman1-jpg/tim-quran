@@ -6,6 +6,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { BookOpen, User } from 'lucide-react';
 import { createServerClient } from '@/lib/supabase/server';
+import { toImageUrl } from '@/lib/storage/urls';
 
 export const dynamic = 'force-dynamic';
 
@@ -112,7 +113,7 @@ export default async function ArtikelPublikPage() {
                   <div className="relative h-48 bg-slate-800 overflow-hidden">
                     {artikel.cover_url ? (
                       <Image
-                        src={artikel.cover_url}
+                        src={toImageUrl(artikel.cover_url) || ''}
                         alt={artikel.judul}
                         fill
                         className="object-cover transition-transform duration-500 group-hover:scale-110"

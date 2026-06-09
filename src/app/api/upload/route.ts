@@ -1,14 +1,14 @@
 ﻿// src/app/api/upload/route.ts
-// POST: Upload gambar ke Supabase Storage
+// POST: Upload gambar ke Tigris Storage
 // Query params:
-//   - bucket: nama bucket (default: "assets")
+//   - bucket: nama bucket (default: "timquran-assets")
 //   - folder: subfolder dalam bucket (misal: "logo", "siswa", "artikel")
-// Returns: { url: string } â€” public URL gambar
+// Returns: { url: string } — proxy URL gambar (permanent, via /api/images)
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
-import { createServerClient } from '@/lib/supabase/server';
+import { storageUpload } from '@/lib/storage/tigris';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const { searchParams } = new URL(request.url);
-    const bucket = (searchParams.get('bucket') || 'assets').trim();
+    const bucket = (searchParams.get('bucket') || 'timquran-assets').trim();
     const rawFolder = searchParams.get('folder') || 'uploads';
     const folder = rawFolder.trim().replace(/^\/+|\/+$/g, '').replace(/\s+/g, '-');
 
@@ -50,56 +50,23 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    const supabase = createServerClient();
-
     // Generate nama file unik: folder/timestamp-random.ext
     const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
     const fileName = folder
       ? `${folder}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`
       : `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
 
-    // Convert ke ArrayBuffer
+    // Convert ke Buffer
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    // Upload ke Supabase Storage
-    const { error: uploadError } = await supabase.storage
-      .from(bucket)
-      .upload(fileName, buffer, {
-        contentType: file.type,
-        upsert: false,
-      });
+    // Upload ke Tigris Storage
+    await storageUpload(bucket, fileName, buffer, file.type);
 
-    if (uploadError) {
-      console.error('Storage upload error:', uploadError);
-      // Jika bucket tidak ada, beri pesan yang jelas
-      if (uploadError.message?.includes('not found') || uploadError.message?.includes('does not exist')) {
-        return NextResponse.json({
-          message: `Bucket "${bucket}" tidak ditemukan. Buat bucket terlebih dahulu di Supabase Dashboard â†’ Storage.`,
-        }, { status: 500 });
-      }
-      return NextResponse.json({ message: 'Gagal mengunggah file.', detail: uploadError.message }, { status: 500 });
-    }
+    // Return proxy URL (permanent) — presigned URL di-generate on-demand saat diakses
+    const proxyUrl = `/api/images/${bucket}/${fileName}`;
 
-    // Dapatkan public URL
-    const { data: { publicUrl } } = supabase.storage
-      .from(bucket)
-      .getPublicUrl(fileName);
-
-    if (!publicUrl) {
-      console.error('Upload API error: public URL not available for', fileName);
-      return NextResponse.json({ message: 'Gagal membuat URL publik untuk file.' }, { status: 500 });
-    }
-
-    const headResponse = await fetch(publicUrl, { method: 'HEAD' });
-    if (!headResponse.ok) {
-      console.error('Upload API error: public URL not reachable', publicUrl, headResponse.status);
-      return NextResponse.json({
-        message: 'File berhasil diunggah, tetapi URL publik tidak dapat diakses. Periksa izin bucket atau path.',
-      }, { status: 500 });
-    }
-
-    return NextResponse.json({ url: publicUrl, fileName }, { status: 201 });
+    return NextResponse.json({ url: proxyUrl, fileName }, { status: 201 });
 
   } catch (error) {
     console.error('Upload API error:', error);

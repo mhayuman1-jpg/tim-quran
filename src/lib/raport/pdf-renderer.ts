@@ -1,7 +1,6 @@
-// Client helper — unduh PDF via HTML-to-Image + jsPDF di sisi client (100% kompatibel dengan serverless)
-
-import { toPng } from 'html-to-image';
-import jsPDF from 'jspdf';
+// Client helper — unduh PDF via navigasi GET (server-side Playwright)
+//
+// Alur: klik link → GET /api/raport/render-pdf → Playwright → satu file PDF
 
 export function sanitizePdfFilename(name: string): string {
   return name
@@ -12,41 +11,19 @@ export function sanitizePdfFilename(name: string): string {
 }
 
 /**
- * Picu unduhan PDF dengan mengonversi elemen HTML menjadi gambar PNG resolusi tinggi
- * dan memasukkannya ke dalam dokumen PDF A4 di sisi client.
+ * Picu unduhan PDF via server-side Playwright — satu request GET.
  */
-export async function triggerRaportPdfDownload(raportId: string, filename: string): Promise<void> {
+export function triggerRaportPdfDownload(raportId: string, filename: string): void {
   const safeName = sanitizePdfFilename(filename.endsWith('.pdf') ? filename : `${filename}.pdf`);
+  const params = new URLSearchParams({ raportId, filename: safeName });
+  const url = `/api/raport/render-pdf?${params.toString()}`;
 
-  // Cari element preview di DOM
-  const element = document.querySelector('.raport-preview-sheet') as HTMLDivElement | null;
-  if (!element) {
-    throw new Error('Element preview raport tidak ditemukan di halaman.');
-  }
-
-  // Opsi render gambar beresolusi tinggi (pixelRatio: 2) agar teks tajam saat dicetak/di-zoom
-  const dataUrl = await toPng(element, {
-    quality: 0.95,
-    pixelRatio: 2,
-    backgroundColor: '#ffffff',
-  });
-
-  const pdf = new jsPDF({
-    orientation: 'portrait',
-    unit: 'mm',
-    format: 'a4',
-  });
-
-  const pdfWidth = pdf.internal.pageSize.getWidth();
-  const pdfHeight = pdf.internal.pageSize.getHeight();
-
-  // Hitung aspek rasio agar pas di satu halaman A4
-  const imgWidth = pdfWidth;
-  const imgHeight = (element.offsetHeight * pdfWidth) / element.offsetWidth;
-
-  // Jika tinggi gambar melebihi tinggi halaman A4, batasi atau jadikan multi-page.
-  const finalHeight = imgHeight > pdfHeight ? pdfHeight : imgHeight;
-
-  pdf.addImage(dataUrl, 'PNG', 0, 0, imgWidth, finalHeight);
-  pdf.save(safeName);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = safeName;
+  link.rel = 'noopener';
+  link.style.display = 'none';
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
 }

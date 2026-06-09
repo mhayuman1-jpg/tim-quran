@@ -1,6 +1,11 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  serverExternalPackages: ['playwright'],
+  experimental: {
+    serverComponentsExternalPackages: ['playwright-core', '@sparticuz/chromium'],
+    outputFileTracingIncludes: {
+      '/api/raport/render-pdf': ['./node_modules/@sparticuz/chromium/bin/**/*'],
+    },
+  },
   eslint: {
     ignoreDuringBuilds: true,
   },

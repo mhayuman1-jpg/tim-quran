@@ -4,7 +4,7 @@ const HEADER_SELECT = `
   id, student_id, teacher_id, periode, tahun_ajaran, juz, catatan,
   nama_guru_kelas, niy_guru_kelas, nama_kabid, niy_kabid, nama_kepala_sekolah, niy_kepala_sekolah,
   tahsin_metode, tahsin_buku, tahsin_halaman, tahsin_makhroj, tahsin_kelancaran, tahsin_adab, tahsin_catatan,
-  html_custom,
+  html_custom, pdf_path,
   created_at, updated_at,
   santri ( id, nama, nisn, classes ( id, name ) ),
   users ( id, name )
@@ -39,6 +39,7 @@ export interface RaportExportData {
   tahsin_adab?: string | null;
   tahsin_catatan?: string | null;
   html_custom?: string | null;
+  pdf_path?: string | null;
   lokasi?: string | null;
   tanggal?: string | null;
   created_at?: string;

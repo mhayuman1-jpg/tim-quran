@@ -1,32 +1,56 @@
 // Konfigurasi bersama untuk cetak browser & PDF Playwright
-// PDF Playwright memakai format A4 (210×297mm) + margin 5mm → area cetak ≈ 287mm tinggi
+// PDF Playwright memakai format F4 (210×330mm)
+
+// ─── Margin per Juz ──────────────────────────────────────────────────────────
+// Juz 30: bottom 1.29" (32.8mm) — banyak surah, perlu spasi lebih
+// Juz 1-29: bottom 0.46" (11.7mm) — lebih sedikit surah
+
+export const MARGIN_JUZ_30 = {
+  top: '5.6mm', right: '9.9mm', bottom: '34.5mm', left: '9.1mm',
+} as const;
+
+export const MARGIN_JUZ_1_TO_29 = {
+  top: '5.6mm', right: '9.9mm', bottom: '11.7mm', left: '9.1mm',
+} as const;
 
 export const RAPORT_PAGE_SIZE = {
   width: '210mm',
-  height: '297mm',
-  margin: '5mm',
+  height: '330mm',
 } as const;
 
-/** Tinggi area cetak satu halaman A4 setelah margin 5mm atas+bawah */
-export const RAPORT_PRINTABLE_HEIGHT = '287mm';
+/** Get margin berdasarkan juz */
+export function getRaportMargin(juz?: number | null): { top: string; right: string; bottom: string; left: string } {
+  return isJuz30Raport(juz) ? MARGIN_JUZ_30 : MARGIN_JUZ_1_TO_29;
+}
 
-export const RAPORT_PDF_OPTIONS = {
-  format: 'A4' as const,
-  margin: {
-    top: '5mm',
-    right: '5mm',
-    bottom: '5mm',
-    left: '5mm',
-  },
-  printBackground: true,
-  scale: 1,
-};
+/** Get CSS margin string berdasarkan juz */
+export function getRaportMarginCSS(juz?: number | null): string {
+  const m = getRaportMargin(juz);
+  return `${m.top} ${m.right} ${m.bottom} ${m.left}`;
+}
+
+/** Tinggi area cetak satu halaman F4 setelah margin */
+export const RAPORT_PRINTABLE_HEIGHT = '312.7mm';
+
+export function getRaportPdfOptions(juz?: number | null) {
+  const margin = getRaportMargin(juz);
+  return {
+    format: 'A4' as const,
+    width: '210mm',
+    height: '330mm',
+    margin,
+    printBackground: true,
+    scale: 1,
+  };
+}
 
 /** CSS tambahan untuk react-to-print (browser) */
-export const RAPORT_BROWSER_PRINT_STYLE = `
+export function getRaportBrowserPrintStyle(juz?: number | null): string {
+  const marginCSS = getRaportMarginCSS(juz);
+  return `
   @page {
     size: ${RAPORT_PAGE_SIZE.width} ${RAPORT_PAGE_SIZE.height};
-    margin: ${RAPORT_PAGE_SIZE.margin};
+    margin: ${marginCSS};
   }
   @media print {
     html, body {
@@ -79,10 +103,15 @@ export const RAPORT_BROWSER_PRINT_STYLE = `
       display: table-row-group !important;
     }
   }
-`;
+  `;
+}
 
-export function getRaportPrintUrl(baseUrl: string, raportId: string): string {
-  return `${baseUrl}/raport/print/${encodeURIComponent(raportId)}`;
+/** @deprecated Use getRaportBrowserPrintStyle(juz) instead */
+export const RAPORT_BROWSER_PRINT_STYLE = getRaportBrowserPrintStyle();
+
+export function getRaportPrintUrl(baseUrl: string, raportId: string, printToken?: string): string {
+  const base = `${baseUrl}/raport/print/${encodeURIComponent(raportId)}`;
+  return printToken ? `${base}?_pt=${encodeURIComponent(printToken)}` : base;
 }
 
 export function raportReadySelector(raportId: string): string {

@@ -15,6 +15,8 @@
 
 import React from 'react';
 import Image from 'next/image';
+import { toImageUrl } from '@/lib/storage/urls';
+import { getRaportMarginCSS, isJuz30Raport } from '@/lib/raport/print-config';
 
 // ─── Type Definitions ─────────────────────────────────────────────────────────
 
@@ -118,7 +120,7 @@ const RaportTahfidzCard = React.forwardRef<HTMLDivElement, RaportTahfidzCardProp
         <style>{`
           @page {
             size: 210mm 330mm;
-            margin: 10mm;
+            margin: ${getRaportMarginCSS(raport.juz)};
           }
           @media print {
             .no-print {
@@ -307,7 +309,7 @@ const RaportTahfidzCard = React.forwardRef<HTMLDivElement, RaportTahfidzCardProp
         <div className="report-header">
           <div className="report-logo">
             {profil.logo_sekolah_url ? (
-              <Image src={profil.logo_sekolah_url} alt="Logo Sekolah" width={88} height={88} unoptimized />
+              <Image src={toImageUrl(profil.logo_sekolah_url) || ''} alt="Logo Sekolah" width={88} height={88} unoptimized />
             ) : (
               <span style={{ fontSize: '10px', textAlign: 'center' }}>LOGO SEKOLAH</span>
             )}
@@ -326,7 +328,7 @@ const RaportTahfidzCard = React.forwardRef<HTMLDivElement, RaportTahfidzCardProp
 
           <div className="report-logo">
             {profil.logo_url ? (
-              <Image src={profil.logo_url} alt="Logo Tim" width={88} height={88} unoptimized />
+              <Image src={toImageUrl(profil.logo_url) || ''} alt="Logo Tim" width={88} height={88} unoptimized />
             ) : (
               <span style={{ fontSize: '10px', textAlign: 'center' }}>LOGO TIM</span>
             )}
@@ -384,7 +386,8 @@ const RaportTahfidzCard = React.forwardRef<HTMLDivElement, RaportTahfidzCardProp
           </tbody>
         </table>
 
-        <div className="section-title">Penilaian Tahsin</div>
+        <div style={isJuz30Raport(raport.juz) ? { pageBreakBefore: 'always', breakBefore: 'page' } : undefined}>
+          <div className="section-title">Penilaian Tahsin</div>
         <table className="detail-table" style={{ marginBottom: '10px' }}>
           <thead>
             <tr>
@@ -415,6 +418,7 @@ const RaportTahfidzCard = React.forwardRef<HTMLDivElement, RaportTahfidzCardProp
             <strong>Kelancaran</strong>
             <span>{raport.tahsin_kelancaran || '—'}</span>
           </div>
+        </div>
         </div>
 
         <div className="section-title">Catatan Guru</div>

@@ -8,6 +8,7 @@ import Image from 'next/image';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import ConfirmDialog from '@/components/shared/ConfirmDialog';
+import { toImageUrl } from '@/lib/storage/urls';
 import ImageUpload from '@/components/shared/ImageUpload';
 
 // Lazy load RichTextEditor agar tidak memperberat bundle
@@ -182,7 +183,7 @@ function EditorModal({
             <ImageUpload
               value={coverUrl || null}
               onUpload={url => setCoverUrl(url)}
-              bucket="assets"
+              bucket="timquran-assets"
               folder="artikel"
               shape="wide"
               disabled={loading}
@@ -447,7 +448,7 @@ export default function ArtikelPage() {
                       <div className="flex items-center gap-3">
                         {item.cover_url ? (
                           <div className="relative w-12 h-8 rounded overflow-hidden shrink-0 bg-slate-100 border border-slate-200">
-                            <Image src={item.cover_url} alt={item.judul} fill className="object-cover" sizes="48px" />
+                            <Image src={toImageUrl(item.cover_url) || ''} alt={item.judul} fill className="object-cover" sizes="48px" />
                           </div>
                         ) : (
                           <div className="w-12 h-8 rounded bg-slate-100 flex items-center justify-center shrink-0">

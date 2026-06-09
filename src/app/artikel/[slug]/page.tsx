@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import { Calendar, User, ArrowLeft, BookOpen } from 'lucide-react';
 import { createServerClient } from '@/lib/supabase/server';
+import { toImageUrl } from '@/lib/storage/urls';
 
 export const dynamic = 'force-dynamic';
 
@@ -160,7 +161,7 @@ export default async function ArtikelDetailPage({ params }: { params: { slug: st
         {artikel.cover_url && (
           <div className="relative h-72 sm:h-[28rem] overflow-hidden border-t border-slate-800">
             <Image
-              src={artikel.cover_url}
+              src={toImageUrl(artikel.cover_url) || ''}
               alt={artikel.judul}
               fill
               className="object-cover transition-transform duration-700 ease-out hover:scale-105"

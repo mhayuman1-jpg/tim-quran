@@ -1,92 +1,96 @@
 #!/usr/bin/env node
 /**
- * Script: Reset Supabase Storage bucket 'assets'
+ * Script: Reset Tigris Storage bucket 'timquran-assets'
  * 
  * Fungsi:
- * 1. Hapus semua file di bucket 'assets'
+ * 1. Hapus semua file di bucket 'timquran-assets'
  * 2. Upload file default (logo, avatar)
- * 3. Set URL di database profil_website
+ * 3. Set key di database profil_website
  * 
  * Cara pakai:
  * node scripts/reset-storage.js
  * 
  * Requirement:
- * - .env.local harus punya: NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
- * - npm install @supabase/supabase-js dotenv
+ * - .env.local harus punya: TIGRIS_STORAGE_ACCESS_KEY_ID, TIGRIS_STORAGE_SECRET_ACCESS_KEY
+ * - .env.local harus punya: NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY (untuk database)
  */
 
 const fs = require('fs');
 const path = require('path');
 const { createClient } = require('@supabase/supabase-js');
+const { S3Client, ListObjectsV2Command, PutObjectCommand, DeleteObjectsCommand } = require('@aws-sdk/client-s3');
 require('dotenv').config({ path: path.join(__dirname, '../.env.local') });
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const tigrisAccessKey = process.env.TIGRIS_STORAGE_ACCESS_KEY_ID;
+const tigrisSecretKey = process.env.TIGRIS_STORAGE_SECRET_ACCESS_KEY;
+
+if (!tigrisAccessKey || !tigrisSecretKey) {
+  console.error('Error: TIGRIS_STORAGE_ACCESS_KEY_ID atau TIGRIS_STORAGE_SECRET_ACCESS_KEY tidak ada di .env.local');
+  process.exit(1);
+}
 
 if (!supabaseUrl || !supabaseServiceKey) {
-  console.error('❌ Error: NEXT_PUBLIC_SUPABASE_URL atau SUPABASE_SERVICE_ROLE_KEY tidak ada di .env.local');
+  console.error('Error: NEXT_PUBLIC_SUPABASE_URL atau SUPABASE_SERVICE_ROLE_KEY tidak ada di .env.local');
   process.exit(1);
 }
 
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-const BUCKET = 'assets';
+const s3 = new S3Client({
+  region: 'auto',
+  endpoint: 'https://t3.storage.dev',
+  credentials: {
+    accessKeyId: tigrisAccessKey,
+    secretAccessKey: tigrisSecretKey,
+  },
+});
+
+const BUCKET = 'timquran-assets';
 const LOGO_DIR = path.join(__dirname, '../public/default-assets');
 
 /**
- * Step 1: Delete semua file di bucket 'assets'
+ * Step 1: Delete semua file di bucket 'timquran-assets'
  */
 async function cleanBucket() {
-  console.log(`\n🗑️  Step 1: Membersihkan bucket '${BUCKET}'...`);
+  console.log(`\nStep 1: Membersihkan bucket '${BUCKET}'...`);
   
   try {
-    const { data: objects, error: listError } = await supabase.storage
-      .from(BUCKET)
-      .list('', { limit: 1000 });
+    const listCommand = new ListObjectsV2Command({ Bucket: BUCKET });
+    const response = await s3.send(listCommand);
 
-    if (listError) {
-      console.warn('⚠️  Bucket mungkin kosong atau belum ada:', listError.message);
+    if (!response.Contents || response.Contents.length === 0) {
+      console.log('Bucket sudah kosong.');
       return;
     }
 
-    if (!objects || objects.length === 0) {
-      console.log('✓ Bucket sudah kosong.');
-      return;
-    }
+    const keys = response.Contents.filter(obj => obj.Key).map(obj => ({ Key: obj.Key }));
+    console.log(`Found ${keys.length} files. Deleting...`);
 
-    console.log(`Found ${objects.length} files. Deleting...`);
-    
-    const filesToDelete = objects
-      .filter(obj => obj.name) // Skip direktori
-      .map(obj => obj.name);
-
-    if (filesToDelete.length > 0) {
-      const { error: deleteError } = await supabase.storage
-        .from(BUCKET)
-        .remove(filesToDelete);
-
-      if (deleteError) {
-        console.error('❌ Error saat menghapus:', deleteError.message);
-      } else {
-        console.log(`✓ ${filesToDelete.length} file berhasil dihapus.`);
-      }
+    if (keys.length > 0) {
+      const deleteCommand = new DeleteObjectsCommand({
+        Bucket: BUCKET,
+        Delete: { Objects: keys },
+      });
+      await s3.send(deleteCommand);
+      console.log(`${keys.length} file berhasil dihapus.`);
     }
   } catch (err) {
-    console.error('❌ Error:', err.message);
+    console.error('Error:', err.message);
   }
 }
 
 /**
  * Step 2: Upload file default (placeholder logo, avatar)
- * Support multiple image formats: SVG, PNG, JPG, WebP, GIF
  */
 async function uploadDefaults() {
-  console.log(`\n📤 Step 2: Upload file default ke bucket '${BUCKET}'...`);
+  console.log(`\nStep 2: Upload file default ke bucket '${BUCKET}'...`);
 
   // Buat direktori jika belum ada
   if (!fs.existsSync(LOGO_DIR)) {
     fs.mkdirSync(LOGO_DIR, { recursive: true });
-    console.log(`✓ Direktori ${LOGO_DIR} dibuat.`);
+    console.log(`Direktori ${LOGO_DIR} dibuat.`);
   }
 
   // Buat placeholder image (simple SVG)
@@ -104,93 +108,67 @@ async function uploadDefaults() {
   // Simpan placeholder files
   if (!fs.existsSync(logoPath)) {
     fs.writeFileSync(logoPath, placeholderSvg);
-    console.log(`✓ Created ${logoPath}`);
+    console.log(`Created ${logoPath}`);
   }
 
   if (!fs.existsSync(avatarPath)) {
     fs.writeFileSync(avatarPath, placeholderSvg);
-    console.log(`✓ Created ${avatarPath}`);
+    console.log(`Created ${avatarPath}`);
   }
 
-  // Upload ke Supabase
+  // Upload ke Tigris
   try {
     const logoContent = fs.readFileSync(logoPath);
-    const { error: logoError } = await supabase.storage
-      .from(BUCKET)
-      .upload('logo/default.svg', logoContent, {
-        contentType: 'image/svg+xml',
-        upsert: true,
-      });
-
-    if (logoError) {
-      console.error(`❌ Error upload logo:`, logoError.message);
-    } else {
-      console.log(`✓ logo/default.svg berhasil diupload.`);
-    }
+    const logoCommand = new PutObjectCommand({
+      Bucket: BUCKET,
+      Key: 'logo/default.svg',
+      Body: logoContent,
+      ContentType: 'image/svg+xml',
+    });
+    await s3.send(logoCommand);
+    console.log('logo/default.svg berhasil diupload.');
 
     const avatarContent = fs.readFileSync(avatarPath);
-    const { error: avatarError } = await supabase.storage
-      .from(BUCKET)
-      .upload('avatar/default.svg', avatarContent, {
-        contentType: 'image/svg+xml',
-        upsert: true,
-      });
-
-    if (avatarError) {
-      console.error(`❌ Error upload avatar:`, avatarError.message);
-    } else {
-      console.log(`✓ avatar/default.svg berhasil diupload.`);
-    }
+    const avatarCommand = new PutObjectCommand({
+      Bucket: BUCKET,
+      Key: 'avatar/default.svg',
+      Body: avatarContent,
+      ContentType: 'image/svg+xml',
+    });
+    await s3.send(avatarCommand);
+    console.log('avatar/default.svg berhasil diupload.');
   } catch (err) {
-    console.error('❌ Error:', err.message);
+    console.error('Error upload:', err.message);
   }
 }
 
 /**
- * Utility: Get content type based on file extension
- */
-function getContentType(filename) {
-  const ext = path.extname(filename).toLowerCase();
-  const mimeTypes = {
-    '.jpg': 'image/jpeg',
-    '.jpeg': 'image/jpeg',
-    '.png': 'image/png',
-    '.gif': 'image/gif',
-    '.webp': 'image/webp',
-    '.svg': 'image/svg+xml',
-    '.bmp': 'image/bmp',
-    '.tiff': 'image/tiff',
-  };
-  return mimeTypes[ext] || 'image/jpeg';
-}
-
-/**
- * Step 3: Update database dengan URL baru
+ * Step 3: Update database dengan Tigris key baru
  */
 async function updateDatabase() {
-  console.log(`\n📝 Step 3: Update database dengan URL baru...`);
+  console.log(`\nStep 3: Update database dengan Tigris key baru...`);
 
-  const baseUrl = `${supabaseUrl}/storage/v1/object/public/${BUCKET}`;
-  const logoUrl = `${baseUrl}/logo/default.svg`;
+  // Simpan Tigris key (bukan URL) — presigned URL akan di-generate saat diperlukan
+  const logoKey = 'logo/default.svg';
 
   try {
     const { error } = await supabase
       .from('profil_website')
       .update({
-        logo_url: logoUrl,
-        logo_sekolah_url: logoUrl,
+        logo_url: logoKey,
+        logo_sekolah_url: logoKey,
         updated_at: new Date().toISOString(),
       })
-      .neq('id', '00000000-0000-0000-0000-000000000000'); // Update semua rows
+      .neq('id', '00000000-0000-0000-0000-000000000000');
 
     if (error) {
-      console.error(`❌ Error update database:`, error.message);
+      console.error('Error update database:', error.message);
     } else {
-      console.log(`✓ Database profil_website berhasil diupdate.`);
-      console.log(`  Logo URL: ${logoUrl}`);
+      console.log('Database profil_website berhasil diupdate.');
+      console.log(`  Logo key: ${logoKey}`);
     }
   } catch (err) {
-    console.error('❌ Error:', err.message);
+    console.error('Error:', err.message);
   }
 }
 
@@ -199,23 +177,22 @@ async function updateDatabase() {
  */
 async function main() {
   console.log('\n=====================================');
-  console.log('🔧 Reset Supabase Storage - Assets');
+  console.log('Reset Tigris Storage - Assets');
   console.log('=====================================');
-  console.log(`Supabase URL: ${supabaseUrl}`);
   console.log(`Bucket: ${BUCKET}`);
 
   await cleanBucket();
   await uploadDefaults();
   await updateDatabase();
 
-  console.log('\n✅ Selesai! Storage sudah di-reset dan dikonfigurasi ulang.\n');
-  console.log('📌 Langkah selanjutnya:');
+  console.log('\nSelesai! Storage sudah di-reset dan dikonfigurasi ulang.\n');
+  console.log('Langkah selanjutnya:');
   console.log('   1. Buka http://localhost:3000/dashboard/website');
   console.log('   2. Upload logo Tim Qur\'an dan Logo Sekolah via UI');
   console.log('   3. Verifikasi preview logo tampil di navbar');
 }
 
 main().catch(err => {
-  console.error('❌ Fatal error:', err);
+  console.error('Fatal error:', err);
   process.exit(1);
 });

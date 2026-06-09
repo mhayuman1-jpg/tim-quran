@@ -6,6 +6,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import Image from 'next/image';
 import { cacheBust } from '@/lib/image';
+import { toImageUrl } from '@/lib/storage/urls';
 import { Plus, UserX, UserCheck, KeyRound, Camera, Shield, Trash2 } from 'lucide-react';
 
 import Button from '@/components/ui/Button';
@@ -60,7 +61,7 @@ function MemberAvatar({ member, size = 40 }: { member: TimMember; size?: number 
       className="rounded-full overflow-hidden ring-2 ring-slate-200 bg-indigo-100 flex items-center justify-center shrink-0"
     >
       {member.photo_url ? (
-        <Image src={cacheBust(member.photo_url) || member.photo_url} alt={member.name} width={size} height={size} className="object-cover w-full h-full" />
+        <Image src={cacheBust(toImageUrl(member.photo_url)) || member.photo_url || ''} alt={member.name} width={size} height={size} className="object-cover w-full h-full" />
       ) : (
         <span className="text-indigo-700 font-semibold text-xs">{getInitials(member.name)}</span>
       )}
@@ -561,7 +562,7 @@ export default function TimPage() {
             <ImageUpload
               value={photoTarget?.photo_url}
               onUpload={handlePhotoUploaded}
-              bucket="assets"
+              bucket="timquran-assets"
               folder={`profile/tim/${photoTarget?.id}`}
               shape="circle"
               helperText="JPG, PNG, WebP · maks 5MB"

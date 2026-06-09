@@ -160,7 +160,7 @@ export default function SiswaForm({
             label="Foto Siswa"
             value={form.photo_url || null}
             onUpload={(url) => set('photo_url', url)}
-            bucket="assets"
+            bucket="timquran-assets"
             folder="siswa"
             shape="circle"
             helperText="Opsional"

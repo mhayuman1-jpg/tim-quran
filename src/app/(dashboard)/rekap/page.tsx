@@ -12,6 +12,7 @@ import { Upload, Download, FileSpreadsheet, FileText, X, Calendar } from 'lucide
 
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
+import { toImageUrl } from '@/lib/storage/urls';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -328,7 +329,7 @@ export default function RekapPage() {
           <div className="flex flex-col gap-4 border-b border-slate-200 bg-slate-50 p-5 sm:flex-row sm:items-center sm:justify-between">
             <div className="grid h-20 w-20 place-items-center rounded-3xl border border-slate-200 bg-white">
               {profilData?.logo_sekolah_url ? (
-                <Image src={profilData.logo_sekolah_url} alt={profilData.nama_sekolah ?? 'Logo Sekolah'} width={72} height={72} className="object-contain" />
+                <Image src={toImageUrl(profilData.logo_sekolah_url) || ''} alt={profilData.nama_sekolah ?? 'Logo Sekolah'} width={72} height={72} className="object-contain" />
               ) : (
                 <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-100 text-slate-400 text-xs">Logo</div>
               )}
@@ -343,7 +344,7 @@ export default function RekapPage() {
 
             <div className="grid h-20 w-20 place-items-center rounded-3xl border border-slate-200 bg-white">
               {profilData?.logo_url ? (
-                <Image src={profilData.logo_url} alt={profilData.nama_lembaga ?? 'Logo Tim'} width={72} height={72} className="object-contain" />
+                <Image src={toImageUrl(profilData.logo_url) || ''} alt={profilData.nama_lembaga ?? 'Logo Tim'} width={72} height={72} className="object-contain" />
               ) : (
                 <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-100 text-slate-400 text-xs">Logo</div>
               )}

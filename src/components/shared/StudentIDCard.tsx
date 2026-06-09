@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { generateQRCodeDataURL } from "@/lib/qrcode";
+import { toImageUrl } from "@/lib/storage/urls";
 
 export interface IDCardStudent {
   id: string;
@@ -153,7 +154,7 @@ export function StudentIDCard({
           background: "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center",
         }}>
           {student.photo_url ? (
-            <Image src={student.photo_url} alt={student.nama} width={60} height={76}
+            <Image src={toImageUrl(student.photo_url, 'timquran-profile-photos') || ''} alt={student.nama} width={60} height={76}
               style={{ objectFit: "cover", width: "100%", height: "100%" }}
               unoptimized />
           ) : (

@@ -379,8 +379,7 @@ export default function RaportTahfidzForm({
                 <th className="px-3 py-2 text-center w-14">Makhroj</th>
                 <th className="px-3 py-2 text-center w-14">Tajwid</th>
                 <th className="px-3 py-2 text-center w-14">Lancar</th>
-                <th className="px-3 py-2 text-center min-w-[80px]">Buku</th>
-                <th className="px-3 py-2 text-center min-w-[80px]">Hal.</th>
+                <th className="px-3 py-2 text-center min-w-[80px]">Ayat</th>
                 <th className="px-3 py-2 w-8"></th>
               </tr>
             </thead>
@@ -404,15 +403,9 @@ export default function RaportTahfidzForm({
                     <NilaiSelect value={row.lancar} onChange={v => updateRow(i, 'lancar', v)} disabled={loading} />
                   </td>
                   <td className="px-3 py-2">
-                    <input type="text" value={row.wafa_buku}
-                      onChange={e => updateRow(i, 'wafa_buku', e.target.value)}
-                      disabled={loading} placeholder="Wafa 4..."
-                      className="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:bg-slate-50" />
-                  </td>
-                  <td className="px-3 py-2">
                     <input type="text" value={row.wafa_halaman}
                       onChange={e => updateRow(i, 'wafa_halaman', e.target.value)}
-                      disabled={loading} placeholder="Tuntas..."
+                      disabled={loading} placeholder="Ayat..."
                       className="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:bg-slate-50" />
                   </td>
                   <td className="px-3 py-2">

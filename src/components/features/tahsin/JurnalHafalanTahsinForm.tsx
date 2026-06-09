@@ -469,8 +469,7 @@ export default function JurnalHafalanTahsinForm({ loading = false, onSubmit, onC
                   </td>
                   <td className="px-3 py-2">
                     <input
-                      type="number"
-                      min={1}
+                      type="text"
                       value={String(row.halaman)}
                       onChange={(e) => updateRow(index, 'halaman', Number(e.target.value) || 1)}
                       disabled={loading}
@@ -534,8 +533,6 @@ export default function JurnalHafalanTahsinForm({ loading = false, onSubmit, onC
             />
             <Input
               label="Halaman / Level"
-              type="number"
-              min={1}
               value={String(form.tahsin_halaman)}
               onChange={(e) => setField('tahsin_halaman', Number(e.target.value) || 1)}
               error={errors.tahsin_halaman}

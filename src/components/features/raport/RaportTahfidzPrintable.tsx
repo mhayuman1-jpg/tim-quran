@@ -5,7 +5,7 @@ import { useReactToPrint } from 'react-to-print';
 import Button from '@/components/ui/Button';
 import { Printer } from 'lucide-react';
 import RaportTahfidzDocument from '@/components/features/raport/RaportTahfidzDocument';
-import { RAPORT_BROWSER_PRINT_STYLE } from '@/lib/raport/print-config';
+import { getRaportBrowserPrintStyle } from '@/lib/raport/print-config';
 import '@/styles/raport-print.css';
 
 export type {
@@ -61,7 +61,7 @@ export default function RaportTahfidzPrintable({
   const handlePrint = useReactToPrint({
     contentRef: printRef,
     documentTitle: `Raport_Tahfidz_${raport.santri?.nama ?? 'Siswa'}_${raport.periode}`,
-    pageStyle: RAPORT_BROWSER_PRINT_STYLE,
+    pageStyle: getRaportBrowserPrintStyle(raport.juz),
   });
 
   const documentProps = {

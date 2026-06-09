@@ -199,8 +199,6 @@ export default function TahfidzForm({
       <Input
         label="Halaman"
         required
-        type="number"
-        min={1}
         value={String(form.halaman)}
         onChange={(e) => set('halaman', Number(e.target.value) || 1)}
         error={errors.halaman}

@@ -245,9 +245,6 @@ export default function HafalanForm({
       <Input
         label="Halaman"
         required
-        type="number"
-        min={1}
-        max={604}
         value={String(form.halaman)}
         onChange={(e) => set('halaman', parseInt(e.target.value) || 1)}
         error={errors.halaman}

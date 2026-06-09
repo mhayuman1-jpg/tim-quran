@@ -1,35 +1,23 @@
 // Server-side PDF generator — Playwright + @media print
+// Menggunakan print-token sebagai pengganti cookie forwarding.
+// Cookie NextAuth (khususnya next-auth.callback-url) mengandung karakter yang
+// ditolak Chromium CDP → solusi: generate signed token lalu sisipkan ke URL print.
 
-import type { BrowserContext, Page } from 'playwright';
+import type { Page } from 'playwright-core';
 import {
-  RAPORT_PDF_OPTIONS,
+  getRaportPdfOptions,
   getRaportPrintUrl,
   raportReadySelector,
 } from '@/lib/raport/print-config';
 import { getPlaywrightBrowser } from '@/lib/raport/playwright-browser';
+import { generatePrintToken } from '@/lib/raport/print-token';
 
 export interface GenerateRaportPdfOptions {
   raportId: string;
   baseUrl: string;
+  juz?: number | null;
+  /** @deprecated Tidak lagi digunakan — digantikan print-token */
   cookieHeader?: string;
-}
-
-function parseCookies(cookieHeader: string, baseUrl: string) {
-  const { hostname } = new URL(baseUrl);
-  return cookieHeader
-    .split(';')
-    .map((pair) => {
-      const trimmed = pair.trim();
-      const eq = trimmed.indexOf('=');
-      if (eq <= 0) return null;
-      return {
-        name: trimmed.slice(0, eq),
-        value: trimmed.slice(eq + 1),
-        domain: hostname,
-        path: '/',
-      };
-    })
-    .filter((c): c is { name: string; value: string; domain: string; path: string } => Boolean(c));
 }
 
 export function resolveBaseUrl(host: string | null, forwardedProto: string | null): string {
@@ -39,32 +27,34 @@ export function resolveBaseUrl(host: string | null, forwardedProto: string | nul
   return process.env.NEXTAUTH_URL ?? `${protocol}://${resolvedHost}`;
 }
 
-async function setupPage(context: BrowserContext): Promise<Page> {
-  return context.newPage();
-}
-
 /**
  * Buka halaman cetak Next.js, aktifkan @media print, lalu hasilkan PDF via Chromium.
+ *
+ * Autentikasi dilakukan melalui signed print-token (query param _pt) bukan cookie,
+ * karena cookie NextAuth mengandung karakter yang tidak valid di Chromium CDP.
  */
 export async function generateRaportPdf(options: GenerateRaportPdfOptions): Promise<Buffer> {
-  const { raportId, baseUrl, cookieHeader = '' } = options;
-  const printUrl = getRaportPrintUrl(baseUrl, raportId);
+  const { raportId, baseUrl, juz } = options;
+
+  // Generate token satu kali yang berlaku 5 menit
+  const printToken = generatePrintToken(raportId);
+  const printUrl = getRaportPrintUrl(baseUrl, raportId, printToken);
 
   const browser = await getPlaywrightBrowser();
-  const context = await browser.newContext();
+  // Buat context baru tanpa cookie — auth via token di URL
+  const context = await browser.newContext({
+    ignoreHTTPSErrors: true,
+  });
 
+  let page: Page | null = null;
   try {
-    if (cookieHeader) {
-      await context.addCookies(parseCookies(cookieHeader, baseUrl));
-    }
+    page = await context.newPage();
 
-    const page = await setupPage(context);
-
-    await page.goto(printUrl, { waitUntil: 'load', timeout: 60000 });
+    await page.goto(printUrl, { waitUntil: 'networkidle', timeout: 60000 });
     await page.waitForSelector('[data-pdf-ready="true"]', { timeout: 20000 });
     await page.waitForSelector(raportReadySelector(raportId), { timeout: 10000 });
 
-    // Tunggu logo (inline data URL) selesai di-decode browser
+    // Tunggu gambar/logo selesai dimuat
     await page.waitForFunction(
       () => {
         const imgs = Array.from(document.querySelectorAll('img'));
@@ -75,9 +65,10 @@ export async function generateRaportPdf(options: GenerateRaportPdfOptions): Prom
 
     await page.emulateMedia({ media: 'print' });
 
-    const pdfBuffer = await page.pdf(RAPORT_PDF_OPTIONS);
+    const pdfBuffer = await page.pdf(getRaportPdfOptions(juz));
     return Buffer.from(pdfBuffer);
   } finally {
+    if (page) await page.close().catch(() => {});
     await context.close().catch(() => {});
   }
 }

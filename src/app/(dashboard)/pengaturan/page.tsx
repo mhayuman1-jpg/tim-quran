@@ -296,7 +296,7 @@ export default function PengaturanPage() {
             <ImageUpload
               value={getPhotoUrlWithCacheBuster(photoUrl)}
               onUpload={handlePhotoUploaded}
-              bucket="assets"
+              bucket="timquran-assets"
               folder={`profile/${session?.user?.id}`}
               shape="circle"
               disabled={photoSaving}

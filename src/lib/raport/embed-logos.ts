@@ -4,10 +4,7 @@ const IMAGE_FETCH_TIMEOUT_MS = 8000;
 const PRINT_LOGO_MAX_PX = 180;
 
 function getResizedFetchUrl(url: string): string {
-  if (url.includes('supabase.co/storage/v1/object/public/')) {
-    const renderUrl = url.replace('/storage/v1/object/public/', '/storage/v1/render/image/public/');
-    return `${renderUrl}?width=${PRINT_LOGO_MAX_PX}&height=${PRINT_LOGO_MAX_PX}&resize=contain`;
-  }
+  // Tigris CDN URLs tidak perlu di-rewrite — return as-is
   return url;
 }
 

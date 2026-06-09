@@ -7,6 +7,7 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
 import Image from 'next/image';
 import { X, Camera, AlertCircle, CheckCircle2, ImageIcon } from 'lucide-react';
+import { toImageUrl } from '@/lib/storage/urls';
 
 // ─── Helper: Cache-busting untuk URL gambar ──
 function getImageUrlWithCacheBuster(url: string | null): string | null {
@@ -26,7 +27,7 @@ interface ImageUploadProps {
   onUpload: (url: string) => void;
   /** Label opsional */
   label?: string;
-  /** Bucket Supabase Storage (default: 'assets') */
+  /** Bucket Tigris Storage (default: 'timquran-assets') */
   bucket?: string;
   /** Folder dalam bucket (default: 'uploads') */
   folder?: string;
@@ -42,7 +43,7 @@ export default function ImageUpload({
   value,
   onUpload,
   label,
-  bucket = 'assets',
+  bucket = 'timquran-assets',
   folder = 'uploads',
   shape = 'square',
   helperText,
@@ -56,7 +57,7 @@ export default function ImageUpload({
   const [preview, setPreview] = useState<string | null>(null);
   const [hasLoadError, setHasLoadError] = useState(false);
 
-  const currentImage = preview || value;
+  const currentImage = toImageUrl(preview || value, bucket);
 
   useEffect(() => {
     if (currentImage) {

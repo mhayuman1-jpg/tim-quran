@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { cacheBust } from '@/lib/image';
+import { toImageUrl } from '@/lib/storage/urls';
 
 export interface StaffIDCardProps {
   name: string;
@@ -107,7 +108,7 @@ export function StaffIDCard({
               background: "rgba(255,255,255,0.92)", padding: 1, flexShrink: 0,
               display: "flex", alignItems: "center", justifyContent: "center",
             }}>
-              <Image src={cacheBust(logoSekolahUrl) || logoSekolahUrl} alt={namaSekolah ?? "Sekolah"} width={22} height={22}
+              <Image src={cacheBust(toImageUrl(logoSekolahUrl)) || logoSekolahUrl || ''} alt={namaSekolah ?? "Sekolah"} width={22} height={22}
                 style={{ objectFit: "contain", width: "100%", height: "100%" }}
                 unoptimized />
             </div>
@@ -140,7 +141,7 @@ export function StaffIDCard({
               background: "rgba(255,255,255,0.92)", padding: 1, flexShrink: 0,
               display: "flex", alignItems: "center", justifyContent: "center",
             }}>
-              <Image src={cacheBust(logoUrl) || logoUrl} alt={namaLembaga} width={22} height={22}
+              <Image src={cacheBust(toImageUrl(logoUrl)) || logoUrl || ''} alt={namaLembaga} width={22} height={22}
                 style={{ objectFit: "contain", width: "100%", height: "100%" }}
                 unoptimized />
             </div>

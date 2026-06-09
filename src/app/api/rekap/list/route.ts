@@ -1,11 +1,12 @@
 export const dynamic = 'force-dynamic';
 // src/app/api/rekap/list/route.ts
-// GET: Ambil daftar rekap diurutkan terbaru, dengan signed URL untuk download
+// GET: Ambil daftar rekap diurutkan terbaru, dengan presigned URL untuk download
 
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
+import { storagePresignedUrl } from '@/lib/storage/tigris';
 
 export async function GET() {
   try {
@@ -43,25 +44,22 @@ export async function GET() {
       );
     }
 
-    // Generate signed URL untuk setiap file (berlaku 3600 detik = 1 jam)
+    // Generate presigned URL untuk setiap file (berlaku 3600 detik = 1 jam)
     const rekapWithUrls = await Promise.all(
       (rekapList || []).map(async (rekap) => {
-        const { data: signedUrlData, error: signedUrlError } = await supabase.storage
-          .from('rekap')
-          .createSignedUrl(rekap.file_url, 3600);
-
-        if (signedUrlError) {
-          console.error(`Error creating signed URL for ${rekap.file_url}:`, signedUrlError);
+        try {
+          const signedUrl = await storagePresignedUrl('timquran-rekap', rekap.file_url, 3600);
+          return {
+            ...rekap,
+            signed_url: signedUrl,
+          };
+        } catch (err) {
+          console.error(`Error creating presigned URL for ${rekap.file_url}:`, err);
           return {
             ...rekap,
             signed_url: null,
           };
         }
-
-        return {
-          ...rekap,
-          signed_url: signedUrlData?.signedUrl ?? null,
-        };
       })
     );
 

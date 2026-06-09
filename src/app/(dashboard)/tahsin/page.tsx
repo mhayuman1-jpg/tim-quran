@@ -8,6 +8,7 @@ import { Plus, BookOpenCheck, Users, XCircle } from 'lucide-react';
 import Modal from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
 import SearchInput from '@/components/shared/SearchInput';
+import { toImageUrl } from '@/lib/storage/urls';
 import JurnalHafalanTahsinForm from '@/components/features/tahsin/JurnalHafalanTahsinForm';
 import TahsinHistory from '@/components/features/tahsin/TahsinHistory';
 import HafalanHistory from '@/components/features/hafalan/HafalanHistory';
@@ -241,7 +242,7 @@ export default function TahsinPage() {
           <div className="space-y-4">
             <div className="flex items-center gap-4">
               {selectedStudent.photo_url ? (
-                <img src={selectedStudent.photo_url} alt={selectedStudent.nama} className="h-20 w-20 rounded-2xl object-cover" />
+                <img src={toImageUrl(selectedStudent.photo_url, 'timquran-profile-photos') || ''} alt={selectedStudent.nama} className="h-20 w-20 rounded-2xl object-cover" />
               ) : (
                 <div className="h-20 w-20 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-400">
                   Siswa

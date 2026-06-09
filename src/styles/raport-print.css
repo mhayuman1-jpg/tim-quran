@@ -99,8 +99,8 @@ body.raport-pdf-render .raport-print-root,
 
 /* ── @page & @media print ─────────────────────────────────────────────────── */
 @page {
-  size: 210mm 297mm;
-  margin: 5mm;
+  size: 210mm 330mm;
+  margin: 5.6mm 9.9mm 11.7mm 9.1mm;
 }
 
 @media print {

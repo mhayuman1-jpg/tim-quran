@@ -15,7 +15,7 @@ const HEADER_SELECT = `
   id, student_id, teacher_id, periode, tahun_ajaran, juz, catatan,
   nama_guru_kelas, niy_guru_kelas, nama_kabid, niy_kabid, nama_kepala_sekolah, niy_kepala_sekolah,
   tahsin_metode, tahsin_buku, tahsin_halaman, tahsin_makhroj, tahsin_kelancaran, tahsin_adab, tahsin_catatan,
-  html_custom,
+  html_custom, pdf_path,
   created_at, updated_at,
   santri ( id, nama, nisn, classes ( id, name ) ),
   users ( id, name )
@@ -224,7 +224,11 @@ export async function PUT(request: NextRequest) {
     }
 
     // Update header
-    const updateHeader: Record<string, unknown> = { updated_at: new Date().toISOString() };
+    const updateHeader: Record<string, unknown> = {
+      updated_at: new Date().toISOString(),
+      // Invalidasi cache PDF — akan di-regenerate saat download berikutnya
+      pdf_path: null,
+    };
     if (periode?.trim()) updateHeader.periode = periode.trim();
     if (tahun_ajaran?.trim()) updateHeader.tahun_ajaran = tahun_ajaran.trim();
     if (juz !== undefined) updateHeader.juz = parsedJuz ?? null;
