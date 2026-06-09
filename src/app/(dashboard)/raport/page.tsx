@@ -89,7 +89,7 @@ export default function RaportPage() {
   });
 
   // ── Download PDF ──────────────────────────────────────────────────────────
-  const handleDownloadPdf = () => {
+  const handleDownloadPdf = async () => {
     if (!selected || downloadingLockRef.current || downloadingFormat) return;
 
     const filename = sanitizePdfFilename(
@@ -100,21 +100,14 @@ export default function RaportPage() {
     setDownloadingFormat('pdf');
 
     try {
-      // Satu request GET via iframe — tidak pakai fetch+blob (hindari dobel unduh IDM)
-      triggerRaportPdfDownload(selected.id, filename);
+      await triggerRaportPdfDownload(selected.id, filename);
     } catch (error) {
       console.error('Error downloading PDF:', error);
       alert(`Gagal mengunduh PDF: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
       downloadingLockRef.current = false;
       setDownloadingFormat(null);
-      return;
     }
-
-    // Reset loading setelah estimasi generate Playwright selesai
-    window.setTimeout(() => {
-      downloadingLockRef.current = false;
-      setDownloadingFormat(null);
-    }, 12000);
   };
 
   // ── Download Word ─────────────────────────────────────────────────────────

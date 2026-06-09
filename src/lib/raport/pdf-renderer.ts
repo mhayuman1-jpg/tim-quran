@@ -1,10 +1,7 @@
-// Client helper — unduh PDF via navigasi GET (bukan fetch+blob)
-//
-// Kenapa tidak pakai fetch?
-// Internet Download Manager (IDM) dan ekstensi sejenis menangkap respons fetch
-// LALU kode juga memicu unduhan kedua via blob → file dobel & PDF rusak.
-//
-// Alur: klik link → GET /api/raport/render-pdf → Playwright → satu file PDF
+// Client helper — unduh PDF via HTML-to-Image + jsPDF di sisi client (100% kompatibel dengan serverless)
+
+import { toPng } from 'html-to-image';
+import jsPDF from 'jspdf';
 
 export function sanitizePdfFilename(name: string): string {
   return name
@@ -15,20 +12,41 @@ export function sanitizePdfFilename(name: string): string {
 }
 
 /**
- * Picu unduhan PDF — satu request GET, tidak bentrok dengan IDM.
- * Jangan pakai fetch()+blob: IDM menangkap fetch, lalu blob memicu unduhan kedua.
+ * Picu unduhan PDF dengan mengonversi elemen HTML menjadi gambar PNG resolusi tinggi
+ * dan memasukkannya ke dalam dokumen PDF A4 di sisi client.
  */
-export function triggerRaportPdfDownload(raportId: string, filename: string): void {
+export async function triggerRaportPdfDownload(raportId: string, filename: string): Promise<void> {
   const safeName = sanitizePdfFilename(filename.endsWith('.pdf') ? filename : `${filename}.pdf`);
-  const params = new URLSearchParams({ raportId, filename: safeName });
-  const url = `/api/raport/render-pdf?${params.toString()}`;
 
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = safeName;
-  link.rel = 'noopener';
-  link.style.display = 'none';
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
+  // Cari element preview di DOM
+  const element = document.querySelector('.raport-preview-sheet') as HTMLDivElement | null;
+  if (!element) {
+    throw new Error('Element preview raport tidak ditemukan di halaman.');
+  }
+
+  // Opsi render gambar beresolusi tinggi (pixelRatio: 2) agar teks tajam saat dicetak/di-zoom
+  const dataUrl = await toPng(element, {
+    quality: 0.95,
+    pixelRatio: 2,
+    backgroundColor: '#ffffff',
+  });
+
+  const pdf = new jsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: 'a4',
+  });
+
+  const pdfWidth = pdf.internal.pageSize.getWidth();
+  const pdfHeight = pdf.internal.pageSize.getHeight();
+
+  // Hitung aspek rasio agar pas di satu halaman A4
+  const imgWidth = pdfWidth;
+  const imgHeight = (element.offsetHeight * pdfWidth) / element.offsetWidth;
+
+  // Jika tinggi gambar melebihi tinggi halaman A4, batasi atau jadikan multi-page.
+  const finalHeight = imgHeight > pdfHeight ? pdfHeight : imgHeight;
+
+  pdf.addImage(dataUrl, 'PNG', 0, 0, imgWidth, finalHeight);
+  pdf.save(safeName);
 }
