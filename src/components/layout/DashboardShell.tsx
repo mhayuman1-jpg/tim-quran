@@ -8,7 +8,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
   const [sidebarOpen, setSidebarOpen] = useState(false);
   return (
     <ToastProvider>
-      <div className="flex h-screen overflow-hidden bg-slate-50 text-slate-900 dark:bg-slate-900 dark:text-slate-100" style={{paddingTop: 'max(0px, env(safe-area-inset-top))'}}>
+      <div className="flex h-dvh overflow-hidden bg-slate-50 text-slate-900 dark:bg-slate-900 dark:text-slate-100" style={{paddingTop: 'max(0px, env(safe-area-inset-top))'}}>
         <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
           <Header onMenuClick={() => setSidebarOpen(true)} />

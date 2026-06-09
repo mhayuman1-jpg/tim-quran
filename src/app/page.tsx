@@ -167,7 +167,7 @@ export default async function LandingPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100" style={{backgroundColor: '#0f172a', color: '#f8fafc', minHeight: '100vh'}}>
+    <div className="min-h-dvh bg-slate-950 text-slate-100" style={{backgroundColor: '#0f172a', color: '#f8fafc'}}>
       <PublicNavbar
         logoUrl={profil.logo_url ?? null}
         namaLembaga={profil.nama_lembaga ?? "Tim Qur'an"}

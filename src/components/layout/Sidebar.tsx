@@ -115,7 +115,7 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
     <>
       {/* Mobile overlay */}
       {isOpen && (
-        <div className="fixed inset-0 z-30 bg-black/60 backdrop-blur-sm lg:hidden"
+        <div className="fixed inset-0 z-30 bg-black/60 backdrop-blur-sm lg:hidden overflow-contain"
           onClick={onClose} aria-hidden="true" />
       )}
 
@@ -147,7 +147,7 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-6"
+        <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-6 scroll-smooth-touch"
           style={{scrollbarWidth: 'thin', scrollbarColor: 'rgba(255,255,255,0.1) transparent'}}>
           {groups.map(group => {
             const items = visibleMenusWithSyncedHrefs.filter(m => m.group === group);

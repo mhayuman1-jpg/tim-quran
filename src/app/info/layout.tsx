@@ -28,7 +28,7 @@ async function getProfil() {
 export default async function PengumumanLayout({ children }: { children: ReactNode }) {
   const profil = await getProfil();
   return (
-    <div className="min-h-screen flex flex-col bg-slate-950 text-slate-100">
+    <div className="min-h-dvh flex flex-col bg-slate-950 text-slate-100">
       <PublicNavbar
         logoUrl={profil?.logo_url ?? null}
         namaLembaga={profil?.nama_lembaga ?? "Tim Qur'an"}

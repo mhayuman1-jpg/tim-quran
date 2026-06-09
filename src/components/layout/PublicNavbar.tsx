@@ -231,8 +231,8 @@ export default function PublicNavbar({
               Masuk
             </Link>
             <button
-              className="lg:hidden p-2 rounded-lg transition-all duration-300 will-change-colors"
-              style={{color: 'rgba(255,255,255,0.7)'}}
+              className="lg:hidden touch-target rounded-lg transition-all duration-300 will-change-colors"
+              style={{color: 'rgba(255,255,255,0.7)', touchAction: 'manipulation'}}
               onClick={() => setMenuOpen(p => !p)}
               aria-label={menuOpen ? 'Tutup menu' : 'Buka menu'}
               onMouseEnter={e => { 
@@ -253,8 +253,8 @@ export default function PublicNavbar({
       </div>
 
       {/* ── Mobile dropdown ──────────────────────────────────── */}
-      <div className={`lg:hidden overflow-hidden transition-all duration-400 ${menuOpen ? 'max-h-[420px] opacity-100 visible' : 'max-h-0 opacity-0 invisible'}`} style={{ background: 'rgba(2, 24, 43, 0.98)', backdropFilter: 'blur(18px)' }}>
-        <div className="px-4 py-4 space-y-2">
+      <div className={`lg:hidden overflow-hidden transition-all duration-300 ${menuOpen ? 'max-h-[80vh] opacity-100 visible' : 'max-h-0 opacity-0 invisible'}`} style={{ background: 'rgba(2, 24, 43, 0.98)', backdropFilter: 'blur(18px)' }}>
+        <div className="px-4 py-4 space-y-2 overflow-contain">
           {navLinks.map((link, idx) => {
             const active = isActive(link.href);
             const isExternal = /^https?:\/\//.test(link.href);
