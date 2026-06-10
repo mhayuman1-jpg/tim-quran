@@ -5,7 +5,6 @@ import { useSession } from "next-auth/react";
 import { Users, CheckCircle, UserCheck, BookOpen, Activity, FileImage, FileText, CreditCard, Repeat, TrendingUp, Megaphone, Newspaper, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import StaffIDCard from "@/components/shared/StaffIDCard";
-import MonthlyRekapTemplate from "@/components/features/dashboard/MonthlyRekapTemplate";
 import { useToast } from "@/lib/toast";
 import { useViewMode } from "@/hooks/useViewMode";
 import { useProfil, useNavigation } from "@/hooks/useSWRFetcher";
@@ -332,9 +331,6 @@ export default function DashboardPage() {
 
       {/* Juz chart */}
       <JuzChart data={stats?.ringkasanJuz ?? []} loading={loading} />
-
-      {/* Monthly Recap Template — Tim_Quran only */}
-      {session?.user?.role === 'Tim_Quran' && <MonthlyRekapTemplate />}
 
       {/* ID Card Section — Kabid & Tim_Quran */}
       {session?.user && (session.user.role === 'Tim_Quran' || session.user.role === 'Kabid') && (
