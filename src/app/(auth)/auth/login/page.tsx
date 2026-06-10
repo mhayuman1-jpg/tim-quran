@@ -15,24 +15,16 @@ export default function LoginPage() {
   const [rememberMe, setRememberMe] = useState(false);
   const router = useRouter();
 
-  // Check unlock status and load remembered email on mount
+  // Load remembered email on mount
   useEffect(() => {
     if (typeof window === 'undefined') return;
     
-    // Check if user has unlocked access
-    const isUnlocked = sessionStorage.getItem('auth_unlocked');
-    if (!isUnlocked) {
-      router.push('/auth/unlock');
-      return;
-    }
-
-    // Load remembered email
     const saved = localStorage.getItem('tq_remembered_email');
     if (saved) {
       setEmail(saved);
       setRememberMe(true);
     }
-  }, [router]);
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
