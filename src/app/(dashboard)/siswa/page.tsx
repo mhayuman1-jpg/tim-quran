@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, Printer, Upload, CreditCard, CheckCircle2 } from 'lucide-react';
+import { Plus, Printer, Upload, CreditCard, CheckCircle2, Trash2 } from 'lucide-react';
 
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
@@ -38,6 +38,10 @@ export default function SiswaPage() {
   // ── Delete
   const [deleteTarget, setDeleteTarget] = useState<Santri | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+
+  // ── Bulk delete
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [bulkDeleteLoading, setBulkDeleteLoading] = useState(false);
 
   // ── Import
   const [importOpen, setImportOpen] = useState(false);
@@ -125,6 +129,26 @@ export default function SiswaPage() {
     finally { setDeleteLoading(false); }
   };
 
+  // ── Bulk delete
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+    setBulkDeleteLoading(true);
+    try {
+      const res = await fetch('/api/siswa/bulk-delete', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: selectedIds }),
+      });
+      const json = await res.json();
+      if (!res.ok) { toast.error(json.message ?? 'Gagal menghapus siswa.'); return; }
+      toast.success(json.message ?? 'Siswa berhasil dihapus.');
+      setSelectedIds([]);
+      setBulkDeleteOpen(false);
+      fetchSiswa(search);
+    } catch { toast.error('Terjadi kesalahan saat menghapus siswa.'); }
+    finally { setBulkDeleteLoading(false); }
+  };
+
   // ── Print helpers
   const handlePrintSelected = () => {
     if (selectedIds.length === 0) return;
@@ -147,9 +171,16 @@ export default function SiswaPage() {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {selectedIds.length > 0 && (
-            <Button variant="secondary" leftIcon={<Printer size={15} />} onClick={handlePrintSelected}>
-              Cetak ID Card ({selectedIds.length})
-            </Button>
+            <>
+              <Button variant="secondary" leftIcon={<Printer size={15} />} onClick={handlePrintSelected}>
+                Cetak ID Card ({selectedIds.length})
+              </Button>
+              {(role === 'Kabid' || role === 'Sekretaris') && (
+                <Button variant="danger" leftIcon={<Trash2 size={15} />} onClick={() => setBulkDeleteOpen(true)}>
+                  Hapus ({selectedIds.length})
+                </Button>
+              )}
+            </>
           )}
           {role !== 'Tim_Quran' && (
             <>
@@ -207,6 +238,16 @@ export default function SiswaPage() {
         title="Hapus Siswa"
         message={deleteTarget ? `Hapus siswa "${deleteTarget.nama}" (NISN: ${deleteTarget.nisn})? Tindakan ini tidak dapat dibatalkan.` : ''}
         confirmLabel="Hapus" loading={deleteLoading}
+      />
+
+      {/* Bulk delete confirm */}
+      <ConfirmDialog
+        open={bulkDeleteOpen}
+        onClose={() => { if (!bulkDeleteLoading) setBulkDeleteOpen(false); }}
+        onConfirm={handleBulkDelete}
+        title="Hapus Siswa Terpilih"
+        message={`Hapus ${selectedIds.length} siswa yang dipilih? Tindakan ini tidak dapat dibatalkan.`}
+        confirmLabel="Hapus Semua" loading={bulkDeleteLoading}
       />
 
       {/* Import Excel */}
