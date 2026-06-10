@@ -11,8 +11,8 @@ import {
 import { useSession } from '@/hooks/useSession';
 import { useRole } from '@/hooks/useRole';
 import { useViewMode } from '@/hooks/useViewMode';
+import { useNavigation } from '@/hooks/useSWRFetcher';
 import type { UserRole } from '@/types';
-import { useEffect, useState } from 'react';
 
 interface MenuItem {
   label: string;
@@ -79,29 +79,15 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
   const { role } = useRole();
   const { getEffectiveRole, isViewingAsOther } = useViewMode();
   const effectiveRole = getEffectiveRole(role);
-  const [navMap, setNavMap] = useState<Record<string, string>>({});
+  const { items: navItems } = useNavigation();
 
-  // Fetch public navigation items and build a map label->href so admin sidebar
-  // uses the same hrefs as the public navbar (keeps menus in sync).
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        const res = await fetch('/api/website/navigation');
-        const json = await res.json();
-        if (mounted && json.data && Array.isArray(json.data)) {
-          const map: Record<string, string> = {};
-          json.data.forEach((it: any) => {
-            if (it.label && it.href) map[it.label] = it.href;
-          });
-          setNavMap(map);
-        }
-      } catch {
-        // ignore — fall back to hardcoded menu
-      }
-    })();
-    return () => { mounted = false; };
-  }, []);
+  // Build navMap from SWR cached data
+  const navMap: Record<string, string> = {};
+  if (navItems && Array.isArray(navItems)) {
+    navItems.forEach((it: any) => {
+      if (it.label && it.href) navMap[it.label] = it.href;
+    });
+  }
 
   const visibleMenus = menuItems.filter(item => {
     if (!item.roles || item.roles.length === 0) return true;

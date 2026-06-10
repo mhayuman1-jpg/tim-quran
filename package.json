@@ -55,6 +55,7 @@
     "react-to-print": "^3.3.0",
     "recharts": "^3.8.1",
     "resend": "^4.8.0",
+    "swr": "^2.4.1",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {

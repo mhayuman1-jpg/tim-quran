@@ -10,6 +10,7 @@ import React, { useEffect, useState } from 'react';
 import Input from '@/components/ui/Input';
 import Button from '@/components/ui/Button';
 import type { Hafalan } from '@/types';
+import { useSiswaList } from '@/hooks/useSWRFetcher';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -95,47 +96,24 @@ export default function HafalanForm({
   });
 
   const [errors, setErrors] = useState<FormErrors>({});
-  const [students, setStudents] = useState<StudentOption[]>([]);
-  const [studentsLoading, setStudentsLoading] = useState(false);
   const [selectedStudentJuz, setSelectedStudentJuz] = useState<number>(1);
 
-  // ── Fetch daftar siswa
+  // Fetch daftar siswa via SWR (cached & deduplicated)
+  const { siswa: allSiswa, isLoading: studentsLoading } = useSiswaList();
+  const students: StudentOption[] = allSiswa.map((s: any) => ({
+    id: s.id,
+    nama: s.nama,
+    juz_terakhir: s.juz_terakhir ?? 1,
+  }));
+
+  // Sync juz_baru dengan siswa yang dipilih
   useEffect(() => {
-    let cancelled = false;
-    setStudentsLoading(true);
-
-    fetch('/api/siswa/list')
-      .then((res) => {
-        if (!res.ok) return { data: [] };
-        return res.json();
-      })
-      .then((json) => {
-        if (!cancelled) {
-          const list: StudentOption[] = (json.data ?? []).map((s: any) => ({
-            id: s.id,
-            nama: s.nama,
-            juz_terakhir: s.juz_terakhir ?? 1,
-          }));
-          setStudents(list);
-
-          // Sync juz_baru dengan siswa yang dipilih
-          const selected = list.find((s) => s.id === form.student_id);
-          if (selected) {
-            setSelectedStudentJuz(selected.juz_terakhir);
-            setForm((prev) => ({ ...prev, juz_baru: selected.juz_terakhir }));
-          }
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setStudents([]);
-      })
-      .finally(() => {
-        if (!cancelled) setStudentsLoading(false);
-      });
-
-    return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    const selected = students.find((s) => s.id === form.student_id);
+    if (selected) {
+      setSelectedStudentJuz(selected.juz_terakhir);
+      setForm((prev) => ({ ...prev, juz_baru: selected.juz_terakhir }));
+    }
+  }, [form.student_id, students]);
 
   // ── Populate form saat edit
   useEffect(() => {

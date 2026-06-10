@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import { Users, CheckCircle, UserCheck, BookOpen, Activity, FileImage, FileText, CreditCard, Repeat, TrendingUp, Megaphone, Newspaper, ArrowRight } from "lucide-react";
 import Link from "next/link";
@@ -8,6 +8,8 @@ import StaffIDCard from "@/components/shared/StaffIDCard";
 import MonthlyRekapTemplate from "@/components/features/dashboard/MonthlyRekapTemplate";
 import { useToast } from "@/lib/toast";
 import { useViewMode } from "@/hooks/useViewMode";
+import { useProfil, useNavigation } from "@/hooks/useSWRFetcher";
+import useSWR from "swr";
 
 interface JuzSummary { juz: number; count: number; }
 interface DashboardStats {
@@ -160,59 +162,40 @@ export default function DashboardPage() {
   }, [viewAsRole, viewAsTeacherId]);
   const cardRef = useRef<HTMLDivElement>(null);
   const [downloading, setDownloading] = useState<'png' | 'pdf' | null>(null);
-  const [profilData, setProfilData] = useState<{ nama_lembaga?: string; logo_url?: string; nama_sekolah?: string; logo_sekolah_url?: string } | null>(null);
-  const [navShortcuts, setNavShortcuts] = useState<{ id: string; label: string; href: string }[]>([]);
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const { toast } = useToast();
 
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("error") === "forbidden") setErrorMessage("Akses tidak diizinkan.");
-  }, []);
+  // SWR hooks untuk data sharing
+  const { profil: profilData } = useProfil();
+  const { items: navItems } = useNavigation();
 
-  useEffect(() => {
-    fetch('/api/website/profil')
-      .then(r => r.json())
-      .then(d => setProfilData(d.data))
-      .catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        const res = await fetch('/api/website/navigation');
-        const json = await res.json();
-        if (mounted && json.data && Array.isArray(json.data)) {
-          // Filter out root and keep first 6 items for shortcuts
-          const items = json.data.filter((it: any) => it.href && it.href !== '/').slice(0, 6);
-          setNavShortcuts(items.map((it: any) => ({ id: it.id, label: it.label, href: it.href })));
-        }
-      } catch {
-          // ignore
-        }
-    })();
-    return () => { mounted = false; };
-  }, []);
-
-  useEffect(() => {
-    async function fetchStats() {
-      setLoading(true);
-      try {
-        const effectiveRole = getEffectiveRole(session?.user?.role as any);
-        const isGuru = effectiveRole === 'Tim_Quran';
-        const endpoint = isGuru ? '/api/dashboard/stats-guru' : '/api/dashboard/stats';
-        const res = await fetch(endpoint, { headers: viewHeaders });
-        const json = await res.json();
-        if (!res.ok) setErrorMessage(json.message || "Gagal mengambil data dashboard.");
-        else setStats(json);
-      } catch { setErrorMessage("Terjadi kesalahan saat memuat data."); }
-      finally { setLoading(false); }
+  // Build navShortcuts dari SWR cached data
+  const navShortcuts = useMemo(() => {
+    if (navItems && Array.isArray(navItems) && navItems.length > 0) {
+      return navItems.filter((it: any) => it.href && it.href !== '/').slice(0, 6)
+        .map((it: any) => ({ id: it.id, label: it.label, href: it.href }));
     }
-    if (session?.user) fetchStats();
-  }, [session?.user, getEffectiveRole, viewHeaders]);
+    return [];
+  }, [navItems]);
+
+  // SWR untuk stats
+  const effectiveRole = getEffectiveRole(session?.user?.role as any);
+  const isGuru = effectiveRole === 'Tim_Quran';
+  const statsEndpoint = isGuru ? '/api/dashboard/stats-guru' : '/api/dashboard/stats';
+  const { data: stats, error: statsError, isLoading: loading } = useSWR(
+    session?.user ? [statsEndpoint, viewHeaders] : null,
+    async ([url, headers]) => {
+      const res = await fetch(url, { headers });
+      if (!res.ok) throw new Error('Failed to fetch stats');
+      return res.json();
+    },
+    { revalidateOnFocus: false, dedupingInterval: 30000 }
+  );
+
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  if (statsError && !errorMessage) {
+    setErrorMessage("Terjadi kesalahan saat memuat data.");
+  }
 
   const today = new Date().toLocaleDateString("id-ID", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
   const hour = new Date().getHours();

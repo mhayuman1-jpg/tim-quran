@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, Amiri } from "next/font/google";
 import { SessionProvider } from "./providers";
 import "./globals.css";
+import { SWRProvider } from "./swr-provider";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -33,7 +34,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="id" className={`${inter.variable} ${amiri.variable} light`}>
       <body className="antialiased">
         <SessionProvider>
-          {children}
+          <SWRProvider>
+            {children}
+          </SWRProvider>
         </SessionProvider>
       </body>
     </html>

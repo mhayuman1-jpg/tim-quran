@@ -10,6 +10,7 @@ import React, { useEffect, useState } from 'react';
 import Input from '@/components/ui/Input';
 import Button from '@/components/ui/Button';
 import type { Tahsin, TahsinMetode } from '@/types';
+import { useSiswaList } from '@/hooks/useSWRFetcher';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -100,38 +101,13 @@ export default function TahsinForm({
   });
 
   const [errors, setErrors] = useState<FormErrors>({});
-  const [students, setStudents] = useState<StudentOption[]>([]);
-  const [studentsLoading, setStudentsLoading] = useState(false);
 
-  // ── Fetch daftar siswa
-  useEffect(() => {
-    let cancelled = false;
-    setStudentsLoading(true);
-
-    fetch('/api/siswa/list')
-      .then((res) => {
-        if (!res.ok) return { data: [] };
-        return res.json();
-      })
-      .then((json) => {
-        if (!cancelled) {
-          const list: StudentOption[] = (json.data ?? []).map((s: any) => ({
-            id: s.id,
-            nama: s.nama,
-          }));
-          setStudents(list);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setStudents([]);
-      })
-      .finally(() => {
-        if (!cancelled) setStudentsLoading(false);
-      });
-
-    return () => { cancelled = true; };
-     
-  }, []);
+  // Fetch daftar siswa via SWR (cached & deduplicated)
+  const { siswa: allSiswa, isLoading: studentsLoading } = useSiswaList();
+  const students: StudentOption[] = allSiswa.map((s: any) => ({
+    id: s.id,
+    nama: s.nama,
+  }));
 
   // ── Populate form saat edit
   useEffect(() => {
