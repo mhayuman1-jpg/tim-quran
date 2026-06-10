@@ -2,8 +2,8 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
-import { BookOpen, Menu, X, LogIn } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { BookOpen, Menu, X, LogIn, ChevronDown } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
 
 interface PublicNavbarProps {
   logoUrl?: string | null;
@@ -47,16 +47,20 @@ export default function PublicNavbar({
   // Default navigation items (always include)
   const defaultNavLinks = [
     { label: 'Beranda',    href: '/' },
-    { label: 'Profil',     href: '/profil' },
-    { label: 'Program',    href: '/program' },
-    { label: 'Galeri',     href: '/galeri' },
+    { label: 'Profil',     href: '/profil', children: [
+      { label: 'Profil',   href: '/profil' },
+      { label: 'Program',  href: '/program' },
+      { label: 'Galeri',   href: '/galeri' },
+    ]},
     { label: 'Pengumuman', href: '/pengumuman' },
     { label: 'Artikel',    href: '/artikel' },
     { label: 'Agenda',     href: '/agenda' },
     { label: 'Daftar Tasmi', href: 'https://tasmi-alquran-app.firebaseapp.com/' },
   ];
 
-  const [navLinks, setNavLinks] = useState<Array<{ label: string; href: string }>>(defaultNavLinks);
+  const [navLinks, setNavLinks] = useState<Array<{ label: string; href: string; children?: Array<{ label: string; href: string }> }>>(defaultNavLinks);
+  const [profilDropdownOpen, setProfilDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
 
   // Fetch navigation items from API
@@ -66,11 +70,16 @@ export default function PublicNavbar({
         .filter((item) => item.is_active ?? true)
         .map((item) => ({ label: item.label, href: normalizeHref(item.href) }));
       
+      // Filter out Program and Galeri (they're now children of Profil)
+      const filteredItems = items.filter(i => 
+        i.label.toLowerCase() !== 'program' && i.label.toLowerCase() !== 'galeri'
+      );
+      
       // Always merge with default items to ensure critical items like 'Daftar Tasmi' are present
-      if (items.length > 0) {
-        const apiLabels = new Set(items.map(i => i.label.toLowerCase()));
+      if (filteredItems.length > 0) {
+        const apiLabels = new Set(filteredItems.map(i => i.label.toLowerCase()));
         const missingDefaults = defaultNavLinks.filter(d => !apiLabels.has(d.label.toLowerCase()));
-        setNavLinks([...items, ...missingDefaults]);
+        setNavLinks([...filteredItems, ...missingDefaults]);
       } else {
         setNavLinks(defaultNavLinks);
       }
@@ -83,7 +92,11 @@ export default function PublicNavbar({
         const res = await fetch('/api/website/navigation');
         const json = await res.json();
         if (json.data && Array.isArray(json.data) && json.data.length > 0) {
-          const apiItems = json.data.map((item: any) => ({ label: item.label, href: normalizeHref(item.href) }));
+          const apiItems = json.data
+            .map((item: any) => ({ label: item.label, href: normalizeHref(item.href) }))
+            .filter((i: { label: string; href: string }) => 
+              i.label.toLowerCase() !== 'program' && i.label.toLowerCase() !== 'galeri'
+            );
           // Merge: Keep API items in their order, but add missing default items at the end
           const apiLabels = new Set(apiItems.map((i: { label: string; href: string }) => i.label.toLowerCase()));
           const missingDefaults = defaultNavLinks.filter(d => !apiLabels.has(d.label.toLowerCase()));
@@ -102,6 +115,17 @@ export default function PublicNavbar({
     };
     fetchNav();
   }, [navigationItems]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setProfilDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 50);
@@ -197,6 +221,46 @@ export default function PublicNavbar({
             {navLinks.map((link, idx) => {
               const active = isActive(link.href);
               const isExternal = /^https?:\/\//.test(link.href);
+              const hasChildren = link.children && link.children.length > 0;
+
+              if (hasChildren) {
+                return (
+                  <div key={link.href} className="relative" ref={dropdownRef}>
+                    <button
+                      onClick={() => setProfilDropdownOpen(p => !p)}
+                      onMouseEnter={() => setProfilDropdownOpen(true)}
+                      className={`relative inline-flex items-center gap-1 px-4 py-2 text-sm font-medium rounded-full transition-all duration-300 ease-out will-change-colors group ${active ? 'text-slate-900 bg-gradient-to-r from-amber-100 to-amber-50 ring-1 ring-amber-300' : 'text-slate-600 bg-amber-50/50 hover:bg-amber-100 hover:text-slate-900'}`}
+                    >
+                      {link.label}
+                      <ChevronDown size={14} className={`transition-transform duration-200 ${profilDropdownOpen ? 'rotate-180' : ''}`} />
+                      {active && (
+                        <span className="absolute inset-x-3 -bottom-0.5 h-0.5 rounded-full bg-gradient-to-r from-amber-300 to-amber-400 animate-pulse-soft" style={{willChange: 'transform'}} />
+                      )}
+                    </button>
+                    
+                    {/* Dropdown */}
+                    <div 
+                      className={`absolute top-full left-0 mt-2 w-48 bg-white rounded-xl border border-amber-100 shadow-lg shadow-amber-500/10 py-2 transition-all duration-200 z-50 ${profilDropdownOpen ? 'opacity-100 visible translate-y-0' : 'opacity-0 invisible -translate-y-2'}`}
+                      onMouseLeave={() => setProfilDropdownOpen(false)}
+                    >
+                      {link.children!.map((child) => {
+                        const childActive = isActive(child.href);
+                        return (
+                          <Link
+                            key={child.href}
+                            href={child.href}
+                            onClick={() => setProfilDropdownOpen(false)}
+                            className={`block px-4 py-2.5 text-sm font-medium transition-colors ${childActive ? 'text-amber-700 bg-amber-50' : 'text-slate-600 hover:text-slate-900 hover:bg-amber-50'}`}
+                          >
+                            {child.label}
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              }
+
               return (
                 <Link
                   key={link.href}
@@ -258,6 +322,54 @@ export default function PublicNavbar({
           {navLinks.map((link, idx) => {
             const active = isActive(link.href);
             const isExternal = /^https?:\/\//.test(link.href);
+            const hasChildren = link.children && link.children.length > 0;
+
+            if (hasChildren) {
+              return (
+                <div key={link.href}>
+                  <button
+                    onClick={() => setProfilDropdownOpen(p => !p)}
+                    className="flex items-center justify-between w-full px-4 py-3 rounded-2xl text-sm font-medium transition-all duration-300 ease-out hover:scale-105 will-change-transform"
+                    style={{
+                      background: active ? 'linear-gradient(135deg, rgba(245,158,11,0.14), rgba(217,119,6,0.08))' : 'rgba(0,0,0,0.02)',
+                      animationDelay: menuOpen ? `${idx * 50}ms` : '0ms',
+                      animation: menuOpen ? `slideDown 0.4s ease-out backwards` : 'none',
+                    }}
+                  >
+                    <span style={{color: active ? '#92400e' : 'rgba(80,60,30,0.8)'}}>
+                      {link.label}
+                    </span>
+                    <ChevronDown size={16} className={`transition-transform duration-200 ${profilDropdownOpen ? 'rotate-180' : ''}`} style={{color: active ? '#92400e' : 'rgba(80,60,30,0.5)'}} />
+                  </button>
+                  
+                  {/* Submenu */}
+                  <div className={`overflow-hidden transition-all duration-200 ${profilDropdownOpen ? 'max-h-40 opacity-100' : 'max-h-0 opacity-0'}`}>
+                    <div className="pl-4 space-y-1 mt-1">
+                      {link.children!.map((child) => {
+                        const childActive = isActive(child.href);
+                        return (
+                          <Link
+                            key={child.href}
+                            href={child.href}
+                            onClick={() => setMenuOpen(false)}
+                            className="flex items-center justify-between px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 ease-out hover:scale-105 will-change-transform"
+                            style={{
+                              background: childActive ? 'linear-gradient(135deg, rgba(245,158,11,0.14), rgba(217,119,6,0.08))' : 'rgba(0,0,0,0.02)',
+                            }}
+                          >
+                            <span style={{color: childActive ? '#92400e' : 'rgba(80,60,30,0.8)'}}>
+                              {child.label}
+                            </span>
+                            <span className={`h-2 w-2 rounded-full transition-all duration-300 ${childActive ? 'bg-amber-500 scale-125' : 'bg-amber-200/50'}`} />
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              );
+            }
+
             return (
               <Link
                 key={link.href}
