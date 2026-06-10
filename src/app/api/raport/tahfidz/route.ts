@@ -305,8 +305,8 @@ export async function PUT(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 });
-  if (session.user.role !== 'Kabid') {
-    return NextResponse.json({ message: 'Hanya Kabid yang bisa menghapus raport.' }, { status: 403 });
+  if (session.user.role !== 'Kabid' && session.user.role !== 'Sekretaris') {
+    return NextResponse.json({ message: 'Hanya Kabid dan Sekretaris yang bisa menghapus raport.' }, { status: 403 });
   }
 
   try {
