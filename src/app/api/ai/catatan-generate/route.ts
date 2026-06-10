@@ -157,10 +157,10 @@ export async function POST(request: NextRequest) {
       for (const g of [h.makhroj, h.tajwid, h.lancar]) {
         if (!g) continue;
         if (g === '✓') gradeValues.push(100);
-        else if (g === 'A') gradeValues.push(85);
-        else if (g === 'B') gradeValues.push(70);
-        else if (g === 'C') gradeValues.push(55);
-        else if (g === 'D') gradeValues.push(40);
+        else if (g === 'A') gradeValues.push(100);
+        else if (g === 'B') gradeValues.push(80);
+        else if (g === 'C') gradeValues.push(70);
+        else if (g === 'D') gradeValues.push(55);
       }
     }
 
@@ -174,10 +174,10 @@ export async function POST(request: NextRequest) {
       for (const g of [t.makhroj, t.kelancaran, t.adab]) {
         if (!g) continue;
         if (g === '✓') tahsinGradeValues.push(100);
-        else if (g === 'A') tahsinGradeValues.push(85);
-        else if (g === 'B') tahsinGradeValues.push(70);
-        else if (g === 'C') tahsinGradeValues.push(55);
-        else if (g === 'D') tahsinGradeValues.push(40);
+        else if (g === 'A') tahsinGradeValues.push(100);
+        else if (g === 'B') tahsinGradeValues.push(80);
+        else if (g === 'C') tahsinGradeValues.push(70);
+        else if (g === 'D') tahsinGradeValues.push(55);
       }
     }
 

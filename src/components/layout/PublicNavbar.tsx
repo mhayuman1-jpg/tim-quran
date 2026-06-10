@@ -63,6 +63,23 @@ export default function PublicNavbar({
   const dropdownRef = useRef<HTMLDivElement>(null);
 
 
+  // Helper: ensure Profil always has children
+  const ensureProfilChildren = (links: Array<{ label: string; href: string; children?: Array<{ label: string; href: string }> }>) => {
+    return links.map(link => {
+      if (link.label.toLowerCase() === 'profil' && (!link.children || link.children.length === 0)) {
+        return {
+          ...link,
+          children: [
+            { label: 'Profil', href: '/profil' },
+            { label: 'Program', href: '/program' },
+            { label: 'Galeri', href: '/galeri' },
+          ],
+        };
+      }
+      return link;
+    });
+  };
+
   // Fetch navigation items from API
   useEffect(() => {
     if (navigationItems && navigationItems.length > 0) {
@@ -79,7 +96,7 @@ export default function PublicNavbar({
       if (filteredItems.length > 0) {
         const apiLabels = new Set(filteredItems.map(i => i.label.toLowerCase()));
         const missingDefaults = defaultNavLinks.filter(d => !apiLabels.has(d.label.toLowerCase()));
-        setNavLinks([...filteredItems, ...missingDefaults]);
+        setNavLinks(ensureProfilChildren([...filteredItems, ...missingDefaults]));
       } else {
         setNavLinks(defaultNavLinks);
       }
@@ -100,7 +117,7 @@ export default function PublicNavbar({
           // Merge: Keep API items in their order, but add missing default items at the end
           const apiLabels = new Set(apiItems.map((i: { label: string; href: string }) => i.label.toLowerCase()));
           const missingDefaults = defaultNavLinks.filter(d => !apiLabels.has(d.label.toLowerCase()));
-          setNavLinks([...apiItems, ...missingDefaults]);
+          setNavLinks(ensureProfilChildren([...apiItems, ...missingDefaults]));
         } else {
           // Use default navLinks if API returns empty
           setNavLinks(defaultNavLinks);
@@ -225,10 +242,15 @@ export default function PublicNavbar({
 
               if (hasChildren) {
                 return (
-                  <div key={link.href} className="relative" ref={dropdownRef}>
+                  <div 
+                    key={link.href} 
+                    className="relative"
+                    ref={idx === 0 ? dropdownRef : undefined}
+                    onMouseEnter={() => setProfilDropdownOpen(true)}
+                    onMouseLeave={() => setProfilDropdownOpen(false)}
+                  >
                     <button
                       onClick={() => setProfilDropdownOpen(p => !p)}
-                      onMouseEnter={() => setProfilDropdownOpen(true)}
                       className={`relative inline-flex items-center gap-1 px-4 py-2 text-sm font-medium rounded-full transition-all duration-300 ease-out will-change-colors group ${active ? 'text-slate-900 bg-gradient-to-r from-amber-100 to-amber-50 ring-1 ring-amber-300' : 'text-slate-600 bg-amber-50/50 hover:bg-amber-100 hover:text-slate-900'}`}
                     >
                       {link.label}
@@ -241,7 +263,6 @@ export default function PublicNavbar({
                     {/* Dropdown */}
                     <div 
                       className={`absolute top-full left-0 mt-2 w-48 bg-white rounded-xl border border-amber-100 shadow-lg shadow-amber-500/10 py-2 transition-all duration-200 z-50 ${profilDropdownOpen ? 'opacity-100 visible translate-y-0' : 'opacity-0 invisible -translate-y-2'}`}
-                      onMouseLeave={() => setProfilDropdownOpen(false)}
                     >
                       {link.children!.map((child) => {
                         const childActive = isActive(child.href);

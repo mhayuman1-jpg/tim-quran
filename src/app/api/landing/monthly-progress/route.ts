@@ -9,10 +9,10 @@ import { createServerClient } from '@/lib/supabase/server';
 function getNilaiNumeric(nilai: string | null): number {
   if (!nilai) return 0;
   if (nilai === '✓') return 100;
-  if (nilai === 'A') return 85;
-  if (nilai === 'B') return 70;
-  if (nilai === 'C') return 55;
-  if (nilai === 'D') return 40;
+  if (nilai === 'A') return 100;
+  if (nilai === 'B') return 80;
+  if (nilai === 'C') return 70;
+  if (nilai === 'D') return 55;
   if (nilai === 'L') return 100;
   if (nilai === 'TL') return 50;
   return 0;

@@ -562,10 +562,10 @@ export default function JurnalHafalanTahsinForm({ loading = false, onSubmit, onC
                         {form[field] === '✓' ? 'Lulus / Hafal' :
                           form[field] === 'L' ? 'Lancar' :
                           form[field] === 'TL' ? 'Tidak Lancar' :
-                          form[field] === 'A' ? 'Sangat Baik (86–100)' :
-                          form[field] === 'B' ? 'Baik (71–85)' :
-                          form[field] === 'C' ? 'Cukup (56–70)' :
-                          form[field] === 'D' ? 'Kurang (<56)' :
+                          form[field] === 'A' ? 'Sangat Baik (100)' :
+                          form[field] === 'B' ? 'Baik (80)' :
+                          form[field] === 'C' ? 'Cukup (70)' :
+                          form[field] === 'D' ? 'Kurang (55)' :
                           '—'}
                       </span>
                     </td>

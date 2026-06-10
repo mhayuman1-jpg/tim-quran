@@ -411,8 +411,8 @@ export default async function LandingPage() {
                   <div className="rounded-3xl border border-amber-200 bg-gradient-to-br from-amber-100/50 to-amber-50/50 p-5">
                     <p className="text-xs text-amber-600 font-semibold uppercase tracking-widest">Sistem Penilaian</p>
                     <div className="mt-4 space-y-1.5 text-sm text-slate-600">
-                      <p>A = 85% (Sangat Baik) | B = 70% (Baik)</p>
-                      <p>C = 55% (Cukup) | D = 40% (Kurang)</p>
+                      <p>A = 100% (Sangat Baik) | B = 80% (Baik)</p>
+                      <p>C = 70% (Cukup) | D = 55% (Kurang)</p>
                       <p>L = 100% (Lancar) | TL = 50% (Tidak Lancar)</p>
                     </div>
                   </div>
