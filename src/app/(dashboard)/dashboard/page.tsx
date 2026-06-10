@@ -333,8 +333,8 @@ export default function DashboardPage() {
       {/* Juz chart */}
       <JuzChart data={stats?.ringkasanJuz ?? []} loading={loading} />
 
-      {/* Monthly Recap Template — Kabid only */}
-      {session?.user?.role !== 'Tim_Quran' && <MonthlyRekapTemplate />}
+      {/* Monthly Recap Template — Tim_Quran only */}
+      {session?.user?.role === 'Tim_Quran' && <MonthlyRekapTemplate />}
 
       {/* ID Card Section — Kabid & Tim_Quran */}
       {session?.user && (session.user.role === 'Tim_Quran' || session.user.role === 'Kabid') && (

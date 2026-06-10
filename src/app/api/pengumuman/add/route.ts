@@ -1,6 +1,6 @@
 ﻿// src/app/api/pengumuman/add/route.ts
 // POST: Buat pengumuman baru dengan judul, isi, target audiens
-// Keduanya Kabid dan Tim_Quran dapat membuat pengumuman
+// Kabid, Sekretaris, dan Bendahara dapat membuat pengumuman
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
@@ -24,9 +24,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Kedua role boleh membuat pengumuman
+    // Kabid, Sekretaris, dan Bendahara boleh membuat pengumuman
     const { role, id: userId } = session.user;
-    if (role !== 'Kabid' && role !== 'Tim_Quran') {
+    if (role !== 'Kabid' && role !== 'Sekretaris' && role !== 'Bendahara') {
       return NextResponse.json(
         { message: 'Akses tidak diizinkan' },
         { status: 403 }

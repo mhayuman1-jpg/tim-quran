@@ -1,6 +1,6 @@
 ﻿// src/app/api/pengumuman/update/route.ts
 // PUT: Update pengumuman, catat updated_at
-// Keduanya Kabid dan Tim_Quran dapat mengedit pengumuman
+// Kabid, Sekretaris, dan Bendahara dapat mengedit pengumuman
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
@@ -24,9 +24,9 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    // Kedua role boleh mengedit pengumuman
+    // Kabid, Sekretaris, dan Bendahara boleh mengedit pengumuman
     const { role } = session.user;
-    if (role !== 'Kabid' && role !== 'Tim_Quran') {
+    if (role !== 'Kabid' && role !== 'Sekretaris' && role !== 'Bendahara') {
       return NextResponse.json(
         { message: 'Akses tidak diizinkan' },
         { status: 403 }
