@@ -57,7 +57,7 @@ export async function PUT(request: NextRequest) {
     // Ambil data hafalan yang ada untuk validasi akses
     const { data: existingHafalan, error: fetchError } = await supabase
       .from('hafalan')
-      .select('id, student_id, teacher_id, surah_juz, santri ( id, assigned_teacher_id )')
+      .select('id, student_id, teacher_id, surah_juz, edited_fields, santri ( id, assigned_teacher_id )')
       .eq('id', id.trim())
       .single();
 
@@ -79,43 +79,58 @@ export async function PUT(request: NextRequest) {
       }
     }
 
-    // Bangun object update â€” hanya field yang diberikan
+    // Bangun object update - hanya field yang diberikan
     const updateData: Record<string, unknown> = {};
-    if (tanggal) updateData.tanggal = tanggal;
+    const now = new Date().toISOString();
+    const existingEdited = ((existingHafalan as any).edited_fields || {}) as Record<string, string>;
+    const editedFields: Record<string, string> = { ...existingEdited };
+
+    if (tanggal) { updateData.tanggal = tanggal; editedFields.tanggal = now; }
     if (surah_juz && typeof surah_juz === 'string' && surah_juz.trim() !== '') {
       updateData.surah_juz = surah_juz.trim();
+      editedFields.surah_juz = now;
     }
     if (halaman !== undefined && halaman !== null) {
       updateData.halaman = Number(halaman);
+      editedFields.halaman = now;
     }
     // catatan boleh dikosongkan (null)
     if (catatan !== undefined) {
       updateData.catatan = typeof catatan === 'string' && catatan.trim() !== ''
         ? catatan.trim()
         : null;
+      editedFields.catatan = now;
     }
     if (makhroj !== undefined) {
       updateData.makhroj = typeof makhroj === 'string' && makhroj.trim() !== ''
         ? makhroj.trim()
         : null;
+      editedFields.makhroj = now;
     }
     if (tajwid !== undefined) {
       updateData.tajwid = typeof tajwid === 'string' && tajwid.trim() !== ''
         ? tajwid.trim()
         : null;
+      editedFields.tajwid = now;
     }
     if (lancar !== undefined) {
       updateData.lancar = typeof lancar === 'string' && lancar.trim() !== ''
         ? lancar.trim()
         : null;
+      editedFields.lancar = now;
     }
     if (buku !== undefined) {
       updateData.buku = typeof buku === 'string' && buku.trim() !== ''
         ? buku.trim()
         : null;
+      editedFields.buku = now;
     }
 
     const shouldUpdateHafalan = Object.keys(updateData).length > 0;
+
+    if (shouldUpdateHafalan) {
+      updateData.edited_fields = editedFields;
+    }
 
     let data: any = null;
     let error: any = null;
@@ -126,7 +141,7 @@ export async function PUT(request: NextRequest) {
         .update(updateData)
         .eq('id', id.trim())
         .select(
-          `id, student_id, teacher_id, tanggal, surah_juz, halaman, makhroj, tajwid, lancar, catatan, created_at,
+          `id, student_id, teacher_id, tanggal, surah_juz, halaman, makhroj, tajwid, lancar, catatan, created_at, edited_fields,
            santri ( id, nama ),
            users ( id, name )`
         )

@@ -186,8 +186,8 @@ export default function ScanPage() {
             <ul className="divide-y divide-slate-100 overflow-y-auto flex-1">
               {scannedList.map((item, idx) => (
                 <li key={idx} className="flex items-center gap-2.5 px-4 py-2.5">
-                  <div className="w-6 h-6 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
-                    <CheckCircle size={13} className="text-emerald-600" />
+                  <div className="w-6 h-6 rounded-full bg-amber-100 flex items-center justify-center shrink-0">
+                    <CheckCircle size={13} className="text-amber-600" />
                   </div>
                   <span className="flex-1 text-xs font-medium text-slate-800 truncate">{item.nama}</span>
                   <span className="text-[10px] text-slate-400 shrink-0">{item.scanned_at}</span>
@@ -207,7 +207,7 @@ interface FeedbackBannerProps { type: FeedbackType; message: string; onDismiss: 
 
 function FeedbackBanner({ type, message, onDismiss }: FeedbackBannerProps) {
   const styles = {
-    success: { bg: 'bg-emerald-50', border: 'border-emerald-300', text: 'text-emerald-800', Icon: CheckCircle },
+    success: { bg: 'bg-amber-50', border: 'border-amber-300', text: 'text-amber-800', Icon: CheckCircle },
     warning: { bg: 'bg-amber-50', border: 'border-amber-300', text: 'text-amber-800', Icon: AlertCircle },
     error: { bg: 'bg-red-50', border: 'border-red-300', text: 'text-red-800', Icon: XCircle },
   };

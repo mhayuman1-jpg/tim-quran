@@ -15,9 +15,15 @@ export interface SiswaFormData {
   juz_terakhir: number;
   status: 'Aktif' | 'Nonaktif';
   photo_url: string;
+  assigned_teacher_id: string;
 }
 
 interface KelasOption {
+  id: string;
+  name: string;
+}
+
+interface TeacherOption {
   id: string;
   name: string;
 }
@@ -26,6 +32,7 @@ interface SiswaFormProps {
   /** When provided, the form operates in edit mode */
   initialData?: Santri | null;
   loading?: boolean;
+  userRole?: string;
   onSubmit: (data: SiswaFormData) => void;
   onCancel: () => void;
 }
@@ -64,6 +71,7 @@ function validate(data: SiswaFormData): FormErrors {
 export default function SiswaForm({
   initialData,
   loading = false,
+  userRole,
   onSubmit,
   onCancel,
 }: SiswaFormProps) {
@@ -78,11 +86,15 @@ export default function SiswaForm({
     juz_terakhir: 1,
     status: 'Aktif',
     photo_url: '',
+    assigned_teacher_id: '',
   });
 
   const [errors, setErrors] = useState<FormErrors>({});
   const [kelasList, setKelasList] = useState<KelasOption[]>([]);
   const [kelasLoading, setKelasLoading] = useState(false);
+  const [teacherList, setTeacherList] = useState<TeacherOption[]>([]);
+  const [teacherLoading, setTeacherLoading] = useState(false);
+  const isKabid = userRole === 'Kabid';
 
   // ── Populate form when editing
   useEffect(() => {
@@ -96,6 +108,7 @@ export default function SiswaForm({
         juz_terakhir: initialData.juz_terakhir,
         status: initialData.status,
         photo_url: initialData.photo_url ?? '',
+        assigned_teacher_id: initialData.assigned_teacher_id ?? '',
       });
     } else {
       setForm({
@@ -107,6 +120,7 @@ export default function SiswaForm({
         juz_terakhir: 1,
         status: 'Aktif',
         photo_url: '',
+        assigned_teacher_id: '',
       });
     }
     setErrors({});
@@ -132,6 +146,28 @@ export default function SiswaForm({
 
     return () => { cancelled = true; };
   }, []);
+
+  // ── Fetch teacher list (hanya untuk Kabid)
+  useEffect(() => {
+    if (!isKabid) return;
+    let cancelled = false;
+    setTeacherLoading(true);
+
+    fetch('/api/tim/list')
+      .then((res) => {
+        if (!res.ok) return [];
+        return res.json().then((json) => json.data ?? []);
+      })
+      .catch(() => [])
+      .then((list: TeacherOption[]) => {
+        if (!cancelled) setTeacherList(list);
+      })
+      .finally(() => {
+        if (!cancelled) setTeacherLoading(false);
+      });
+
+    return () => { cancelled = true; };
+  }, [isKabid]);
 
   const set = <K extends keyof SiswaFormData>(key: K, value: SiswaFormData[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -201,7 +237,7 @@ export default function SiswaForm({
           value={form.gender}
           onChange={(e) => set('gender', e.target.value as Gender)}
           disabled={loading}
-          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:bg-slate-100 disabled:cursor-not-allowed"
+          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 disabled:bg-slate-100 disabled:cursor-not-allowed"
         >
           <option value="Laki-laki">Laki-laki</option>
           <option value="Perempuan">Perempuan</option>
@@ -235,7 +271,7 @@ export default function SiswaForm({
             value={form.class_id}
             onChange={(e) => set('class_id', e.target.value)}
             disabled={loading}
-            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:bg-slate-100 disabled:cursor-not-allowed"
+            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 disabled:bg-slate-100 disabled:cursor-not-allowed"
           >
             <option value="">— Pilih Kelas —</option>
             {kelasList.map((k) => (
@@ -246,6 +282,34 @@ export default function SiswaForm({
           </select>
         )}
       </div>
+
+      {/* Guru Pembimbing (Kabid only) */}
+      {isKabid && (
+        <div className="flex flex-col gap-1">
+          <label className="text-sm font-medium text-slate-700">
+            Guru Pembimbing
+            <span className="text-xs text-slate-400 font-normal ml-1">(untuk Mode Mengajar)</span>
+          </label>
+          {teacherLoading ? (
+            <div className="h-9 rounded-lg bg-slate-100 animate-pulse" />
+          ) : (
+            <select
+              value={form.assigned_teacher_id}
+              onChange={(e) => set('assigned_teacher_id', e.target.value)}
+              disabled={loading}
+              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 disabled:bg-slate-100 disabled:cursor-not-allowed"
+            >
+              <option value="">— Belum Ditugaskan —</option>
+              {teacherList.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
+          )}
+          <p className="text-xs text-slate-400">Tentukan guru yang akan mengampu siswa ini.</p>
+        </div>
+      )}
 
       {/* Juz Terakhir */}
       <Input
@@ -269,7 +333,7 @@ export default function SiswaForm({
             value={form.status}
             onChange={(e) => set('status', e.target.value as 'Aktif' | 'Nonaktif')}
             disabled={loading}
-            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:bg-slate-100 disabled:cursor-not-allowed"
+            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 disabled:bg-slate-100 disabled:cursor-not-allowed"
           >
             <option value="Aktif">Aktif</option>
             <option value="Nonaktif">Nonaktif</option>

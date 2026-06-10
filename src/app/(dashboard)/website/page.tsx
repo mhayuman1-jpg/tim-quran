@@ -38,7 +38,7 @@ export default function WebsitePage() {
       <div className="rounded-3xl bg-white/90 shadow-sm ring-1 ring-slate-200/80 p-6">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-            <Globe size={22} className="text-emerald-600" /> Kelola Website
+            <Globe size={22} className="text-amber-600" /> Kelola Website
           </h1>
           <p className="text-slate-500 text-sm mt-1">Atur semua konten yang tampil di halaman publik website.</p>
         </div>
@@ -57,7 +57,7 @@ export default function WebsitePage() {
               onClick={() => setTab(id)}
               className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap ${
                 tab === id
-                  ? 'border-emerald-600 text-emerald-700'
+                  ? 'border-amber-600 text-amber-700'
                   : 'border-transparent text-slate-500 hover:text-slate-700'
               }`}
             >
@@ -200,35 +200,35 @@ function ProfilTab({ toast }: { toast: ReturnType<typeof useToast>['toast'] }) {
 
       {/* ── Preview Logo ── */}
       {(profil.logo_url || profil.logo_sekolah_url) && (
-        <div className="bg-emerald-950 rounded-xl p-5">
-          <p className="text-xs font-semibold text-emerald-400 uppercase tracking-wide mb-4">Preview Navbar</p>
+        <div className="bg-amber-950 rounded-xl p-5">
+          <p className="text-xs font-semibold text-amber-400 uppercase tracking-wide mb-4">Preview Navbar</p>
           <div className="flex items-center gap-3">
             {profil.logo_url ? (
-              <div className="relative w-10 h-10 rounded-xl overflow-hidden border border-emerald-400/30 shrink-0">
+              <div className="relative w-10 h-10 rounded-xl overflow-hidden border border-amber-400/30 shrink-0">
                 <Image src={toImageUrl(profil.logo_url) || ''} alt="Logo Tim" fill className="object-cover" sizes="40px" />
               </div>
             ) : (
-              <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center shrink-0">
-                <BookOpen size={18} className="text-emerald-400" />
+              <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-400/30 flex items-center justify-center shrink-0">
+                <BookOpen size={18} className="text-amber-400" />
               </div>
             )}
             <span className="font-bold text-white text-base">{profil.nama_lembaga || "Tim Qur'an"}</span>
           </div>
           {profil.logo_sekolah_url && (
             <>
-              <p className="text-xs font-semibold text-emerald-400 uppercase tracking-wide mt-5 mb-3">Preview ID Card (Header)</p>
-              <div className="flex items-center gap-3 bg-emerald-800/40 rounded-lg px-4 py-3">
+              <p className="text-xs font-semibold text-amber-400 uppercase tracking-wide mt-5 mb-3">Preview ID Card (Header)</p>
+              <div className="flex items-center gap-3 bg-amber-800/40 rounded-lg px-4 py-3">
                 <div className="relative w-8 h-8 rounded-md overflow-hidden bg-white/90 p-0.5 shrink-0">
                   <Image src={toImageUrl(profil.logo_sekolah_url) || ''} alt="Logo Sekolah" fill className="object-contain" sizes="32px" />
                 </div>
                 <div className="flex-1 text-center">
                   <p className="text-white text-[10px] font-bold uppercase tracking-wide">{profil.nama_sekolah || 'Nama Sekolah'}</p>
-                  <p className="text-emerald-300/70 text-[9px]">{profil.nama_lembaga || "Tim Qur'an"}</p>
+                  <p className="text-amber-300/70 text-[9px]">{profil.nama_lembaga || "Tim Qur'an"}</p>
                 </div>
                 <div className="relative w-8 h-8 rounded-md overflow-hidden bg-white/90 p-0.5 shrink-0">
                   {profil.logo_url
                     ? <Image src={toImageUrl(profil.logo_url) || ''} alt="Logo Tim" fill className="object-contain" sizes="32px" />
-                    : <div className="w-full h-full flex items-center justify-center"><BookOpen size={14} className="text-emerald-600" /></div>
+                    : <div className="w-full h-full flex items-center justify-center"><BookOpen size={14} className="text-amber-600" /></div>
                   }
                 </div>
               </div>
@@ -273,7 +273,7 @@ function ProfilTab({ toast }: { toast: ReturnType<typeof useToast>['toast'] }) {
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-slate-700">Deskripsi</label>
             <textarea rows={3} value={profil.deskripsi} onChange={e => set('deskripsi', e.target.value)}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none" />
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 resize-none" />
           </div>
         </div>
       </div>
@@ -281,7 +281,7 @@ function ProfilTab({ toast }: { toast: ReturnType<typeof useToast>['toast'] }) {
       <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-4">
         <h2 className="font-semibold text-slate-800">Visi</h2>
         <textarea rows={3} value={profil.visi} onChange={e => set('visi', e.target.value)}
-          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none"
+          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 resize-none"
           placeholder="Tuliskan visi lembaga..." />
       </div>
 
@@ -290,7 +290,7 @@ function ProfilTab({ toast }: { toast: ReturnType<typeof useToast>['toast'] }) {
         <div className="space-y-2">
           {profil.misi.map((m, i) => (
             <div key={i} className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg">
-              <span className="w-6 h-6 rounded-full bg-emerald-100 text-emerald-700 text-xs font-bold flex items-center justify-center shrink-0">{i + 1}</span>
+              <span className="w-6 h-6 rounded-full bg-amber-100 text-amber-700 text-xs font-bold flex items-center justify-center shrink-0">{i + 1}</span>
               <p className="flex-1 text-sm text-slate-700">{m}</p>
               <button onClick={() => removeMisi(i)} className="text-slate-400 hover:text-red-500 transition-colors"><Trash2 size={14} /></button>
             </div>
@@ -300,7 +300,7 @@ function ProfilTab({ toast }: { toast: ReturnType<typeof useToast>['toast'] }) {
           <input value={newMisi} onChange={e => setNewMisi(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && addMisi()}
             placeholder="Tambah poin misi baru..."
-            className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+            className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
           <Button variant="secondary" size="sm" onClick={addMisi}><Plus size={15} /></Button>
         </div>
       </div>
@@ -411,7 +411,7 @@ function ProgramTab({ toast }: { toast: ReturnType<typeof useToast>['toast'] }) 
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-slate-700">Deskripsi</label>
             <textarea rows={3} value={form.deskripsi} onChange={e => setForm(f => ({ ...f, deskripsi: e.target.value }))}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none" />
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 resize-none" />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <Input label="Icon" value={form.icon} onChange={e => setForm(f => ({ ...f, icon: e.target.value }))} helperText="BookOpen, Star, Users, Mic" />
@@ -419,7 +419,7 @@ function ProgramTab({ toast }: { toast: ReturnType<typeof useToast>['toast'] }) 
           </div>
           <div className="flex items-center gap-3">
             <button onClick={() => setForm(f => ({ ...f, is_active: !f.is_active }))}>
-              {form.is_active ? <ToggleRight size={28} className="text-emerald-600" /> : <ToggleLeft size={28} className="text-slate-400" />}
+              {form.is_active ? <ToggleRight size={28} className="text-amber-600" /> : <ToggleLeft size={28} className="text-slate-400" />}
             </button>
             <span className="text-sm text-slate-700">Program aktif (tampil di website)</span>
           </div>
@@ -532,7 +532,7 @@ function AgendaTab({ toast }: { toast: ReturnType<typeof useToast>['toast'] }) {
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-slate-700">Deskripsi</label>
             <textarea rows={2} value={form.deskripsi} onChange={e => setForm(f => ({ ...f, deskripsi: e.target.value }))}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none" />
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 resize-none" />
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <Input label="Tanggal" type="date" value={form.tanggal} onChange={e => setForm(f => ({ ...f, tanggal: e.target.value }))} required />
@@ -542,7 +542,7 @@ function AgendaTab({ toast }: { toast: ReturnType<typeof useToast>['toast'] }) {
           <Input label="Lokasi" value={form.lokasi} onChange={e => setForm(f => ({ ...f, lokasi: e.target.value }))} placeholder="Nama tempat / link online" />
           <div className="flex items-center gap-3">
             <button onClick={() => setForm(f => ({ ...f, is_published: !f.is_published }))}>
-              {form.is_published ? <ToggleRight size={28} className="text-emerald-600" /> : <ToggleLeft size={28} className="text-slate-400" />}
+              {form.is_published ? <ToggleRight size={28} className="text-amber-600" /> : <ToggleLeft size={28} className="text-slate-400" />}
             </button>
             <span className="text-sm text-slate-700">Tampilkan di website publik</span>
           </div>
@@ -656,12 +656,12 @@ function GaleriTab({ toast }: { toast: ReturnType<typeof useToast>['toast'] }) {
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-slate-700">Deskripsi (opsional)</label>
             <textarea rows={2} value={form.deskripsi} onChange={e => setForm(f => ({ ...f, deskripsi: e.target.value }))}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none" />
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 resize-none" />
           </div>
           <Input label="Urutan" type="number" value={String(form.urutan)} onChange={e => setForm(f => ({ ...f, urutan: parseInt(e.target.value) || 0 }))} />
           <div className="flex items-center gap-3">
             <button onClick={() => setForm(f => ({ ...f, is_published: !f.is_published }))}>
-              {form.is_published ? <ToggleRight size={28} className="text-emerald-600" /> : <ToggleLeft size={28} className="text-slate-400" />}
+              {form.is_published ? <ToggleRight size={28} className="text-amber-600" /> : <ToggleLeft size={28} className="text-slate-400" />}
             </button>
             <span className="text-sm text-slate-700">Tampilkan di website publik</span>
           </div>
@@ -813,7 +813,7 @@ function MenuTab({ toast }: { toast: ReturnType<typeof useToast>['toast'] }) {
                   className="p-1.5"
                 >
                   {item.is_active ? (
-                    <ToggleRight size={20} className="text-emerald-600" />
+                    <ToggleRight size={20} className="text-amber-600" />
                   ) : (
                     <ToggleLeft size={20} className="text-slate-400" />
                   )}

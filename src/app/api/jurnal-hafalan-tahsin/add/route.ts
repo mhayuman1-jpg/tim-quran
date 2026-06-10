@@ -12,7 +12,7 @@ import type { TahsinMetode } from '@/types';
 import type { NilaiTahfidz } from '@/lib/surahData';
 
 const VALID_METODE: TahsinMetode[] = ['Wafa', 'IWR', 'Al-Quran'];
-const VALID_RATING: NilaiTahfidz[] = ['✓', 'A', 'B', 'C', 'D', ''];
+const VALID_RATING: NilaiTahfidz[] = ['✓', 'A', 'B', 'C', 'D', 'L', 'TL', ''];
 
 interface DetailRow {
   nama_surah: string;
@@ -20,7 +20,7 @@ interface DetailRow {
   tajwid?: NilaiTahfidz;
   lancar?: NilaiTahfidz;
   buku?: string;
-  halaman?: number;
+  halaman?: string;
 }
 
 export const dynamic = 'force-dynamic';
@@ -121,10 +121,7 @@ export async function POST(request: NextRequest) {
     if (!tahsin_buku || typeof tahsin_buku !== 'string' || tahsin_buku.trim() === '') {
       return NextResponse.json({ message: 'Buku tahsin wajib diisi.' }, { status: 400 });
     }
-    const tahsinHalamanNum = Number(tahsin_halaman);
-    if (isNaN(tahsinHalamanNum) || tahsinHalamanNum < 1) {
-      return NextResponse.json({ message: 'Halaman tahsin harus berupa angka positif.' }, { status: 400 });
-    }
+    const tahsinHalaman = typeof tahsin_halaman === 'string' ? tahsin_halaman.trim() : (tahsin_halaman ? String(tahsin_halaman) : null);
     const tahsinMakhroj = typeof tahsin_makhroj === 'string' && VALID_RATING.includes(tahsin_makhroj as NilaiTahfidz)
       ? (tahsin_makhroj as NilaiTahfidz)
       : null;
@@ -183,19 +180,13 @@ export async function POST(request: NextRequest) {
       if (!row.nama_surah || typeof row.nama_surah !== 'string' || row.nama_surah.trim() === '') {
         throw new Error(`Nama surah baris ${index + 1} wajib diisi.`);
       }
-      if (row.halaman === undefined || row.halaman === null) {
-        throw new Error(`Halaman baris ${index + 1} wajib diisi.`);
-      }
-      const halamanNum = Number(row.halaman);
-      if (!Number.isInteger(halamanNum) || halamanNum < 1) {
-        throw new Error(`Halaman baris ${index + 1} harus berupa angka positif.`);
-      }
+      const halamanValue = typeof row.halaman === 'string' ? row.halaman.trim() : (row.halaman ? String(row.halaman) : null);
       return {
         student_id: student_id.trim(),
         teacher_id: teacherId,
         tanggal,
         surah_juz: row.nama_surah.trim(),
-        halaman: halamanNum,
+        halaman: halamanValue || null,
         catatan: null,
         makhroj: typeof row.makhroj === 'string' && VALID_RATING.includes(row.makhroj) ? row.makhroj : null,
         tajwid: typeof row.tajwid === 'string' && VALID_RATING.includes(row.tajwid) ? row.tajwid : null,
@@ -246,7 +237,7 @@ export async function POST(request: NextRequest) {
       tanggal,
       metode: tahsin_metode as TahsinMetode,
       buku: tahsin_buku.trim(),
-      halaman: tahsinHalamanNum,
+      halaman: tahsinHalaman || null,
       makhroj: tahsinMakhroj,
       kelancaran: tahsinKelancaran,
       adab: tahsinAdab,

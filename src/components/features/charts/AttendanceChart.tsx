@@ -81,7 +81,7 @@ function CustomTooltip({ active, payload, label }: CustomTooltipProps) {
   return (
     <div className="bg-white border border-slate-200 rounded-lg shadow-lg px-3 py-2 text-sm">
       <p className="font-medium text-slate-700 mb-1">{formatTooltipDate(label)}</p>
-      <p className="text-emerald-700">
+      <p className="text-amber-700">
         <span className="font-bold">{count}</span>{' '}
         <span className="text-slate-500">{count === 1 ? 'siswa hadir' : 'siswa hadir'}</span>
       </p>
@@ -108,13 +108,13 @@ export default function AttendanceChart({ data, dateRange: _dateRange }: Attenda
       {/* Summary stats di atas grafik */}
       {chartData.length > 0 && (
         <div className="flex flex-wrap gap-4 mb-4">
-          <div className="inline-flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-2">
-            <span className="text-sm font-semibold text-emerald-600">Total Hari</span>
-            <span className="text-lg font-bold text-emerald-800">{chartData.length}</span>
+          <div className="inline-flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-lg px-4 py-2">
+            <span className="text-sm font-semibold text-amber-600">Total Hari</span>
+            <span className="text-lg font-bold text-amber-800">{chartData.length}</span>
           </div>
-          <div className="inline-flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-2">
-            <span className="text-sm font-semibold text-emerald-600">Maks. Hadir</span>
-            <span className="text-lg font-bold text-emerald-800">{maxCount}</span>
+          <div className="inline-flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-lg px-4 py-2">
+            <span className="text-sm font-semibold text-amber-600">Maks. Hadir</span>
+            <span className="text-lg font-bold text-amber-800">{maxCount}</span>
           </div>
           <div className="inline-flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-4 py-2">
             <span className="text-sm font-semibold text-slate-500">Rata-rata</span>
@@ -159,7 +159,7 @@ export default function AttendanceChart({ data, dateRange: _dateRange }: Attenda
               {chartData.map((entry, index) => (
                 <Cell
                   key={`cell-${index}`}
-                  fill={entry.count === 0 ? '#e2e8f0' : '#10b981'}
+                  fill={entry.count === 0 ? '#e2e8f0' : '#f59e0b'}
                 />
               ))}
             </Bar>

@@ -2,12 +2,14 @@
 
 import { usePathname } from 'next/navigation';
 import { signOut } from 'next-auth/react';
-import { LogOut, ExternalLink, Menu, Sun, Moon } from 'lucide-react';
+import { LogOut, ExternalLink, Menu, ArrowLeftRight } from 'lucide-react';
 import Link from 'next/link';
-import { useTheme } from '@/app/providers';
+import { useViewMode } from '@/hooks/useViewMode';
+import { useRole } from '@/hooks/useRole';
 
 const PAGE_TITLES: Record<string, string> = {
   '/dashboard': 'Dashboard',
+  '/dashboard-guru': 'Dashboard Guru',
   '/siswa': 'Data Siswa',
   '/siswa/print': 'Cetak ID Card',
   '/hafalan': 'Pencatatan Hafalan & Tahsin',
@@ -17,7 +19,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/absensi/monitoring': 'Monitoring Kehadiran',
   '/raport': "Raport Qur'an",
   '/scan': 'Scan Absensi QR',
-  '/rekap': 'Rekap Bulanan',
+  '/rekap': 'Rekap Tahfidz & Tahsin',
   '/laporan': 'Laporan Progres',
   '/kelas': 'Kelola Kelas',
   '/semester': 'Semester',
@@ -40,7 +42,18 @@ function getPageTitle(pathname: string): string {
 export default function Header({ onMenuClick }: { onMenuClick?: () => void }) {
   const pathname = usePathname();
   const title = getPageTitle(pathname);
-  const { theme, toggle } = useTheme();
+  const { role } = useRole();
+  const { viewAsRole, setViewAsRole, isViewingAsOther } = useViewMode();
+
+  const canSwitchRole = role === 'Kabid' || role === 'Sekretaris';
+
+  const handleRoleSwitch = () => {
+    if (isViewingAsOther) {
+      setViewAsRole(null);
+    } else {
+      setViewAsRole('Tim_Quran');
+    }
+  };
 
   return (
     <header className="h-16 md:h-14 flex items-center justify-between px-3 sm:px-4 md:px-6 shrink-0" style={{
@@ -62,15 +75,6 @@ export default function Header({ onMenuClick }: { onMenuClick?: () => void }) {
 
       {/* Right */}
       <div className="flex items-center gap-1 md:gap-2">
-        <button
-          onClick={() => toggle()}
-          className="p-2 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors active:bg-slate-200"
-          style={{minWidth: '44px', minHeight: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center'}}
-          aria-label="Toggle tema"
-          title="Toggle tema"
-        >
-          {theme === 'light' ? <Sun size={18} /> : <Moon size={18} />}
-        </button>
         <Link href="/" target="_blank" rel="noopener noreferrer"
           className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs md:text-sm font-medium transition-all"
           style={{color: '#6366f1', minHeight: '44px', display: 'flex', alignItems: 'center'}}
@@ -80,6 +84,29 @@ export default function Header({ onMenuClick }: { onMenuClick?: () => void }) {
           <ExternalLink size={16} />
           <span className="hidden md:inline">Website</span>
         </Link>
+        {canSwitchRole && (
+          <button
+            onClick={handleRoleSwitch}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs md:text-sm font-medium transition-colors"
+            style={{
+              minHeight: '44px',
+              display: 'flex',
+              alignItems: 'center',
+              color: isViewingAsOther ? '#d97706' : '#6366f1',
+              background: isViewingAsOther ? 'rgba(217,119,6,0.08)' : 'rgba(99,102,241,0.08)',
+            }}
+            onMouseEnter={e => {
+              (e.currentTarget as HTMLElement).style.background = isViewingAsOther ? 'rgba(217,119,6,0.15)' : 'rgba(99,102,241,0.15)';
+            }}
+            onMouseLeave={e => {
+              (e.currentTarget as HTMLElement).style.background = isViewingAsOther ? 'rgba(217,119,6,0.08)' : 'rgba(99,102,241,0.08)';
+            }}
+            title={isViewingAsOther ? 'Kembali ke mode asli' : 'Beralih ke mode Tim Qur\'an'}
+          >
+            <ArrowLeftRight size={16} />
+            <span className="hidden md:inline">{isViewingAsOther ? 'Kembali' : 'Mode Guru'}</span>
+          </button>
+        )}
         <div className="w-px h-5 bg-slate-200 mx-1" />
         <button onClick={() => signOut({ callbackUrl: '/' })}
           className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs md:text-sm font-medium text-slate-500 hover:text-red-600 hover:bg-red-50 transition-colors active:bg-red-100"

@@ -1,6 +1,6 @@
 import React from 'react';
 import type { RaportTahfidzData, DetailSurahData, ProfilRaportData } from './raport-tahfidz-types';
-import { isJuz30Raport } from '@/lib/raport/print-config';
+import { isJuz30Raport, isJuz1Raport, JUZ1_TEMPLATE } from '@/lib/raport/print-config';
 import { toImageUrl } from '@/lib/storage/urls';
 
 export type { RaportTahfidzData, DetailSurahData, ProfilRaportData } from './raport-tahfidz-types';
@@ -18,19 +18,19 @@ const headerCell = (extra: React.CSSProperties = {}): React.CSSProperties => ({
   ...cell({
     background: '#f5f5f5',
     fontWeight: 700,
-    fontSize: '8px',
+    fontSize: '10px',
     textTransform: 'uppercase',
     letterSpacing: '0.03em',
     textAlign: 'center',
-    padding: '1px 4px',
+    padding: '2px 4px',
   }),
   ...extra,
 });
 
 const bodyCell = (extra: React.CSSProperties = {}): React.CSSProperties => ({
   ...cell({
-    fontSize: '10px',
-    padding: '4px 6px',
+    fontSize: '11px',
+    padding: '3px 5px',
   }),
   ...extra,
 });
@@ -42,17 +42,17 @@ function ScoreBox({ title, children }: { title: string; children: React.ReactNod
         border: '1px solid #000',
         background: '#f5f5f5',
         fontWeight: 700,
-        fontSize: '9.5px',
+        fontSize: '11px',
         textAlign: 'center',
-        padding: '4px 6px',
+        padding: '3px 5px',
       }}>{title}</div>
       <div style={{
         border: '1px solid #000',
         borderTop: 'none',
         textAlign: 'center',
         fontWeight: 700,
-        padding: '4px 6px',
-        fontSize: '10px',
+        padding: '3px 5px',
+        fontSize: '11px',
       }}>{children}</div>
     </div>
   );
@@ -111,9 +111,28 @@ const RaportTahfidzDocument = React.forwardRef<HTMLDivElement, RaportTahfidzDocu
   ) => {
     const siswa = raport.santri;
     const guru = raport.users;
-    const detail = (raport.raport_tahfidz_detail ?? [])
+    const detailRaw = (raport.raport_tahfidz_detail ?? [])
       .slice()
       .sort((a, b) => a.urutan - b.urutan);
+
+    // Juz 1: gunakan template tetap dengan nama surah + range ayat
+    const detail = isJuz1Raport(raport.juz)
+      ? JUZ1_TEMPLATE.map((tpl) => {
+          const matched = detailRaw.find(
+            (d) => d.nama_surah?.toLowerCase().includes(tpl.nama_surah.split(' ')[0].toLowerCase()),
+          );
+          return {
+            id: matched?.id,
+            urutan: tpl.urutan,
+            nama_surah: tpl.nama_surah,
+            makhroj: matched?.makhroj ?? null,
+            tajwid: matched?.tajwid ?? null,
+            lancar: matched?.lancar ?? null,
+            wafa_buku: matched?.wafa_buku ?? null,
+            wafa_halaman: matched?.wafa_halaman ?? null,
+          };
+        })
+      : detailRaw;
 
     const namaGuruKelas = raport.nama_guru_kelas || guru?.name || null;
     const niyGuruKelas = raport.niy_guru_kelas || null;
@@ -185,9 +204,9 @@ const RaportTahfidzDocument = React.forwardRef<HTMLDivElement, RaportTahfidzDocu
           <div
             style={{
               whiteSpace: 'pre-wrap',
-              minHeight: 50,
-              padding: '6px 0',
-              fontSize: '10px',
+              minHeight: 40,
+              padding: '4px 0',
+              fontSize: '11px',
             }}
           >
             {value ? `"${value}"` : '—'}
@@ -234,7 +253,7 @@ const RaportTahfidzDocument = React.forwardRef<HTMLDivElement, RaportTahfidzDocu
           style={{
             display: 'flex',
             justifyContent: 'space-between',
-            fontSize: '7px',
+            fontSize: '8px',
             color: '#555',
             marginTop: '3px',
             fontStyle: 'italic',
@@ -249,17 +268,17 @@ const RaportTahfidzDocument = React.forwardRef<HTMLDivElement, RaportTahfidzDocu
     const headerSection = (
       <>
         {/* ══ HEADER SEKOLAH ════════════════════════════════════════════════ */}
-        <div style={{ marginBottom: '4px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div style={{ marginBottom: '2px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             {/* Logo sekolah kiri */}
-            <div style={{ width: 90, height: 90, flexShrink: 0 }}>
+            <div style={{ width: 100, height: 100, flexShrink: 0 }}>
               {profil.logo_sekolah_url ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={toImageUrl(profil.logo_sekolah_url) || ''}
                   alt="Logo"
-                  width={90}
-                  height={90}
+                  width={100}
+                  height={100}
                   style={{ objectFit: 'contain', width: '100%', height: '100%' }}
                   loading="eager"
                   decoding="sync"
@@ -267,8 +286,8 @@ const RaportTahfidzDocument = React.forwardRef<HTMLDivElement, RaportTahfidzDocu
               ) : (
                 <div
                   style={{
-                    width: 90,
-                    height: 90,
+                    width: 100,
+                    height: 100,
                     borderRadius: '50%',
                     background: '#1a5c2a',
                     display: 'flex',
@@ -299,7 +318,7 @@ const RaportTahfidzDocument = React.forwardRef<HTMLDivElement, RaportTahfidzDocu
             <div style={{ flex: 1, textAlign: 'center' }}>
               <div
                 style={{
-                  fontSize: '20px',
+                  fontSize: '28px',
                   fontWeight: 900,
                   color: '#cc0000',
                   lineHeight: 1.1,
@@ -313,7 +332,7 @@ const RaportTahfidzDocument = React.forwardRef<HTMLDivElement, RaportTahfidzDocu
 
               <div
                 style={{
-                  fontSize: '10px',
+                  fontSize: '12px',
                   fontStyle: 'italic',
                   fontWeight: 700,
                   color: '#166534',
@@ -326,35 +345,35 @@ const RaportTahfidzDocument = React.forwardRef<HTMLDivElement, RaportTahfidzDocu
               <div
                 style={{
                   display: 'flex',
-                  height: '3px',
-                  margin: '3px auto',
+                  height: '2px',
+                  margin: '2px auto',
                   borderRadius: '2px',
                   width: '90%',
                 }}
               >
-                <div style={{ flex: 4, background: '#cc0000' }} />
+                <div style={{ flex: 1, background: '#16a34a' }} />
                 <div style={{ flex: 1, background: '#16a34a' }} />
               </div>
 
-              <div style={{ fontSize: '8px', color: '#333', lineHeight: 1.4, textAlign: 'center' }}>
+              <div style={{ fontSize: '10px', color: '#333', lineHeight: 1.3, textAlign: 'center' }}>
                 <span style={{ fontWeight: 700 }}>Alamat : </span>
                 {profil.alamat ? profil.alamat : 'Lingk. Jado RT.09 Kel. Dorotangga Dompu - NTB'}
               </div>
-              <div style={{ fontSize: '8px', color: '#333', lineHeight: 1.3, textAlign: 'center' }}>
+              <div style={{ fontSize: '10px', color: '#333', lineHeight: 1.2, textAlign: 'center' }}>
                 <span style={{ marginRight: 6 }}>✉ sditah.asshoff@gmail.com</span>
-                <span>📘 Sdit Al-Hilmi Dompu</span>
+                <span>🌐 Sdit Al-Hilmi Dompu</span>
               </div>
             </div>
 
             {/* Logo tim kanan */}
-            <div style={{ width: 85, height: 85, flexShrink: 0 }}>
+            <div style={{ width: 100, height: 100, flexShrink: 0 }}>
               {profil.logo_url ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={toImageUrl(profil.logo_url) || ''}
                   alt="Logo Tim"
-                  width={85}
-                  height={85}
+                  width={100}
+                  height={100}
                   style={{ objectFit: 'contain', width: '100%', height: '100%' }}
                   loading="eager"
                   decoding="sync"
@@ -362,8 +381,8 @@ const RaportTahfidzDocument = React.forwardRef<HTMLDivElement, RaportTahfidzDocu
               ) : (
                 <div
                   style={{
-                    width: 85,
-                    height: 85,
+                    width: 100,
+                    height: 100,
                     borderRadius: '50%',
                     background: '#1e3a5f',
                     display: 'flex',
@@ -372,7 +391,7 @@ const RaportTahfidzDocument = React.forwardRef<HTMLDivElement, RaportTahfidzDocu
                     border: '2px solid #93c5fd',
                   }}
                 >
-                  <span style={{ color: '#93c5fd', fontSize: '6px', fontWeight: 900, textAlign: 'center' }}>
+                  <span style={{ color: '#93c5fd', fontSize: '8px', fontWeight: 900, textAlign: 'center' }}>
                     LOGO
                     <br />
                     TIM
@@ -382,8 +401,8 @@ const RaportTahfidzDocument = React.forwardRef<HTMLDivElement, RaportTahfidzDocu
             </div>
           </div>
 
-          <div style={{ height: '2px', background: '#000', marginTop: '5px' }} />
-          <div style={{ height: '1px', background: '#000', marginTop: '1.5px' }} />
+          <div style={{ height: '1.5px', background: '#000', marginTop: '3px' }} />
+          <div style={{ height: '1px', background: '#000', marginTop: '1px' }} />
         </div>
 
         {/* ══ JUDUL ═════════════════════════════════════════════════════════ */}
@@ -397,7 +416,7 @@ const RaportTahfidzDocument = React.forwardRef<HTMLDivElement, RaportTahfidzDocu
             textDecorationColor: '#cc0000',
             textUnderlineOffset: '3px',
             color: '#000',
-            margin: '6px 0 8px',
+            margin: '4px 0 6px',
             textTransform: 'uppercase',
           }}
         >
@@ -409,9 +428,9 @@ const RaportTahfidzDocument = React.forwardRef<HTMLDivElement, RaportTahfidzDocu
           style={{
             display: 'grid',
             gridTemplateColumns: '1fr 1fr',
-            gap: '2px 24px',
-            marginBottom: '8px',
-            fontSize: '10px',
+            gap: '1px 20px',
+            marginBottom: '6px',
+            fontSize: '11px',
           }}
         >
           <div style={{ display: 'flex', gap: 4, lineHeight: 1.5 }}>
@@ -447,10 +466,10 @@ const RaportTahfidzDocument = React.forwardRef<HTMLDivElement, RaportTahfidzDocu
         </div>
 
         {/* ══ TABEL PENILAIAN TAHFIDZ (satu-satunya table) ═════════════════ */}
-        <div style={{ fontWeight: 700, marginBottom: '6px', fontSize: '10px' }}>Penilaian Tahfidz</div>
+        <div style={{ fontWeight: 700, marginBottom: '4px', fontSize: '11px' }}>Penilaian Tahfidz</div>
         <table
           className="raport-tahfidz-table"
-          style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '6px', fontSize: '10px' }}
+          style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '4px', fontSize: '11px' }}
         >
           <thead>
             <tr>
@@ -511,7 +530,7 @@ const RaportTahfidzDocument = React.forwardRef<HTMLDivElement, RaportTahfidzDocu
                           onInlineDetailChange?.(i, 'makhroj', event.target.value || null)
                         }
                         style={{ ...editableInputStyle, width: '100%', textAlign: 'center' }}
-                        placeholder="A/B/✓"
+                        placeholder="A/B/C/D"
                       />
                     ) : (
                       row.makhroj || ''
@@ -526,7 +545,7 @@ const RaportTahfidzDocument = React.forwardRef<HTMLDivElement, RaportTahfidzDocu
                           onInlineDetailChange?.(i, 'tajwid', event.target.value || null)
                         }
                         style={{ ...editableInputStyle, width: '100%', textAlign: 'center' }}
-                        placeholder="A/B/✓"
+                        placeholder="A/B/C/D"
                       />
                     ) : (
                       row.tajwid || ''
@@ -541,7 +560,7 @@ const RaportTahfidzDocument = React.forwardRef<HTMLDivElement, RaportTahfidzDocu
                           onInlineDetailChange?.(i, 'lancar', event.target.value || null)
                         }
                         style={{ ...editableInputStyle, width: '100%', textAlign: 'center' }}
-                        placeholder="A/B/✓"
+                        placeholder="L/TL"
                       />
                     ) : (
                       row.lancar || ''
@@ -559,7 +578,7 @@ const RaportTahfidzDocument = React.forwardRef<HTMLDivElement, RaportTahfidzDocu
                           padding: '3px 6px',
                           borderRadius: 4,
                           cursor: 'pointer',
-                          fontSize: '9px',
+                          fontSize: '10px',
                         }}
                       >
                         Hapus
@@ -586,7 +605,7 @@ const RaportTahfidzDocument = React.forwardRef<HTMLDivElement, RaportTahfidzDocu
                 padding: '4px 8px',
                 borderRadius: 6,
                 cursor: 'pointer',
-                fontSize: '10px',
+                fontSize: '11px',
               }}
             >
               Tambah Baris Surah
@@ -600,14 +619,14 @@ const RaportTahfidzDocument = React.forwardRef<HTMLDivElement, RaportTahfidzDocu
     const tailSection = (
       <div style={multiPage ? { pageBreakBefore: 'always', breakBefore: 'page' } : undefined}>
         {/* ══ PENILAIAN TAHSIN ═══════════════════════════════════════════════ */}
-        <div style={{ fontSize: '10px', marginBottom: '12px' }}>
-          <div style={{ fontWeight: 700, marginBottom: '4px', fontSize: '10px' }}>Penilaian Tahsin</div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: '8px' }}>
+        <div style={{ fontSize: '11px', marginBottom: '8px' }}>
+          <div style={{ fontWeight: 700, marginBottom: '3px', fontSize: '11px' }}>Penilaian Tahsin</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px', marginBottom: '6px' }}>
             <ScoreBox title="Metode">{renderEditableText('tahsin_metode', raport.tahsin_metode, '—')}</ScoreBox>
             <ScoreBox title="Buku">{renderEditableText('tahsin_buku', raport.tahsin_buku, '—')}</ScoreBox>
             <ScoreBox title="Halaman">{renderEditableText('tahsin_halaman', raport.tahsin_halaman, '—')}</ScoreBox>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px' }}>
             <ScoreBox title="Makharijul Huruf">
               {renderEditableText('tahsin_makhroj', raport.tahsin_makhroj, '—')}
             </ScoreBox>
@@ -622,31 +641,31 @@ const RaportTahfidzDocument = React.forwardRef<HTMLDivElement, RaportTahfidzDocu
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: '1fr 200px',
-            gap: '0 12px',
-            fontSize: '10px',
-            marginBottom: '12px',
+            gridTemplateColumns: '1fr 180px',
+            gap: '0 10px',
+            fontSize: '11px',
+            marginBottom: '8px',
           }}
         >
           <div>
-            <div style={{ fontWeight: 700, marginBottom: '4px', fontSize: '10px' }}>Catatan Ustadz/ah</div>
+            <div style={{ fontWeight: 700, marginBottom: '3px', fontSize: '11px' }}>Catatan Ustadz/ah</div>
             <div
               style={{
-                minHeight: '60px',
-                padding: '6px 8px',
+                minHeight: '50px',
+                padding: '4px 6px',
                 border: '1px solid #000',
                 lineHeight: 1.4,
                 background: '#f9fafb',
-                fontSize: '10px',
+                fontSize: '11px',
               }}
             >
               {renderEditableTextarea('catatan', raport.catatan, '—')}
             </div>
           </div>
 
-          <div style={{ fontSize: '9px' }}>
-            <div style={{ fontWeight: 700, marginBottom: '4px' }}>Keterangan :</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', lineHeight: 1.3 }}>
+          <div style={{ fontSize: '10px' }}>
+            <div style={{ fontWeight: 700, marginBottom: '3px' }}>Keterangan Penilaian :</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1px', lineHeight: 1.3 }}>
               <span>
                 <strong>A</strong> = Sangat Baik
               </span>
@@ -654,17 +673,23 @@ const RaportTahfidzDocument = React.forwardRef<HTMLDivElement, RaportTahfidzDocu
                 <strong>B</strong> = Baik
               </span>
               <span>
-                <strong>C</strong> = Cukup Baik
+                <strong>C</strong> = Cukup
               </span>
               <span>
-                <strong>D</strong> = Kurang Baik
+                <strong>D</strong> = Kurang
+              </span>
+              <span style={{ marginTop: '2px' }}>
+                <strong>L</strong> = Lancar
+              </span>
+              <span>
+                <strong>TL</strong> = Tidak Lancar
               </span>
             </div>
           </div>
         </div>
 
         {/* ══ TANGGAL ═══════════════════════════════════════════════════════ */}
-        <div style={{ textAlign: 'right', fontSize: '10px', marginBottom: '4px' }}>
+        <div style={{ textAlign: 'right', fontSize: '11px', marginBottom: '3px' }}>
           {inlineEdit ? (
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
               <input
@@ -694,13 +719,13 @@ const RaportTahfidzDocument = React.forwardRef<HTMLDivElement, RaportTahfidzDocu
           style={{
             display: 'grid',
             gridTemplateColumns: '1fr 1fr',
-            gap: '0 20px',
-            fontSize: '10px',
-            marginBottom: '12px',
+            gap: '0 16px',
+            fontSize: '11px',
+            marginBottom: '8px',
           }}
         >
           <div style={{ textAlign: 'center' }}>
-            <div style={{ marginBottom: 2, fontSize: '10px' }}>Guru Kelas,</div>
+            <div style={{ marginBottom: 1, fontSize: '11px' }}>Guru Kelas,</div>
             <div style={{ height: 45 }} />
             {namaGuruKelas ? (
               <>
@@ -711,7 +736,7 @@ const RaportTahfidzDocument = React.forwardRef<HTMLDivElement, RaportTahfidzDocu
                     textDecorationThickness: '1px',
                     textUnderlineOffset: '2px',
                     marginBottom: 1,
-                    fontSize: '10px',
+                    fontSize: '11px',
                   }}
                 >
                   {renderEditableText('nama_guru_kelas', namaGuruKelas, 'Nama Guru Kelas', {
@@ -720,7 +745,7 @@ const RaportTahfidzDocument = React.forwardRef<HTMLDivElement, RaportTahfidzDocu
                   })}
                 </div>
                 {renderEditableText('niy_guru_kelas', niyGuruKelas, 'NIY Guru Kelas', {
-                  fontSize: '9px',
+                  fontSize: '10px',
                   color: '#222',
                   display: 'block',
                 })}
@@ -731,7 +756,7 @@ const RaportTahfidzDocument = React.forwardRef<HTMLDivElement, RaportTahfidzDocu
           </div>
 
           <div style={{ textAlign: 'center' }}>
-            <div style={{ marginBottom: 2, fontSize: '10px' }}>Kabid Qur&apos;an,</div>
+            <div style={{ marginBottom: 1, fontSize: '11px' }}>Kabid Qur&apos;an,</div>
             <div style={{ height: 45 }} />
             {namaKabid ? (
               <>
@@ -742,7 +767,7 @@ const RaportTahfidzDocument = React.forwardRef<HTMLDivElement, RaportTahfidzDocu
                     textDecorationThickness: '1px',
                     textUnderlineOffset: '2px',
                     marginBottom: 1,
-                    fontSize: '10px',
+                    fontSize: '11px',
                   }}
                 >
                   {renderEditableText('nama_kabid', namaKabid, 'Nama Kabid', {
@@ -751,7 +776,7 @@ const RaportTahfidzDocument = React.forwardRef<HTMLDivElement, RaportTahfidzDocu
                   })}
                 </div>
                 {renderEditableText('niy_kabid', niyKabid, 'NIY Kabid', {
-                  fontSize: '9px',
+                  fontSize: '10px',
                   color: '#222',
                   display: 'block',
                 })}
@@ -763,9 +788,9 @@ const RaportTahfidzDocument = React.forwardRef<HTMLDivElement, RaportTahfidzDocu
         </div>
 
         {/* ══ KEPALA SEKOLAH ════════════════════════════════════════════════ */}
-        <div style={{ textAlign: 'center', fontSize: '10px' }}>
-          <div style={{ marginBottom: 1, fontSize: '10px' }}>Mengetahui;</div>
-          <div style={{ fontStyle: 'italic', marginBottom: 2, fontSize: '9px' }}>
+        <div style={{ textAlign: 'center', fontSize: '11px' }}>
+          <div style={{ marginBottom: 1, fontSize: '11px' }}>Mengetahui;</div>
+          <div style={{ fontStyle: 'italic', marginBottom: 2, fontSize: '10px' }}>
             Kepala SD IT Al Hilmi Dompu,
           </div>
           <div style={{ height: 45 }} />
@@ -778,7 +803,7 @@ const RaportTahfidzDocument = React.forwardRef<HTMLDivElement, RaportTahfidzDocu
                   textDecorationThickness: '1px',
                   textUnderlineOffset: '2px',
                   marginBottom: 1,
-                  fontSize: '10px',
+                  fontSize: '11px',
                   display: 'inline-block',
                 }}
               >
@@ -788,7 +813,7 @@ const RaportTahfidzDocument = React.forwardRef<HTMLDivElement, RaportTahfidzDocu
                 })}
               </div>
               {renderEditableText('niy_kepala_sekolah', niyKepalaSekolah, 'NIY Kepala Sekolah', {
-                fontSize: '9px',
+                fontSize: '10px',
                 color: '#222',
                 display: 'block',
               })}

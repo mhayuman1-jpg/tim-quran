@@ -210,11 +210,9 @@ export async function GET(request: NextRequest) {
     if (attendanceData && attendanceData.length > 0) {
       const total = attendanceData.length;
       const hadir = attendanceData.filter(a => a.status === 'Hadir').length;
-      const sakit = attendanceData.filter(a => a.status === 'Sakit').length;
-      const izin = attendanceData.filter(a => a.status === 'Izin').length;
       const alfa = attendanceData.filter(a => a.status === 'Tidak Hadir').length;
       const pct = Math.round((hadir / total) * 100);
-      attendanceSummary = `Kehadiran: ${pct}% (Hadir: ${hadir}, Sakit: ${sakit}, Izin: ${izin}, Alfa: ${alfa}).\n`;
+      attendanceSummary = `Kehadiran: ${pct}% (Hadir: ${hadir}, Tidak Hadir: ${alfa}).\n`;
     } else {
       attendanceSummary = 'Kehadiran: 0% (Belum ada data absensi).\n';
     }

@@ -5,12 +5,13 @@
 // 1. Grid kartu kelas (dari /api/kelas/list)
 // 2. Klik kelas → view tab Harian/Bulanan untuk kelas tersebut
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { CalendarDays, BarChart3, RefreshCw, Download, ArrowLeft } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Badge, { getStatusBadgeVariant } from '@/components/ui/Badge';
 import DataTable, { ColumnDef } from '@/components/shared/DataTable';
 import { useToast } from '@/lib/toast';
+import { useViewMode } from '@/hooks/useViewMode';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -107,6 +108,15 @@ const HARIAN_COLUMNS: ColumnDef<AbsensiHarian>[] = [
 ];
 
 function TabHarian({ showToast, classId }: TabProps) {
+  const { viewAsRole, viewAsTeacherId } = useViewMode();
+  const viewHeaders = useMemo(() => {
+    const h: Record<string, string> = {};
+    if (viewAsRole === 'Tim_Quran') {
+      h['x-view-mode'] = 'teaching';
+      if (viewAsTeacherId) h['x-view-as-teacher-id'] = viewAsTeacherId;
+    }
+    return h;
+  }, [viewAsRole, viewAsTeacherId]);
   const today = toDateInputValue(new Date());
   const [date, setDate] = useState(today);
   const [data, setData] = useState<AbsensiHarian[]>([]);
@@ -121,7 +131,7 @@ function TabHarian({ showToast, classId }: TabProps) {
       try {
         const url = `/api/absensi/harian?date=${encodeURIComponent(d)}` +
         (classId ? `&class_id=${classId}` : '');
-        const res = await fetch(url);
+        const res = await fetch(url, { headers: viewHeaders });
         const json = await res.json();
         if (!res.ok) {
           showToast('error', json.message ?? 'Gagal memuat data absensi harian.');
@@ -137,13 +147,13 @@ function TabHarian({ showToast, classId }: TabProps) {
         setFetched(true);
       }
     },
-    [showToast, classId]
+    [showToast, classId, viewHeaders]
   );
 
   useEffect(() => {
     fetchHarian(today);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [classId]);
+  }, [fetchHarian]);
 
   const jumlahHadir = data.filter((d) => d.status === 'Hadir').length;
   const jumlahTidakHadir = data.filter((d) => d.status === 'Tidak Hadir').length;
@@ -161,7 +171,7 @@ function TabHarian({ showToast, classId }: TabProps) {
             value={date}
             max={today}
             onChange={(e) => setDate(e.target.value)}
-            className="block rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+            className="block rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
           />
         </div>
         <Button
@@ -184,9 +194,9 @@ function TabHarian({ showToast, classId }: TabProps) {
 
       {fetched && data.length > 0 && (
         <div className="flex flex-wrap gap-3">
-          <div className="inline-flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-2">
-            <span className="text-sm font-semibold text-emerald-700">Hadir</span>
-            <span className="text-lg font-bold text-emerald-800">{jumlahHadir}</span>
+          <div className="inline-flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-lg px-4 py-2">
+            <span className="text-sm font-semibold text-amber-700">Hadir</span>
+            <span className="text-lg font-bold text-amber-800">{jumlahHadir}</span>
           </div>
           <div className="inline-flex items-center gap-2 bg-red-50 border border-red-200 rounded-lg px-4 py-2">
             <span className="text-sm font-semibold text-red-600">Tidak Hadir</span>
@@ -249,7 +259,7 @@ const BULANAN_COLUMNS: ColumnDef<AbsensiBulanan>[] = [
     align: 'center',
     width: '80px',
     render: (row) => (
-      <span className="font-semibold text-emerald-700">{row.jumlahHadir}</span>
+      <span className="font-semibold text-amber-700">{row.jumlahHadir}</span>
     ),
   },
   {
@@ -273,6 +283,15 @@ const BULANAN_COLUMNS: ColumnDef<AbsensiBulanan>[] = [
 ];
 
 function TabBulanan({ showToast, classId }: TabProps) {
+  const { viewAsRole, viewAsTeacherId } = useViewMode();
+  const viewHeaders = useMemo(() => {
+    const h: Record<string, string> = {};
+    if (viewAsRole === 'Tim_Quran') {
+      h['x-view-mode'] = 'teaching';
+      if (viewAsTeacherId) h['x-view-as-teacher-id'] = viewAsTeacherId;
+    }
+    return h;
+  }, [viewAsRole, viewAsTeacherId]);
   const now = new Date();
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [year, setYear] = useState(now.getFullYear());
@@ -287,7 +306,7 @@ function TabBulanan({ showToast, classId }: TabProps) {
       setFetched(false);
       try {
         const url = `/api/absensi/bulanan?month=${m}&year=${y}&class_id=${classId}`;
-        const res = await fetch(url);
+        const res = await fetch(url, { headers: viewHeaders });
         const json = await res.json();
         if (!res.ok) {
           showToast('error', json.message ?? 'Gagal memuat rekap absensi bulanan.');
@@ -306,13 +325,13 @@ function TabBulanan({ showToast, classId }: TabProps) {
         setFetched(true);
       }
     },
-    [showToast, classId]
+    [showToast, classId, viewHeaders]
   );
 
   useEffect(() => {
     fetchBulanan(now.getMonth() + 1, now.getFullYear());
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [classId]);
+  }, [fetchBulanan]);
 
   const thisYear = now.getFullYear();
   const yearOptions = Array.from({ length: 6 }, (_, i) => thisYear - 2 + i);
@@ -333,7 +352,7 @@ function TabBulanan({ showToast, classId }: TabProps) {
             id="month-picker"
             value={month}
             onChange={(e) => setMonth(Number(e.target.value))}
-            className="block rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+            className="block rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
           >
             {BULAN_NAMES.map((b, i) => (
               <option key={i + 1} value={i + 1}>{b}</option>
@@ -349,7 +368,7 @@ function TabBulanan({ showToast, classId }: TabProps) {
             id="year-picker"
             value={year}
             onChange={(e) => setYear(Number(e.target.value))}
-            className="block rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+            className="block rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
           >
             {yearOptions.map((y) => (
               <option key={y} value={y}>{y}</option>
@@ -405,9 +424,9 @@ function TabBulanan({ showToast, classId }: TabProps) {
             <span className="text-sm font-semibold text-slate-500">Hari Aktif</span>
             <span className="text-lg font-bold text-slate-700">{totalHariAktif}</span>
           </div>
-          <div className="inline-flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-2">
-            <span className="text-sm font-semibold text-emerald-600">Rata-rata Kehadiran</span>
-            <span className="text-lg font-bold text-emerald-700">{rataPersentase}%</span>
+          <div className="inline-flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-lg px-4 py-2">
+            <span className="text-sm font-semibold text-amber-600">Rata-rata Kehadiran</span>
+            <span className="text-lg font-bold text-amber-700">{rataPersentase}%</span>
           </div>
         </div>
       )}
@@ -438,6 +457,15 @@ function TabBulanan({ showToast, classId }: TabProps) {
 
 export default function AbsensiPage() {
   const { toast } = useToast();
+  const { viewAsRole, viewAsTeacherId } = useViewMode();
+  const viewHeaders = useMemo(() => {
+    const h: Record<string, string> = {};
+    if (viewAsRole === 'Tim_Quran') {
+      h['x-view-mode'] = 'teaching';
+      if (viewAsTeacherId) h['x-view-as-teacher-id'] = viewAsTeacherId;
+    }
+    return h;
+  }, [viewAsRole]);
 
   const [activeTab, setActiveTab] = useState<TabKey>('harian');
   const [selectedClass, setSelectedClass] = useState<{ id: string; name: string } | null>(null);
@@ -453,11 +481,11 @@ export default function AbsensiPage() {
   );
 
   useEffect(() => {
-    fetch('/api/kelas/list')
+    fetch('/api/kelas/list', { headers: viewHeaders })
       .then((r) => r.json())
       .then((j) => { setKelasList(j.data ?? []); setKelasLoading(false); })
       .catch(() => setKelasLoading(false));
-  }, []);
+  }, [viewHeaders]);
 
   const tabs: { key: TabKey; label: string; icon: React.ReactNode }[] = [
     { key: 'harian', label: 'Harian', icon: <CalendarDays size={16} /> },
@@ -537,7 +565,7 @@ export default function AbsensiPage() {
               className={[
                 'flex items-center gap-2 px-6 py-4 text-sm font-medium transition-colors border-b-2 -mb-px',
                 activeTab === tab.key
-                  ? 'text-emerald-700 border-emerald-600 bg-emerald-50/40'
+                  ? 'text-amber-700 border-amber-600 bg-amber-50/40'
                   : 'text-slate-500 border-transparent hover:text-slate-700 hover:bg-slate-50',
               ].join(' ')}
               aria-selected={activeTab === tab.key}

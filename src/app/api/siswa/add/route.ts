@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { nisn, nama, gender, tanggal_lahir, class_id, juz_terakhir, status, photo_url } = body;
+    const { nisn, nama, gender, tanggal_lahir, class_id, juz_terakhir, status, photo_url, assigned_teacher_id } = body;
 
     // Validasi field wajib
     if (!nisn || typeof nisn !== 'string' || nisn.trim() === '') {
@@ -68,8 +68,10 @@ export async function POST(request: NextRequest) {
     if (class_id) insertData.class_id = class_id;
     if (photo_url) insertData.photo_url = photo_url;
 
-    // Untuk Tim_Quran, auto-assign ke dirinya sendiri jika tidak ada assigned_teacher_id
-    if (session.user.role === 'Tim_Quran') {
+    // Penugasan guru
+    if (session.user.role === 'Kabid' && assigned_teacher_id) {
+      insertData.assigned_teacher_id = assigned_teacher_id;
+    } else if (session.user.role === 'Tim_Quran') {
       insertData.assigned_teacher_id = session.user.id;
     }
 

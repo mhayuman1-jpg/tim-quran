@@ -7,13 +7,13 @@
 .raport-print-root {
   font-family: "Times New Roman", Times, serif;
   background: #fff;
-  padding: 20px 28px;
+  padding: 12px 20px;
   width: 210mm;
   box-sizing: border-box;
   margin: 0 auto;
   font-size: 12px;
   color: #000;
-  line-height: 1.4;
+  line-height: 1.35;
   box-shadow: none;
 }
 
@@ -208,7 +208,7 @@ body.raport-pdf-render .raport-print-root,
 .raport-custom-html {
   font-family: "Times New Roman", Times, serif;
   color: #000;
-  line-height: 1.4;
+  line-height: 1.5;
 }
 
 .raport-doc-editor table,

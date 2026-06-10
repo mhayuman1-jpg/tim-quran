@@ -9,6 +9,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
 import { queryAttendanceByStudent } from '@/lib/attendance';
+import { shouldFilterByTeacher } from '@/lib/rbac';
 
 export async function GET(request: NextRequest) {
   // Verifikasi sesi
@@ -49,8 +50,8 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Data isolation: Tim_Quran hanya bisa lihat siswa yang dibina
-    if (session.user.role === 'Tim_Quran' && student.assigned_teacher_id !== session.user.id) {
+    // Data isolation: Tim_Quran hanya bisa lihat siswa yang dibina (berlaku juga untuk Kabid/Sekretaris dalam Mode Mengajar)
+    if (shouldFilterByTeacher(session.user.role, request) && student.assigned_teacher_id !== session.user.id) {
       return NextResponse.json(
         { message: 'Akses tidak diizinkan.' },
         { status: 403 }

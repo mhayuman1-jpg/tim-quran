@@ -3,7 +3,7 @@
 /**
  * RaportPremium.tsx
  * Premium Islamic Raport Component for SDIT
- * Modern Emerald Green + Gold design — A4 Portrait, print-ready
+ * Modern Gold design — A4 Portrait, print-ready
  * Used with react-to-print via forwardRef
  */
 
@@ -93,11 +93,11 @@ export interface RaportPremiumData {
 // ─── Color Constants ─────────────────────────────────────────────────────────
 
 const C = {
-  emeraldDark: '#065f46',
-  emerald: '#059669',
-  emeraldLight: '#10b981',
-  emeraldBg: '#ecfdf5',
-  emeraldBorder: '#6ee7b7',
+  emeraldDark: '#b45309',
+  emerald: '#d97706',
+  emeraldLight: '#f59e0b',
+  emeraldBg: '#fffbeb',
+  emeraldBorder: '#fde68a',
   gold: '#d97706',
   goldLight: '#f59e0b',
   goldBg: '#fffbeb',

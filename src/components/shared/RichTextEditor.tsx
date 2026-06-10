@@ -46,7 +46,7 @@ function Btn({
     <button type="button" title={title} disabled={disabled} onClick={onClick}
       className={[
         'p-1.5 rounded text-sm transition-all flex items-center justify-center min-w-[28px]',
-        active  ? 'bg-emerald-100 text-emerald-700 ring-1 ring-emerald-300' : 'text-slate-600 hover:bg-slate-200 hover:text-slate-900',
+        active  ? 'bg-amber-100 text-amber-700 ring-1 ring-amber-300' : 'text-slate-600 hover:bg-slate-200 hover:text-slate-900',
         disabled ? 'opacity-30 cursor-not-allowed' : 'cursor-pointer',
       ].join(' ')}>
       {children}
@@ -86,8 +86,8 @@ function AIMenu({ onSelect, loading }: { onSelect: (a: string) => void; loading:
       <button ref={btnRef} type="button" disabled={loading} onClick={handleOpen}
         className={[
           'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all select-none',
-          'bg-gradient-to-r from-violet-600 to-indigo-600 text-white',
-          'hover:from-violet-700 hover:to-indigo-700 shadow-sm active:scale-95',
+          'bg-gradient-to-r from-amber-600 to-amber-600 text-white',
+          'hover:from-amber-700 hover:to-amber-700 shadow-sm active:scale-95',
           loading ? 'opacity-70 cursor-wait' : 'cursor-pointer',
         ].join(' ')}>
         {loading

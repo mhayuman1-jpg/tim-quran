@@ -28,8 +28,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: 'Kelas tidak ditemukan.' }, { status: 404 });
     }
 
-    if (!kelas.teacher1_id || !kelas.teacher2_id) {
-      return NextResponse.json({ message: 'Pastikan Guru 1 dan Guru 2 sudah ditetapkan untuk kelas ini.' }, { status: 400 });
+    if (!kelas.teacher1_id && !kelas.teacher2_id) {
+      return NextResponse.json({ message: 'Pastikan minimal satu guru sudah ditetapkan untuk kelas ini.' }, { status: 400 });
     }
 
     // Ambil semua siswa aktif di kelas
@@ -50,27 +50,49 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: 'Tidak ada siswa di kelas ini.' }, { status: 200 });
     }
 
-    const half = Math.ceil(ids.length / 2);
-    const first = ids.slice(0, half);
-    const second = ids.slice(half);
+    const hasBothTeachers = Boolean(kelas.teacher1_id && kelas.teacher2_id);
+    const teacher1 = kelas.teacher1_id;
+    const teacher2 = kelas.teacher2_id;
 
-    // Update assigned_teacher_id untuk kedua grup
-    const p1 = first.length > 0
-      ? supabase.from('santri').update({ assigned_teacher_id: kelas.teacher1_id }).in('id', first)
-      : Promise.resolve({ data: null, error: null });
+    let results: { teacher1: number; teacher2: number } = { teacher1: 0, teacher2: 0 };
 
-    const p2 = second.length > 0
-      ? supabase.from('santri').update({ assigned_teacher_id: kelas.teacher2_id }).in('id', second)
-      : Promise.resolve({ data: null, error: null });
+    if (hasBothTeachers) {
+      const half = Math.ceil(ids.length / 2);
+      const first = ids.slice(0, half);
+      const second = ids.slice(half);
 
-    const [r1, r2] = await Promise.all([p1, p2]);
+      const p1 = first.length > 0
+        ? supabase.from('santri').update({ assigned_teacher_id: teacher1 }).in('id', first)
+        : Promise.resolve({ data: null, error: null });
 
-    if ((r1 && (r1 as any).error) || (r2 && (r2 as any).error)) {
-      console.error('[split-students] update errors:', (r1 as any).error, (r2 as any).error);
-      return NextResponse.json({ message: 'Gagal membagi siswa ke guru.' }, { status: 500 });
+      const p2 = second.length > 0
+        ? supabase.from('santri').update({ assigned_teacher_id: teacher2 }).in('id', second)
+        : Promise.resolve({ data: null, error: null });
+
+      const [r1, r2] = await Promise.all([p1, p2]);
+
+      if ((r1 && (r1 as any).error) || (r2 && (r2 as any).error)) {
+        console.error('[split-students] update errors:', (r1 as any).error, (r2 as any).error);
+        return NextResponse.json({ message: 'Gagal membagi siswa ke guru.' }, { status: 500 });
+      }
+
+      results = { teacher1: first.length, teacher2: second.length };
+    } else {
+      const assignedTeacher = teacher1 || teacher2;
+      const { error: updateError } = await supabase
+        .from('santri')
+        .update({ assigned_teacher_id: assignedTeacher })
+        .in('id', ids);
+
+      if (updateError) {
+        console.error('[split-students] update error:', updateError);
+        return NextResponse.json({ message: 'Gagal menetapkan guru untuk siswa.' }, { status: 500 });
+      }
+
+      results = { teacher1: ids.length, teacher2: 0 };
     }
 
-    return NextResponse.json({ message: 'Siswa berhasil dibagi ke Guru 1 dan Guru 2.', counts: { teacher1: first.length, teacher2: second.length } }, { status: 200 });
+    return NextResponse.json({ message: 'Siswa berhasil dibagi ke guru.', counts: results }, { status: 200 });
   } catch (error) {
     console.error('split-students route error:', error);
     return NextResponse.json({ message: 'Terjadi kesalahan pada server.' }, { status: 500 });

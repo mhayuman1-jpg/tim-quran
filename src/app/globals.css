@@ -43,11 +43,11 @@ body {
   }
 
   .hover-lift {
-    @apply hover:shadow-lg hover:shadow-sky-500/20 hover:-translate-y-1 transition-all duration-300;
+    @apply hover:shadow-lg hover:shadow-amber-500/20 hover:-translate-y-1 transition-all duration-300;
   }
 
   .hover-glow {
-    @apply hover:shadow-lg hover:shadow-sky-500/50 transition-all duration-300;
+    @apply hover:shadow-lg hover:shadow-amber-500/50 transition-all duration-300;
   }
 
   /* Mobile optimizations */
@@ -311,15 +311,9 @@ body {
   html {
     scroll-behavior: smooth;
     min-height: 100%;
-    background-color: #0f172a;
-    color: #f8fafc;
+    background-color: #fffbeb;
+    color: #1e293b;
     box-sizing: border-box;
-  }
-
-  /* Light theme overrides when `.light` class applied to <html> */
-  html.light, html.light body {
-    background-color: #f8fafc;
-    color: #0f172a;
   }
 
   *, *::before, *::after {
@@ -330,8 +324,8 @@ body {
     @apply font-sans text-slate-900 antialiased;
     margin: 0;
     min-height: 100vh;
-    background-color: #0f172a;
-    color: #f8fafc;
+    background-color: #fffbeb;
+    color: #1e293b;
     font-family: var(--font-inter), Inter, ui-sans-serif, system-ui, sans-serif;
   }
 
@@ -352,7 +346,7 @@ body {
 
   /* Arabic text helper */
   .font-arabic {
-    font-family: 'Amiri', 'Traditional Arabic', 'Arabic Typesetting', serif;
+    font-family: var(--font-amiri), 'Amiri', 'Traditional Arabic', 'Arabic Typesetting', serif;
     line-height: 2;
   }
 }
@@ -361,7 +355,7 @@ body {
 @layer components {
   /* Focus ring utama */
   .focus-ring {
-    @apply focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2;
+    @apply focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2;
   }
 
   /* Card shadow hover */
@@ -369,9 +363,9 @@ body {
     @apply transition-all duration-200 hover:shadow-md hover:-translate-y-0.5;
   }
 
-  /* Gradient text emerald */
-  .text-gradient-emerald {
-    @apply bg-gradient-to-r from-emerald-400 to-teal-300 bg-clip-text text-transparent;
+  /* Gradient text gold */
+  .text-gradient-gold {
+    @apply bg-gradient-to-r from-amber-400 to-amber-300 bg-clip-text text-transparent;
   }
 
   /* Glass effect */
@@ -435,9 +429,9 @@ body {
   from { opacity: 0; transform: translateY(-12px); }
   to { opacity: 1; transform: translateY(0); }
 }
-@keyframes pulseGlowGreen {
-  0%, 100% { box-shadow: 0 0 20px rgba(16,185,129,0.3); }
-  50%       { box-shadow: 0 0 40px rgba(16,185,129,0.6); }
+@keyframes pulseGlowGold {
+  0%, 100% { box-shadow: 0 0 20px rgba(245,158,11,0.3); }
+  50%       { box-shadow: 0 0 40px rgba(245,158,11,0.6); }
 }
 @keyframes shimmer {
   0%   { background-position: -200% center; }
@@ -449,13 +443,45 @@ body {
 .animate-fade-in-down  { animation: fadeInDown 0.35s ease forwards; }
 .animate-scale-in      { animation: scaleIn 0.5s ease forwards; }
 .animate-float         { animation: floatAnim 3s ease-in-out infinite; }
-.animate-pulse-glow    { animation: pulseGlowGreen 2s ease-in-out infinite; }
+.animate-pulse-glow    { animation: pulseGlowGold 2s ease-in-out infinite; }
 .delay-100 { animation-delay: 0.1s; opacity: 0; }
 .delay-200 { animation-delay: 0.2s; opacity: 0; }
 .delay-300 { animation-delay: 0.3s; opacity: 0; }
 .delay-400 { animation-delay: 0.4s; opacity: 0; }
 .delay-500 { animation-delay: 0.5s; opacity: 0; }
 .delay-600 { animation-delay: 0.6s; opacity: 0; }
+
+/* ── Islamic decorative ──────────────────────────────────────────────────── */
+
+/* Ornate glass card with gold border */
+.islamic-card {
+  position: relative;
+  background: linear-gradient(135deg, rgba(255,255,255,0.95), rgba(255,251,235,0.95));
+  border: 1px solid rgba(245,158,11,0.2);
+  box-shadow: 0 0 30px rgba(245,158,11,0.06), inset 0 0 30px rgba(245,158,11,0.02);
+}
+.islamic-card::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg, rgba(245,158,11,0.3), transparent 40%, transparent 60%, rgba(245,158,11,0.15));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* Gold shimmer text effect */
+.text-gold-shimmer {
+  background: linear-gradient(90deg, #fcd34d, #f59e0b, #d97706, #f59e0b, #fcd34d);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: shine 4s ease-in-out infinite;
+}
 
 /* ── Blob background animations (login page) ──────────────────────────────── */
 @keyframes blob {

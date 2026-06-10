@@ -160,11 +160,11 @@ export default function ImportExcelModal({ open, onClose, onImportDone }: Import
       <div className="space-y-5">
 
         {/* Download template */}
-        <div className="flex items-center gap-3 rounded-xl bg-emerald-50 border border-emerald-100 p-3.5">
-          <FileSpreadsheet size={20} className="text-emerald-600 shrink-0" />
+        <div className="flex items-center gap-3 rounded-xl bg-amber-50 border border-amber-100 p-3.5">
+          <FileSpreadsheet size={20} className="text-amber-600 shrink-0" />
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-emerald-800">Template Excel tersedia</p>
-            <p className="text-xs text-emerald-600 mt-0.5">
+            <p className="text-sm font-medium text-amber-800">Template Excel tersedia</p>
+            <p className="text-xs text-amber-600 mt-0.5">
               Download template yang sudah berisi contoh data, panduan pengisian, dan daftar kelas.
             </p>
           </div>
@@ -181,10 +181,10 @@ export default function ImportExcelModal({ open, onClose, onImportDone }: Import
             <div
               className={`relative border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all ${
                 dragOver
-                  ? 'border-emerald-400 bg-emerald-50'
+                  ? 'border-amber-400 bg-amber-50'
                   : selectedFile
-                  ? 'border-emerald-300 bg-emerald-50/50'
-                  : 'border-slate-200 hover:border-emerald-300 hover:bg-slate-50'
+                  ? 'border-amber-300 bg-amber-50/50'
+                  : 'border-slate-200 hover:border-amber-300 hover:bg-slate-50'
               }`}
               onClick={() => fileInputRef.current?.click()}
               onDrop={handleDrop}
@@ -195,9 +195,9 @@ export default function ImportExcelModal({ open, onClose, onImportDone }: Import
             >
               {selectedFile ? (
                 <div className="flex items-center justify-center gap-3">
-                  <FileSpreadsheet size={28} className="text-emerald-600 shrink-0" />
+                  <FileSpreadsheet size={28} className="text-amber-600 shrink-0" />
                   <div className="text-left">
-                    <p className="text-sm font-semibold text-emerald-700">{selectedFile.name}</p>
+                    <p className="text-sm font-semibold text-amber-700">{selectedFile.name}</p>
                     <p className="text-xs text-slate-400">{(selectedFile.size / 1024).toFixed(1)} KB</p>
                   </div>
                   <button
@@ -238,7 +238,7 @@ export default function ImportExcelModal({ open, onClose, onImportDone }: Import
               <span>Mengimport data...</span>
             </div>
             <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
-              <div className="h-2 bg-emerald-500 rounded-full animate-pulse w-2/3" />
+              <div className="h-2 bg-amber-500 rounded-full animate-pulse w-2/3" />
             </div>
           </div>
         )}
@@ -252,9 +252,9 @@ export default function ImportExcelModal({ open, onClose, onImportDone }: Import
                 <p className="text-3xl font-bold text-slate-700">{summary.total}</p>
                 <p className="text-xs text-slate-500 mt-1">Total Data</p>
               </div>
-              <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-center">
-                <p className="text-3xl font-bold text-emerald-700">{summary.berhasil}</p>
-                <p className="text-xs text-emerald-600 mt-1">Berhasil Diimpor</p>
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-center">
+                <p className="text-3xl font-bold text-amber-700">{summary.berhasil}</p>
+                <p className="text-xs text-amber-600 mt-1">Berhasil Diimpor</p>
               </div>
               <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-center">
                 <p className="text-3xl font-bold text-red-600">{summary.gagal}</p>
@@ -271,7 +271,7 @@ export default function ImportExcelModal({ open, onClose, onImportDone }: Import
                 </div>
                 <div className="w-full bg-slate-100 rounded-full h-2.5">
                   <div
-                    className="h-2.5 rounded-full bg-emerald-500 transition-all"
+                    className="h-2.5 rounded-full bg-amber-500 transition-all"
                     style={{ width: `${pct}%` }}
                   />
                 </div>
@@ -323,7 +323,7 @@ export default function ImportExcelModal({ open, onClose, onImportDone }: Import
                         <td className="px-3 py-2 text-slate-700 font-medium">{row.nama || '—'}</td>
                         <td className="px-3 py-2">
                           {row.status === 'berhasil' ? (
-                            <span className="inline-flex items-center gap-1 text-emerald-700 font-medium">
+                            <span className="inline-flex items-center gap-1 text-amber-700 font-medium">
                               <CheckCircle2 size={13} /> Berhasil
                             </span>
                           ) : (
@@ -346,7 +346,7 @@ export default function ImportExcelModal({ open, onClose, onImportDone }: Import
         <div className="flex justify-between items-center pt-1">
           <div>
             {isDone && summary && summary.berhasil > 0 && (
-              <button onClick={reset} className="text-sm text-emerald-600 hover:text-emerald-700 font-medium">
+              <button onClick={reset} className="text-sm text-amber-600 hover:text-amber-700 font-medium">
                 Import file lain
               </button>
             )}

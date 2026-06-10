@@ -6,7 +6,7 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import type { TahsinMetode } from '@/types';
 import type { NilaiTahfidz } from '@/lib/surahData';
-import { JUZ_TERSEDIA, SURAH_PER_JUZ } from '@/lib/surahData';
+import { JUZ_TERSEDIA, SURAH_PER_JUZ, NILAI_TANPA_HAFAL, NILAI_LANCAR } from '@/lib/surahData';
 
 interface StudentOption {
   id: string;
@@ -21,7 +21,7 @@ export interface JurnalDetailRow {
   tajwid: NilaiTahfidz;
   lancar: NilaiTahfidz;
   buku: string;
-  halaman: number;
+  halaman: string;
 }
 
 export interface JurnalHafalanTahsinFormData {
@@ -29,7 +29,7 @@ export interface JurnalHafalanTahsinFormData {
   tanggal: string;
   tahsin_metode: TahsinMetode;
   tahsin_buku: string;
-  tahsin_halaman: number;
+  tahsin_halaman: string;
   tahsin_makhroj: NilaiTahfidz;
   tahsin_kelancaran: NilaiTahfidz;
   tahsin_adab: NilaiTahfidz;
@@ -43,21 +43,20 @@ interface Props {
   onCancel: () => void;
 }
 
-const NILAI_OPTS: { v: NilaiTahfidz; label: string; cls: string }[] = [
-  { v: '', label: '—', cls: 'bg-slate-50 text-slate-400 border-slate-200' },
-  { v: '✓', label: '✓', cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-  { v: 'A', label: 'A', cls: 'bg-blue-50 text-blue-700 border-blue-200' },
-  { v: 'B', label: 'B', cls: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
-  { v: 'C', label: 'C', cls: 'bg-amber-50 text-amber-700 border-amber-200' },
-  { v: 'D', label: 'D', cls: 'bg-red-50 text-red-700 border-red-200' },
-];
+// Options for Makhroj and Tajwid (without Hafal option)
+const NILAI_MAKHROJ_TAJWID = NILAI_TANPA_HAFAL;
 
-function NilaiSelect({ value, onChange, disabled }: {
+// Options for Lancar column (Kosong, Lancar, Tidak Lancar)
+const NILAI_LANCAR_OPTS = NILAI_LANCAR;
+
+function NilaiSelect({ value, onChange, disabled, options }: {
   value: NilaiTahfidz;
   onChange: (v: NilaiTahfidz) => void;
   disabled?: boolean;
+  options?: { v: NilaiTahfidz; label: string; cls: string }[];
 }) {
-  const current = NILAI_OPTS.find((o) => o.v === value) ?? NILAI_OPTS[0];
+  const opts = options || NILAI_MAKHROJ_TAJWID;
+  const current = opts.find((o) => o.v === value) ?? opts[0];
   const [open, setOpen] = useState(false);
   const btnRef = React.useRef<HTMLButtonElement>(null);
   const [pos, setPos] = useState({ top: 0, left: 0 });
@@ -88,7 +87,7 @@ function NilaiSelect({ value, onChange, disabled }: {
             className="fixed z-40 bg-white rounded-xl shadow-xl border border-slate-100 py-1 min-w-[90px]"
             style={{ top: pos.top, left: pos.left }}
           >
-            {NILAI_OPTS.map((opt) => (
+            {opts.map((opt) => (
               <button
                 key={opt.v}
                 type="button"
@@ -101,17 +100,13 @@ function NilaiSelect({ value, onChange, disabled }: {
                 <span className={`inline-block w-6 h-6 rounded text-center leading-6 mr-2 ${opt.cls}`}>
                   {opt.label}
                 </span>
-                {opt.label === '—'
-                  ? 'Kosong'
-                  : opt.v === '✓'
-                    ? 'Hafal'
-                    : opt.v === 'A'
-                      ? 'Sangat Baik'
-                      : opt.v === 'B'
-                        ? 'Baik'
-                        : opt.v === 'C'
-                          ? 'Cukup'
-                          : 'Kurang'}
+                {opt.v === '' ? 'Kosong'
+                  : opt.v === 'L' ? 'Lancar'
+                    : opt.v === 'TL' ? 'Tidak Lancar'
+                      : opt.v === 'A' ? 'Sangat Baik'
+                        : opt.v === 'B' ? 'Baik'
+                          : opt.v === 'C' ? 'Cukup'
+                            : 'Kurang'}
               </button>
             ))}
           </div>
@@ -127,7 +122,7 @@ const emptyRow = (): JurnalDetailRow => ({
   tajwid: '',
   lancar: '',
   buku: '',
-  halaman: 1,
+  halaman: '',
 });
 
 const EMPTY_FORM: JurnalHafalanTahsinFormData = {
@@ -135,7 +130,7 @@ const EMPTY_FORM: JurnalHafalanTahsinFormData = {
   tanggal: new Date().toISOString().split('T')[0],
   tahsin_metode: 'Wafa',
   tahsin_buku: '',
-  tahsin_halaman: 1,
+  tahsin_halaman: '',
   tahsin_makhroj: '',
   tahsin_kelancaran: '',
   tahsin_adab: '',
@@ -205,11 +200,11 @@ export default function JurnalHafalanTahsinForm({ loading = false, onSubmit, onC
               tajwid: h.tajwid || '',
               lancar: h.lancar || '',
               buku: h.buku || '',
-              halaman: h.halaman || 1,
+              halaman: h.halaman ?? '',
             })),
             tahsin_metode: data.tahsin?.metode || 'Wafa',
             tahsin_buku: data.tahsin?.buku || '',
-            tahsin_halaman: data.tahsin?.halaman || 1,
+            tahsin_halaman: data.tahsin?.halaman ?? '',
             tahsin_makhroj: data.tahsin?.makhroj || '',
             tahsin_kelancaran: data.tahsin?.kelancaran || '',
             tahsin_adab: data.tahsin?.adab || '',
@@ -222,7 +217,7 @@ export default function JurnalHafalanTahsinForm({ loading = false, onSubmit, onC
             ...prev,
             tahsin_metode: 'Wafa',
             tahsin_buku: '',
-            tahsin_halaman: 1,
+            tahsin_halaman: '',
             tahsin_makhroj: '',
             tahsin_kelancaran: '',
             tahsin_adab: '',
@@ -255,7 +250,7 @@ export default function JurnalHafalanTahsinForm({ loading = false, onSubmit, onC
       tajwid: '',
       lancar: '',
       buku: '',
-      halaman: 1,
+      halaman: '',
     }));
 
     if (templateRows.length === 0) return;
@@ -289,9 +284,6 @@ export default function JurnalHafalanTahsinForm({ loading = false, onSubmit, onC
     }
     if (!form.tahsin_metode) nextErrors.tahsin_metode = 'Metode tahsin wajib dipilih.';
     if (!form.tahsin_buku.trim()) nextErrors.tahsin_buku = 'Buku tahsin wajib diisi.';
-    if (!form.tahsin_halaman || form.tahsin_halaman < 1) {
-      nextErrors.tahsin_halaman = 'Halaman tahsin harus lebih besar dari 0.';
-    }
 
     if (form.detail.length === 0) {
       nextErrors.detail = 'Minimal satu baris hafalan harus diisi.';
@@ -299,9 +291,6 @@ export default function JurnalHafalanTahsinForm({ loading = false, onSubmit, onC
       form.detail.forEach((row) => {
         if (!row.nama_surah.trim()) {
           nextErrors.detail = 'Nama surah di setiap baris tidak boleh kosong.';
-        }
-        if (!row.halaman || row.halaman < 1) {
-          nextErrors.detail = 'Halaman hafalan harus angka positif.';
         }
       });
     }
@@ -323,7 +312,7 @@ export default function JurnalHafalanTahsinForm({ loading = false, onSubmit, onC
             ? 'bg-slate-50 border-slate-200 text-slate-600 animate-pulse'
             : isEditingExisting
               ? 'bg-amber-50 border-amber-200 text-amber-800'
-              : 'bg-emerald-50 border-emerald-200 text-emerald-800'
+              : 'bg-amber-50 border-amber-200 text-amber-800'
         }`}>
           <div className="flex items-center gap-3">
             <div className={`p-2 rounded-lg ${
@@ -331,7 +320,7 @@ export default function JurnalHafalanTahsinForm({ loading = false, onSubmit, onC
                 ? 'bg-slate-200 text-slate-500'
                 : isEditingExisting
                   ? 'bg-amber-100 text-amber-600'
-                  : 'bg-emerald-100 text-emerald-600'
+                  : 'bg-amber-100 text-amber-600'
             }`}>
               {isCheckingJournal ? (
                 <Loader2 className="animate-spin" size={16} />
@@ -371,7 +360,7 @@ export default function JurnalHafalanTahsinForm({ loading = false, onSubmit, onC
               value={form.student_id}
               onChange={(e) => setField('student_id', e.target.value)}
               disabled={loading}
-              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:bg-slate-100"
+              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:bg-slate-100"
             >
               <option value="">— Pilih Siswa —</option>
               {students.map((s) => (
@@ -393,8 +382,8 @@ export default function JurnalHafalanTahsinForm({ loading = false, onSubmit, onC
         />
       </div>
 
-      <div className="rounded-xl border border-emerald-200 overflow-hidden">
-        <div className="bg-emerald-700 px-4 py-3 text-white font-semibold">Penilaian Hafalan</div>
+      <div className="rounded-xl border border-amber-200 overflow-hidden">
+        <div className="bg-amber-700 px-4 py-3 text-white font-semibold">Penilaian Hafalan</div>
         <div className="p-4 space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="flex flex-col gap-1">
@@ -410,7 +399,7 @@ export default function JurnalHafalanTahsinForm({ loading = false, onSubmit, onC
                   }
                 }}
                 disabled={loading}
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:bg-slate-100"
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:bg-slate-100"
               >
                 <option value="">— Pilih Template Juz —</option>
                 {JUZ_TERSEDIA.length === 0 ? (
@@ -455,7 +444,7 @@ export default function JurnalHafalanTahsinForm({ loading = false, onSubmit, onC
                       onChange={(e) => updateRow(index, 'nama_surah', e.target.value)}
                       disabled={loading}
                       placeholder="Nama surah..."
-                      className="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:bg-slate-50"
+                      className="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:bg-slate-50"
                     />
                   </td>
                   <td className="px-3 py-2 text-center">
@@ -465,15 +454,16 @@ export default function JurnalHafalanTahsinForm({ loading = false, onSubmit, onC
                     <NilaiSelect value={row.tajwid} onChange={(value) => updateRow(index, 'tajwid', value)} disabled={loading} />
                   </td>
                   <td className="px-3 py-2 text-center">
-                    <NilaiSelect value={row.lancar} onChange={(value) => updateRow(index, 'lancar', value)} disabled={loading} />
+                    <NilaiSelect value={row.lancar} onChange={(value) => updateRow(index, 'lancar', value)} disabled={loading} options={NILAI_LANCAR_OPTS} />
                   </td>
                   <td className="px-3 py-2">
                     <input
                       type="text"
-                      value={String(row.halaman)}
-                      onChange={(e) => updateRow(index, 'halaman', Number(e.target.value) || 1)}
+                      value={row.halaman}
+                      onChange={(e) => updateRow(index, 'halaman', e.target.value)}
                       disabled={loading}
-                      className="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:bg-slate-50"
+                      placeholder="Ayat..."
+                      className="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:bg-slate-50"
                     />
                   </td>
                   <td className="px-3 py-2">
@@ -499,7 +489,7 @@ export default function JurnalHafalanTahsinForm({ loading = false, onSubmit, onC
             type="button"
             onClick={addRow}
             disabled={loading}
-            className="flex items-center gap-2 text-sm text-emerald-600 hover:text-emerald-700 font-medium transition-colors disabled:opacity-50"
+            className="flex items-center gap-2 text-sm text-amber-600 hover:text-amber-700 font-medium transition-colors disabled:opacity-50"
           >
             <Plus size={15} /> Tambah Baris Surah
           </button>
@@ -533,10 +523,10 @@ export default function JurnalHafalanTahsinForm({ loading = false, onSubmit, onC
             />
             <Input
               label="Halaman / Level"
-              value={String(form.tahsin_halaman)}
-              onChange={(e) => setField('tahsin_halaman', Number(e.target.value) || 1)}
-              error={errors.tahsin_halaman}
+              value={form.tahsin_halaman}
+              onChange={(e) => setField('tahsin_halaman', e.target.value)}
               disabled={loading}
+              placeholder="Halaman..."
             />
           </div>
 
@@ -570,6 +560,8 @@ export default function JurnalHafalanTahsinForm({ loading = false, onSubmit, onC
                     <td className="px-4 py-3 hidden sm:table-cell">
                       <span className="text-xs text-slate-400">
                         {form[field] === '✓' ? 'Lulus / Hafal' :
+                          form[field] === 'L' ? 'Lancar' :
+                          form[field] === 'TL' ? 'Tidak Lancar' :
                           form[field] === 'A' ? 'Sangat Baik (86–100)' :
                           form[field] === 'B' ? 'Baik (71–85)' :
                           form[field] === 'C' ? 'Cukup (56–70)' :

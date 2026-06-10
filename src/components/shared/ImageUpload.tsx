@@ -148,10 +148,10 @@ export default function ImageUpload({
       <div
         className={`relative border-2 border-dashed transition-all overflow-hidden ${shapeClasses[shape]} ${
           dragOver
-            ? 'border-emerald-400 bg-emerald-50'
+            ? 'border-amber-400 bg-amber-50'
             : error
             ? 'border-red-300 bg-red-50'
-            : 'border-slate-200 bg-slate-50 hover:border-emerald-300 hover:bg-emerald-50/30'
+            : 'border-slate-200 bg-slate-50 hover:border-amber-300 hover:bg-amber-50/30'
         } ${disabled || uploading ? 'cursor-not-allowed opacity-70' : 'cursor-pointer'}`}
         onClick={() => !disabled && !uploading && inputRef.current?.click()}
         onDrop={handleDrop}
@@ -195,8 +195,8 @@ export default function ImageUpload({
           <div className="absolute inset-0 flex flex-col items-center justify-center p-4 text-center">
             {uploading ? (
               <>
-                <div className="w-8 h-8 border-2 border-emerald-300 border-t-emerald-600 rounded-full animate-spin mb-2" />
-                <p className="text-xs text-emerald-600 font-medium">Mengunggah...</p>
+                <div className="w-8 h-8 border-2 border-amber-300 border-t-amber-600 rounded-full animate-spin mb-2" />
+                <p className="text-xs text-amber-600 font-medium">Mengunggah...</p>
               </>
             ) : hasLoadError ? (
               <>
@@ -229,7 +229,7 @@ export default function ImageUpload({
 
         {/* Success badge */}
         {success && (
-          <div className="absolute top-2 right-2 flex items-center gap-1 bg-emerald-500 text-white text-xs px-2 py-1 rounded-full shadow">
+          <div className="absolute top-2 right-2 flex items-center gap-1 bg-amber-500 text-white text-xs px-2 py-1 rounded-full shadow">
             <CheckCircle2 size={12} />
             Berhasil
           </div>

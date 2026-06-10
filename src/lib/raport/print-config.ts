@@ -122,3 +122,22 @@ export function raportReadySelector(raportId: string): string {
 export function isJuz30Raport(juz?: number | null): boolean {
   return Number(juz) === 30;
 }
+
+/** Template surah tetap untuk Juz 1 (Al Fatihah + Al Baqarah) */
+export const JUZ1_TEMPLATE = [
+  { nama_surah: 'Al Fatihah 1-7', urutan: 1 },
+  { nama_surah: 'Al Baqarah 1-16', urutan: 2 },
+  { nama_surah: 'Al Baqarah 17-29', urutan: 3 },
+  { nama_surah: 'Al Baqarah 30-48', urutan: 4 },
+  { nama_surah: 'Al Baqarah 49-61', urutan: 5 },
+  { nama_surah: 'Al Baqarah 62-76', urutan: 6 },
+  { nama_surah: 'Al Baqarah 78-88', urutan: 7 },
+  { nama_surah: 'Al Baqarah 89-101', urutan: 8 },
+  { nama_surah: 'Al Baqarah 102-112', urutan: 9 },
+  { nama_surah: 'Al Baqarah 113-126', urutan: 10 },
+  { nama_surah: 'Al Baqarah 127-141', urutan: 11 },
+] as const;
+
+export function isJuz1Raport(juz?: number | null): boolean {
+  return Number(juz) === 1;
+}

@@ -9,7 +9,10 @@ import { withAuth, NextRequestWithAuth } from 'next-auth/middleware';
 import { NextResponse } from 'next/server';
 
 // Rute yang hanya boleh diakses oleh Kabid
-const KABID_ONLY_ROUTES = ['/kelas', '/semester', '/tim', '/laporan', '/dashboard/kelola-artikel', '/absensi/monitoring', '/website', '/dashboard/website'];
+const KABID_ONLY_ROUTES = ['/kelas', '/semester', '/tim', '/dashboard/kelola-artikel', '/absensi/monitoring', '/website', '/dashboard/website'];
+
+// Rute yang boleh diakses oleh Kabid dan Sekretaris
+const MANAJEMEN_ROUTES = ['/laporan-masuk', '/rekap'];
 
 export default withAuth(
   function middleware(req: NextRequestWithAuth) {
@@ -22,7 +25,19 @@ export default withAuth(
     );
 
     if (isKabidOnly && token?.role !== 'Kabid') {
-      // Redirect Tim_Quran ke dashboard dengan pesan forbidden
+      // Redirect non-Kabid ke dashboard dengan pesan forbidden
+      const url = req.nextUrl.clone();
+      url.pathname = '/dashboard';
+      url.searchParams.set('error', 'forbidden');
+      return NextResponse.redirect(url);
+    }
+
+    // Cek MANAJEMEN_ROUTES (hanya Kabid + Sekretaris)
+    const isManajemenOnly = MANAJEMEN_ROUTES.some((route) =>
+      pathname.startsWith(route)
+    );
+
+    if (isManajemenOnly && token?.role !== 'Kabid' && token?.role !== 'Sekretaris') {
       const url = req.nextUrl.clone();
       url.pathname = '/dashboard';
       url.searchParams.set('error', 'forbidden');
@@ -46,6 +61,7 @@ export default withAuth(
 export const config = {
   matcher: [
     '/dashboard/:path*',
+    '/dashboard-guru/:path*',
     '/siswa/:path*',
     '/hafalan/:path*',
     '/tahsin/:path*',
@@ -60,6 +76,8 @@ export const config = {
     '/kelas/:path*',
     '/tim/:path*',
     '/laporan/:path*',
+    '/laporan-kirim/:path*',
+    '/laporan-masuk/:path*',
     '/dashboard/kelola-artikel/:path*',
     '/website/:path*',
     '/dashboard/website/:path*',

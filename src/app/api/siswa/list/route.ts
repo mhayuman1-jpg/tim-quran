@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
+import { shouldFilterByTeacher, getTeacherFilterId } from '@/lib/rbac';
 
 export const dynamic = 'force-dynamic';
 
@@ -36,8 +37,10 @@ export async function GET(request: NextRequest) {
       .order('nama', { ascending: true });
 
     // Data isolation: Tim_Quran hanya melihat siswa yang menjadi tanggung jawabnya
-    if (session.user.role === 'Tim_Quran') {
-      query = query.eq('assigned_teacher_id', session.user.id);
+    // Juga berlaku untuk Kabid/Sekretaris dalam Mode Mengajar
+    if (shouldFilterByTeacher(session.user.role, request)) {
+      const teacherId = getTeacherFilterId(session.user.role, request, session.user.id);
+      query = query.eq('assigned_teacher_id', teacherId);
     }
 
     // Filter berdasarkan nama jika ada query `search`

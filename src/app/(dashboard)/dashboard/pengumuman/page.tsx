@@ -83,7 +83,7 @@ function ToastContainer({
           className={[
             'flex items-start gap-3 rounded-xl border px-4 py-3 shadow-lg text-sm',
             t.type === 'success'
-              ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+              ? 'bg-amber-50 border-amber-200 text-amber-800'
               : 'bg-red-50 border-red-200 text-red-800',
           ].join(' ')}
         >
@@ -459,7 +459,7 @@ export default function PengumumanPage() {
               required
               className={[
                 'w-full rounded-lg border px-3 py-2 text-sm',
-                'focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500',
+                'focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500',
                 'disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed',
                 'border-slate-300 bg-white text-slate-900',
               ].join(' ')}
@@ -492,7 +492,7 @@ export default function PengumumanPage() {
               required
               className={[
                 'w-full rounded-lg border px-3 py-2 text-sm resize-y',
-                'focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500',
+                'focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500',
                 'disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed',
                 'border-slate-300 bg-white text-slate-900 placeholder:text-slate-400',
               ].join(' ')}

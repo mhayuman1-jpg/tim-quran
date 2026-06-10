@@ -7,6 +7,7 @@ import React, { useEffect, useState } from 'react';
 import { Plus, Trash2, ChevronDown, Download, Loader2, BookOpen, Mic } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
+import CatatanGenerator from '@/components/features/raport/CatatanGenerator';
 import { SURAH_PER_JUZ, JUZ_TERSEDIA, type NilaiTahfidz } from '@/lib/surahData';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -26,6 +27,7 @@ export interface RaportTahfidzFormData {
   tahun_ajaran: string;
   juz: number | null;
   catatan: string;
+  catatan_ai: string;
   nama_guru_kelas: string;
   niy_guru_kelas: string;
   nama_kabid: string;
@@ -55,26 +57,28 @@ interface StudentOption {
   id: string;
   nama: string;
   nisn: string;
+  gender: string;
   classes?: { name: string } | null;
 }
 
 // ─── Nilai Selector ───────────────────────────────────────────────────────────
 
-const NILAI_OPTS: { v: NilaiTahfidz; label: string; cls: string }[] = [
-  { v: '',  label: '—', cls: 'bg-slate-50 text-slate-400 border-slate-200' },
-  { v: '✓', label: '✓', cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-  { v: 'A', label: 'A', cls: 'bg-blue-50 text-blue-700 border-blue-200' },
-  { v: 'B', label: 'B', cls: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
-  { v: 'C', label: 'C', cls: 'bg-amber-50 text-amber-700 border-amber-200' },
-  { v: 'D', label: 'D', cls: 'bg-red-50 text-red-700 border-red-200' },
-];
+import { NILAI_TANPA_HAFAL, NILAI_LANCAR } from '@/lib/surahData';
+
+// Options for Makhroj and Tajwid (without Hafal option)
+const NILAI_MAKHROJ_TAJWID = NILAI_TANPA_HAFAL;
+
+// Options for Lancar column (Kosong, Lancar, Tidak Lancar)
+const NILAI_LANCAR_OPTS = NILAI_LANCAR;
 
 function NilaiSelect({
-  value, onChange, disabled,
+  value, onChange, disabled, options,
 }: {
   value: NilaiTahfidz; onChange: (v: NilaiTahfidz) => void; disabled?: boolean;
+  options?: { v: NilaiTahfidz; label: string; cls: string }[];
 }) {
-  const current = NILAI_OPTS.find(o => o.v === value) ?? NILAI_OPTS[0];
+  const opts = options || NILAI_MAKHROJ_TAJWID;
+  const current = opts.find(o => o.v === value) ?? opts[0];
   const [open, setOpen] = useState(false);
   const btnRef = React.useRef<HTMLButtonElement>(null);
   const [pos, setPos] = React.useState({ top: 0, left: 0 });
@@ -98,12 +102,12 @@ function NilaiSelect({
           <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} />
           <div className="fixed z-40 bg-white rounded-xl shadow-xl border border-slate-100 py-1 min-w-[90px]"
             style={{ top: pos.top, left: pos.left }}>
-            {NILAI_OPTS.map(opt => (
+            {opts.map(opt => (
               <button key={opt.v} type="button"
                 onClick={() => { onChange(opt.v); setOpen(false); }}
                 className={`w-full text-left px-3 py-1.5 text-xs font-semibold hover:bg-slate-50 transition-colors rounded`}>
                 <span className={`inline-block w-6 h-6 rounded text-center leading-6 mr-2 ${opt.cls}`}>{opt.label}</span>
-                {opt.label === '—' ? 'Kosong' : opt.v === '✓' ? 'Hafal' : opt.v === 'A' ? 'Sangat Baik' : opt.v === 'B' ? 'Baik' : opt.v === 'C' ? 'Cukup' : 'Kurang'}
+                {opt.v === '' ? 'Kosong' : opt.v === 'L' ? 'Lancar' : opt.v === 'TL' ? 'Tidak Lancar' : opt.v === 'A' ? 'Sangat Baik' : opt.v === 'B' ? 'Baik' : opt.v === 'C' ? 'Cukup' : 'Kurang'}
               </button>
             ))}
           </div>
@@ -118,7 +122,7 @@ const emptyRow = (): DetailSurah => ({
 });
 
 const EMPTY_FORM: RaportTahfidzFormData = {
-  student_id: '', periode: '', tahun_ajaran: '', juz: null, catatan: '',
+  student_id: '', periode: '', tahun_ajaran: '', juz: null, catatan: '', catatan_ai: '',
   nama_guru_kelas: '', niy_guru_kelas: '',
   nama_kabid: '', niy_kabid: '',
   nama_kepala_sekolah: '', niy_kepala_sekolah: '',
@@ -147,11 +151,16 @@ export default function RaportTahfidzForm({
     fetch('/api/siswa/list')
       .then(r => r.ok ? r.json() : { data: [] })
       .then(j => setStudents((j.data ?? []).map((s: any) => ({
-        id: s.id, nama: s.nama, nisn: s.nisn, classes: s.classes,
+        id: s.id, nama: s.nama, nisn: s.nisn, gender: s.gender, classes: s.classes,
       }))))
       .catch(() => setStudents([]))
       .finally(() => setStudentsLoading(false));
   }, []);
+
+  // Ambil gender siswa dari data yang sudah di-load
+  const selectedStudentGender = form.student_id
+    ? students.find(s => s.id === form.student_id)?.gender || ''
+    : '';
 
   // Fetch active semester config to pre-fill periode (only when not in edit mode)
   useEffect(() => {
@@ -180,6 +189,7 @@ export default function RaportTahfidzForm({
         tahun_ajaran: initialData.tahun_ajaran ?? '',
         juz: initialData.juz ?? null,
         catatan: initialData.catatan ?? '',
+        catatan_ai: initialData.catatan_ai ?? '',
         nama_guru_kelas: initialData.nama_guru_kelas ?? '',
         niy_guru_kelas: initialData.niy_guru_kelas ?? '',
         nama_kabid: initialData.nama_kabid ?? '',
@@ -295,7 +305,7 @@ export default function RaportTahfidzForm({
               ) : (
                 <select value={form.student_id} onChange={e => set('student_id', e.target.value)}
                   disabled={loading}
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:bg-slate-100">
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:bg-slate-100">
                   <option value="">— Pilih Siswa —</option>
                   {students.map(s => (
                     <option key={s.id} value={s.id}>
@@ -316,7 +326,7 @@ export default function RaportTahfidzForm({
               <label className="text-sm font-medium text-slate-700">Juz</label>
               <select value={form.juz ?? ''} onChange={e => set('juz', e.target.value ? Number(e.target.value) : null)}
                 disabled={loading}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:bg-slate-100">
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:bg-slate-100">
                 <option value="">— Pilih Juz (opsional) —</option>
                 {Array.from({ length: 30 }, (_, i) => i + 1).map(j => (
                   <option key={j} value={j}>Juz {j}</option>
@@ -350,12 +360,12 @@ export default function RaportTahfidzForm({
           </div>
 
           {/* ── Template manual dari juz ──────────────────────────────── */}
-          <div className="rounded-xl bg-emerald-50 border border-emerald-100 p-4">
-            <p className="text-sm font-semibold text-emerald-800 mb-2">📋 Atau Muat Template dari Juz</p>
+          <div className="rounded-xl bg-amber-50 border border-amber-100 p-4">
+            <p className="text-sm font-semibold text-amber-800 mb-2">📋 Atau Muat Template dari Juz</p>
             <div className="flex flex-wrap gap-2">
               {JUZ_TERSEDIA.map(j => (
                 <button key={j} type="button" onClick={() => loadTemplate(j)} disabled={loading}
-                  className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-emerald-300 bg-white text-emerald-700 hover:bg-emerald-600 hover:text-white transition-all disabled:opacity-50">
+                  className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-amber-300 bg-white text-amber-700 hover:bg-amber-600 hover:text-white transition-all disabled:opacity-50">
                   Juz {j}
                 </button>
               ))}
@@ -365,8 +375,8 @@ export default function RaportTahfidzForm({
       )}
 
       {/* ══ BAGIAN TAHFIDZ ══════════════════════════════════════════════════ */}
-      <div className="rounded-xl border-2 border-emerald-200 overflow-hidden">
-        <div className="bg-emerald-700 px-4 py-3 flex items-center gap-2">
+      <div className="rounded-xl border-2 border-amber-200 overflow-hidden">
+        <div className="bg-amber-700 px-4 py-3 flex items-center gap-2">
           <BookOpen size={15} className="text-white" />
           <p className="text-sm font-bold text-white">Penilaian Tahfidz</p>
         </div>
@@ -391,22 +401,22 @@ export default function RaportTahfidzForm({
                     <input type="text" value={row.nama_surah}
                       onChange={e => updateRow(i, 'nama_surah', e.target.value)}
                       disabled={loading} placeholder="Nama surah..."
-                      className="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:bg-slate-50" />
+                      className="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:bg-slate-50" />
                   </td>
-                  <td className="px-3 py-2 text-center">
-                    <NilaiSelect value={row.makhroj} onChange={v => updateRow(i, 'makhroj', v)} disabled={loading} />
-                  </td>
-                  <td className="px-3 py-2 text-center">
-                    <NilaiSelect value={row.tajwid} onChange={v => updateRow(i, 'tajwid', v)} disabled={loading} />
-                  </td>
-                  <td className="px-3 py-2 text-center">
-                    <NilaiSelect value={row.lancar} onChange={v => updateRow(i, 'lancar', v)} disabled={loading} />
-                  </td>
+                   <td className="px-3 py-2 text-center">
+                     <NilaiSelect value={row.makhroj} onChange={v => updateRow(i, 'makhroj', v)} disabled={loading} options={NILAI_MAKHROJ_TAJWID} />
+                   </td>
+                   <td className="px-3 py-2 text-center">
+                     <NilaiSelect value={row.tajwid} onChange={v => updateRow(i, 'tajwid', v)} disabled={loading} options={NILAI_MAKHROJ_TAJWID} />
+                   </td>
+                   <td className="px-3 py-2 text-center">
+                     <NilaiSelect value={row.lancar} onChange={v => updateRow(i, 'lancar', v)} disabled={loading} options={NILAI_LANCAR_OPTS} />
+                   </td>
                   <td className="px-3 py-2">
                     <input type="text" value={row.wafa_halaman}
                       onChange={e => updateRow(i, 'wafa_halaman', e.target.value)}
                       disabled={loading} placeholder="Ayat..."
-                      className="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:bg-slate-50" />
+                      className="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:bg-slate-50" />
                   </td>
                   <td className="px-3 py-2">
                     <button type="button" onClick={() => removeRow(i)}
@@ -425,7 +435,7 @@ export default function RaportTahfidzForm({
         )}
         <div className="px-4 py-3 border-t border-slate-100 bg-white">
           <button type="button" onClick={addRow} disabled={loading}
-            className="flex items-center gap-2 text-sm text-emerald-600 hover:text-emerald-700 font-medium transition-colors disabled:opacity-50">
+            className="flex items-center gap-2 text-sm text-amber-600 hover:text-amber-700 font-medium transition-colors disabled:opacity-50">
             <Plus size={15} /> Tambah Baris Surah
           </button>
         </div>
@@ -472,25 +482,27 @@ export default function RaportTahfidzForm({
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {[
-                  { field: 'tahsin_makhroj' as const, label: 'Makhroj', desc: 'Ketepatan tempat keluarnya huruf' },
-                  { field: 'tahsin_kelancaran' as const, label: 'Kelancaran', desc: 'Kelancaran membaca tanpa terhenti' },
-                  { field: 'tahsin_adab' as const, label: 'Adab & Tajwid', desc: 'Adab membaca dan penerapan tajwid' },
-                ].map(({ field, label, desc }) => (
+                  { field: 'tahsin_makhroj' as const, label: 'Makhroj', desc: 'Ketepatan tempat keluarnya huruf', opts: NILAI_MAKHROJ_TAJWID },
+                  { field: 'tahsin_kelancaran' as const, label: 'Kelancaran', desc: 'Kelancaran membaca tanpa terhenti', opts: NILAI_LANCAR_OPTS },
+                  { field: 'tahsin_adab' as const, label: 'Adab & Tajwid', desc: 'Adab membaca dan penerapan tajwid', opts: NILAI_MAKHROJ_TAJWID },
+                ].map(({ field, label, desc, opts }) => (
                   <tr key={field} className="hover:bg-slate-50">
                     <td className="px-4 py-3">
                       <p className="font-medium text-slate-800 text-sm">{label}</p>
                       <p className="text-xs text-slate-400 mt-0.5">{desc}</p>
                     </td>
                     <td className="px-4 py-3 text-center">
-                      <NilaiSelect value={form[field]} onChange={v => set(field, v)} disabled={loading} />
+                      <NilaiSelect value={form[field]} onChange={v => set(field, v)} disabled={loading} options={opts} />
                     </td>
                     <td className="px-4 py-3 hidden sm:table-cell">
                       <span className="text-xs text-slate-400">
-                        {form[field] === '✓' ? 'Lulus / Hafal' :
-                         form[field] === 'A' ? 'Sangat Baik (86–100)' :
-                         form[field] === 'B' ? 'Baik (71–85)' :
-                         form[field] === 'C' ? 'Cukup (56–70)' :
-                         form[field] === 'D' ? 'Kurang (<56)' :
+                        {form[field] === '' ? '—' :
+                         form[field] === 'A' ? 'Sangat Baik' :
+                         form[field] === 'B' ? 'Baik' :
+                         form[field] === 'C' ? 'Cukup' :
+                         form[field] === 'D' ? 'Kurang' :
+                         form[field] === 'L' ? 'Lancar' :
+                         form[field] === 'TL' ? 'Tidak Lancar' :
                          '—'}
                       </span>
                     </td>
@@ -513,6 +525,20 @@ export default function RaportTahfidzForm({
         </div>
       </div>
 
+      {/* ── Catatan AI Generator ──────────────────────────────────────────── */}
+      {form.student_id && (
+        <CatatanGenerator
+          studentId={form.student_id}
+          studentName={students.find(s => s.id === form.student_id)?.nama || ''}
+          gender={selectedStudentGender}
+          periode={form.periode}
+          tahunAjaran={form.tahun_ajaran}
+          currentValue={form.catatan}
+          onApply={(catatan) => set('catatan', catatan)}
+          disabled={loading}
+        />
+      )}
+
       {/* ── Catatan Tahfidz ────────────────────────────────────────────────── */}
       <div className="flex flex-col gap-1">
         <label className="text-sm font-medium text-slate-700">
@@ -522,7 +548,7 @@ export default function RaportTahfidzForm({
         <textarea value={form.catatan} onChange={e => set('catatan', e.target.value)}
           rows={3} disabled={loading}
           placeholder='"Carilah waktu untuk membaca Al Quran di tengah kesibukanmu..."'
-          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:bg-slate-100 resize-none" />
+          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:bg-slate-100 resize-none" />
       </div>
 
       {/* ── Nama Penandatangan ─────────────────────────────────────────────── */}

@@ -36,8 +36,8 @@ function StudentAvatar({ nama, photo_url }: { nama: string; photo_url?: string }
     );
   }
   return (
-    <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center shrink-0 border border-emerald-200">
-      <span className="text-emerald-700 font-semibold text-xs">
+    <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center shrink-0 border border-amber-200">
+      <span className="text-amber-700 font-semibold text-xs">
         {nama.charAt(0).toUpperCase()}
       </span>
     </div>
@@ -86,7 +86,7 @@ export default function SiswaTable({
           aria-label={`Pilih ${row.nama}`}
           checked={selectedIds.includes(row.id)}
           onChange={() => toggleOne(row.id)}
-          className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+          className="h-4 w-4 rounded border-slate-300 text-amber-600 focus:ring-amber-500 cursor-pointer"
         />
       ),
     },
@@ -163,7 +163,7 @@ export default function SiswaTable({
               onClick={(e) => { e.stopPropagation(); onPrintOne(row); }}
               aria-label={`Cetak ID Card ${row.nama}`}
               title="Cetak ID Card"
-              className="text-emerald-600 hover:bg-emerald-50"
+              className="text-amber-600 hover:bg-amber-50"
             >
               ID Card
             </Button>
@@ -203,7 +203,7 @@ export default function SiswaTable({
             checked={allSelected}
             ref={(el) => { if (el) el.indeterminate = someSelected; }}
             onChange={toggleAll}
-            className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+            className="h-4 w-4 rounded border-slate-300 text-amber-600 focus:ring-amber-500 cursor-pointer"
           />
           <span className="text-xs text-slate-500">
             {selectedIds.length > 0
@@ -212,7 +212,7 @@ export default function SiswaTable({
           </span>
           {selectedIds.length > 0 && (
             <button
-              className="ml-auto flex items-center gap-1.5 text-xs text-emerald-700 hover:text-emerald-900 font-medium transition-colors"
+              className="ml-auto flex items-center gap-1.5 text-xs text-amber-700 hover:text-amber-900 font-medium transition-colors"
               onClick={() => onSelectionChange([])}
             >
               Batalkan pilihan
@@ -231,7 +231,7 @@ export default function SiswaTable({
           skeletonRows={6}
           emptyMessage="Belum ada data siswa. Tambahkan siswa baru atau import dari Excel."
           rowClassName={(row) =>
-            selectedIds.includes(row.id) ? 'bg-emerald-50' : ''
+            selectedIds.includes(row.id) ? 'bg-amber-50' : ''
           }
         />
       </div>

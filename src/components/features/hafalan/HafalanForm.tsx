@@ -23,7 +23,7 @@ export interface HafalanFormData {
   student_id: string;
   tanggal: string;
   surah_juz: string;
-  halaman: number;
+  ayat: string;
   catatan: string;
   update_juz_terakhir: boolean;
   juz_baru: number;
@@ -45,7 +45,7 @@ interface FormErrors {
   student_id?: string;
   tanggal?: string;
   surah_juz?: string;
-  halaman?: string;
+  ayat?: string;
   juz_baru?: string;
 }
 
@@ -60,9 +60,8 @@ function validate(data: HafalanFormData): FormErrors {
   if (!data.surah_juz.trim()) {
     errors.surah_juz = 'Surah/Juz wajib diisi.';
   }
-  const halamanNum = Number(data.halaman);
-  if (isNaN(halamanNum) || halamanNum < 1) {
-    errors.halaman = 'Halaman harus berupa angka positif.';
+  if (!data.ayat.trim()) {
+    errors.ayat = 'Ayat wajib diisi.';
   }
   if (data.update_juz_terakhir) {
     const juzNum = Number(data.juz_baru);
@@ -89,7 +88,7 @@ export default function HafalanForm({
     student_id: preselectedStudentId ?? '',
     tanggal: today,
     surah_juz: '',
-    halaman: 1,
+    ayat: '',
     catatan: '',
     update_juz_terakhir: false,
     juz_baru: 1,
@@ -145,7 +144,7 @@ export default function HafalanForm({
         student_id: initialData.student_id,
         tanggal: initialData.tanggal,
         surah_juz: initialData.surah_juz,
-        halaman: initialData.halaman ?? 1,
+        ayat: String(initialData.halaman ?? ''),
         catatan: initialData.catatan ?? '',
         update_juz_terakhir: false,
         juz_baru: 1,
@@ -155,7 +154,7 @@ export default function HafalanForm({
         student_id: preselectedStudentId ?? '',
         tanggal: today,
         surah_juz: '',
-        halaman: 1,
+        ayat: '',
         catatan: '',
         update_juz_terakhir: false,
         juz_baru: 1,
@@ -204,7 +203,7 @@ export default function HafalanForm({
             value={form.student_id}
             onChange={(e) => handleStudentChange(e.target.value)}
             disabled={loading || isEdit}
-            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:bg-slate-100 disabled:cursor-not-allowed"
+            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 disabled:bg-slate-100 disabled:cursor-not-allowed"
           >
             <option value="">— Pilih Siswa —</option>
             {students.map((s) => (
@@ -241,14 +240,15 @@ export default function HafalanForm({
         disabled={loading}
       />
 
-      {/* Halaman */}
+      {/* Ayat */}
       <Input
-        label="Halaman"
+        label="Ayat"
         required
-        value={String(form.halaman)}
-        onChange={(e) => set('halaman', parseInt(e.target.value) || 1)}
-        error={errors.halaman}
-        helperText="Halaman mushaf (1–604)"
+        value={form.ayat}
+        onChange={(e) => set('ayat', e.target.value)}
+        error={errors.ayat}
+        placeholder="Contoh: 1-5, 10, 15-20"
+        helperText="Nomor ayat atau rentang (contoh: 1-5)"
         disabled={loading}
       />
 
@@ -263,7 +263,7 @@ export default function HafalanForm({
           rows={3}
           disabled={loading}
           placeholder="Contoh: Perhatikan mad thobi'i..."
-          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:bg-slate-100 disabled:cursor-not-allowed resize-none"
+          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 disabled:bg-slate-100 disabled:cursor-not-allowed resize-none"
         />
       </div>
 
@@ -275,7 +275,7 @@ export default function HafalanForm({
             checked={form.update_juz_terakhir}
             onChange={(e) => set('update_juz_terakhir', e.target.checked)}
             disabled={loading || !form.student_id}
-            className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 disabled:cursor-not-allowed"
+            className="w-4 h-4 rounded border-slate-300 text-amber-600 focus:ring-amber-500 disabled:cursor-not-allowed"
           />
           <span className="text-sm font-medium text-slate-700">
             Update Juz Terakhir Siswa

@@ -76,7 +76,7 @@ export default function HafalanPage() {
             id: editingHafalan.id,
             tanggal: formData.tanggal,
             surah_juz: formData.surah_juz,
-            halaman: formData.halaman,
+            halaman: formData.ayat,
             catatan: formData.catatan || null,
             update_juz_terakhir: formData.update_juz_terakhir,
             juz_baru: formData.update_juz_terakhir ? formData.juz_baru : undefined,
@@ -103,7 +103,7 @@ export default function HafalanPage() {
             student_id: formData.student_id,
             tanggal: formData.tanggal,
             surah_juz: formData.surah_juz,
-            halaman: formData.halaman,
+            halaman: formData.ayat,
             catatan: formData.catatan || null,
           }),
         });
@@ -145,7 +145,7 @@ export default function HafalanPage() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
-            <BookOpen size={24} className="text-emerald-600" />
+            <BookOpen size={24} className="text-amber-600" />
             Setoran Hafalan
           </h1>
           <p className="text-slate-500 text-sm mt-1">
@@ -179,11 +179,11 @@ export default function HafalanPage() {
 
       {/* Notifikasi sukses */}
       {submitSuccess && (
-        <div className="rounded-lg bg-emerald-50 border border-emerald-200 px-4 py-3 text-sm text-emerald-700 flex justify-between items-center">
+        <div className="rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-700 flex justify-between items-center">
           <span>{submitSuccess}</span>
           <button
             onClick={() => setSubmitSuccess(null)}
-            className="ml-4 text-emerald-500 hover:text-emerald-700 font-medium"
+            className="ml-4 text-amber-500 hover:text-amber-700 font-medium"
           >
             ✕
           </button>

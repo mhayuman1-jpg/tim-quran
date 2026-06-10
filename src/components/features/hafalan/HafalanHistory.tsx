@@ -5,7 +5,7 @@
 // Kolom: Tanggal, Nama Siswa, Surah/Juz, Halaman, Catatan, (tombol edit)
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { CalendarDays, Pencil } from 'lucide-react';
+import { CalendarDays, Pencil, RotateCcw } from 'lucide-react';
 import DataTable, { type ColumnDef } from '@/components/shared/DataTable';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -23,7 +23,9 @@ interface HafalanRow {
   tajwid?: string | null;
   lancar?: string | null;
   catatan?: string | null;
+  buku?: string | null;
   created_at?: string;
+  edited_fields?: Record<string, string> | null;
   santri?: { id: string; nama: string } | null;
   users?: { id: string; name: string } | null;
 }
@@ -37,6 +39,8 @@ interface HafalanHistoryProps {
   onSelectStudent?: (student: { id: string; nama: string }) => void;
   /** Key untuk trigger refetch dari parent */
   refreshKey?: number;
+  /** Callback saat reset dilakukan */
+  onReset?: () => void;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -54,6 +58,31 @@ function formatDate(dateStr: string): string {
   }
 }
 
+function formatEditTimestamp(isoStr: string): string {
+  if (!isoStr) return '';
+  try {
+    return new Date(isoStr).toLocaleDateString('id-ID', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  } catch {
+    return isoStr;
+  }
+}
+
+function EditIndicator({ editedFields, field }: { editedFields?: Record<string, string> | null; field: string }) {
+  const ts = editedFields?.[field];
+  if (!ts) return null;
+  return (
+    <span className="block text-[10px] text-amber-500 mt-0.5" title={`Terakhir diedit: ${formatEditTimestamp(ts)}`}>
+      edit: {formatDate(ts.split('T')[0])}
+    </span>
+  );
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function HafalanHistory({
@@ -61,10 +90,12 @@ export default function HafalanHistory({
   onEdit,
   onSelectStudent,
   refreshKey = 0,
+  onReset,
 }: HafalanHistoryProps) {
   const [data, setData] = useState<HafalanRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [resetting, setResetting] = useState(false);
 
   // Filter tanggal
   const [dateFrom, setDateFrom] = useState('');
@@ -101,6 +132,40 @@ export default function HafalanHistory({
     fetchHafalan();
   }, [fetchHafalan]);
 
+  const handleReset = async () => {
+    if (!studentId) return;
+    if (!window.confirm('Yakin ingin mereset semua jurnal hafalan siswa ini? Tindakan ini tidak dapat dibatalkan.')) {
+      return;
+    }
+
+    setResetting(true);
+    try {
+      const res = await fetch('/api/hafalan/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          student_id: studentId,
+          date_from: dateFrom || undefined,
+          date_to: dateTo || undefined,
+        }),
+      });
+
+      const json = await res.json();
+      if (!res.ok) {
+        alert(json.message ?? 'Gagal mereset jurnal.');
+        return;
+      }
+
+      alert(json.message ?? 'Jurnal berhasil direset.');
+      fetchHafalan();
+      onReset?.();
+    } catch {
+      alert('Terjadi kesalahan. Silakan coba lagi.');
+    } finally {
+      setResetting(false);
+    }
+  };
+
   // ── Kolom tabel
   const columns: ColumnDef<HafalanRow>[] = [
     {
@@ -129,7 +194,7 @@ export default function HafalanHistory({
                 e.stopPropagation();
                 onSelectStudent({ id: row.santri!.id, nama: row.santri!.nama });
               }}
-              className="text-left font-medium text-slate-800 hover:text-emerald-600 transition-colors"
+              className="text-left font-medium text-slate-800 hover:text-amber-600 transition-colors"
             >
               {name}
             </button>
@@ -154,7 +219,7 @@ export default function HafalanHistory({
       align: 'center',
       width: '90px',
       render: (row) => (
-        <span className="text-slate-600">{row.makhroj || '—'}</span>
+        <span className="text-slate-600">{row.makhroj || '—'}<EditIndicator editedFields={row.edited_fields} field="makhroj" /></span>
       ),
     },
     {
@@ -163,7 +228,7 @@ export default function HafalanHistory({
       align: 'center',
       width: '90px',
       render: (row) => (
-        <span className="text-slate-600">{row.tajwid || '—'}</span>
+        <span className="text-slate-600">{row.tajwid || '—'}<EditIndicator editedFields={row.edited_fields} field="tajwid" /></span>
       ),
     },
     {
@@ -172,16 +237,16 @@ export default function HafalanHistory({
       align: 'center',
       width: '90px',
       render: (row) => (
-        <span className="text-slate-600">{row.lancar || '—'}</span>
+        <span className="text-slate-600">{row.lancar || '—'}<EditIndicator editedFields={row.edited_fields} field="lancar" /></span>
       ),
     },
     {
       key: 'halaman',
-      header: 'Halaman',
+      header: 'Ayat',
       align: 'center',
       width: '90px',
       render: (row) => (
-        <span className="text-slate-600">{row.halaman ?? '—'}</span>
+        <span className="text-slate-600">{row.halaman ?? '—'}<EditIndicator editedFields={row.edited_fields} field="halaman" /></span>
       ),
     },
     {
@@ -190,6 +255,7 @@ export default function HafalanHistory({
       render: (row) => (
         <span className="text-slate-500 text-xs max-w-xs truncate block" title={row.catatan ?? ''}>
           {row.catatan || <em className="text-slate-300">—</em>}
+          <EditIndicator editedFields={row.edited_fields} field="catatan" />
         </span>
       ),
     },
@@ -253,6 +319,20 @@ export default function HafalanHistory({
                 }}
               >
                 Reset Filter
+              </Button>
+            </div>
+          )}
+          {studentId && (
+            <div className="flex items-end ml-auto">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleReset}
+                loading={resetting}
+                leftIcon={<RotateCcw size={14} />}
+                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+              >
+                Reset Jurnal
               </Button>
             </div>
           )}

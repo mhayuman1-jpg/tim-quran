@@ -3,7 +3,7 @@
 // src/components/ui/Badge.tsx
 // Badge dengan variant warna: green=Aktif, red=Nonaktif, blue=info, yellow=warning, gray=netral
 
-type BadgeVariant = 'green' | 'red' | 'blue' | 'yellow' | 'gray' | 'orange' | 'purple' | 'amber';
+type BadgeVariant = 'gold' | 'green' | 'red' | 'blue' | 'yellow' | 'gray' | 'orange' | 'purple' | 'amber';
 
 interface BadgeProps {
   variant?: BadgeVariant;
@@ -12,7 +12,8 @@ interface BadgeProps {
 }
 
 const variantClasses: Record<BadgeVariant, string> = {
-  green:  'bg-emerald-100 text-emerald-700 ring-emerald-200',
+  gold:  'bg-amber-100 text-amber-700 ring-amber-200',
+  green:  'bg-amber-100 text-amber-700 ring-amber-200',
   red:    'bg-red-100 text-red-700 ring-red-200',
   blue:   'bg-blue-100 text-blue-700 ring-blue-200',
   yellow: 'bg-yellow-100 text-yellow-700 ring-yellow-200',
@@ -47,16 +48,13 @@ export default function Badge({
 export function getStatusBadgeVariant(status: string): BadgeVariant {
   switch (status) {
     case 'Aktif':
-      return 'green';
+      return 'gold';
     case 'Nonaktif':
       return 'red';
     case 'Hadir':
-      return 'green';
+      return 'gold';
     case 'Tidak Hadir':
       return 'red';
-    case 'Izin':
-    case 'Sakit':
-      return 'yellow';
     default:
       return 'blue';
   }

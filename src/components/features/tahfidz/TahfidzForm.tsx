@@ -14,7 +14,11 @@ import Input from '@/components/ui/Input';
 import Button from '@/components/ui/Button';
 import type { Tahfidz } from '@/types';
 import type { NilaiTahfidz } from '@/lib/surahData';
-import { NILAI_OPTIONS } from '@/lib/surahData';
+import { NILAI_TANPA_HAFAL, NILAI_LANCAR } from '@/lib/surahData';
+
+// Format for <select> dropdown (maps v -> value, label -> label)
+const NILAI_MAKHROJ_TAJWID_OPTS = NILAI_TANPA_HAFAL.map(o => ({ value: o.v, label: o.label }));
+const NILAI_LANCAR_OPTS = NILAI_LANCAR.map(o => ({ value: o.v, label: o.label }));
 
 interface StudentOption {
   id: string;
@@ -161,7 +165,7 @@ export default function TahfidzForm({
             value={form.student_id}
             onChange={(e) => set('student_id', e.target.value)}
             disabled={loading || isEdit}
-            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:bg-slate-100 disabled:cursor-not-allowed"
+            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 disabled:bg-slate-100 disabled:cursor-not-allowed"
           >
             <option value="">— Pilih Siswa —</option>
             {students.map((student) => (
@@ -213,12 +217,12 @@ export default function TahfidzForm({
             value={form.makhroj}
             onChange={(e) => set('makhroj', e.target.value as NilaiTahfidz)}
             disabled={loading}
-            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:bg-slate-100 disabled:cursor-not-allowed"
+            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 disabled:bg-slate-100 disabled:cursor-not-allowed"
           >
             <option value="">— Pilih —</option>
-            {NILAI_OPTIONS.map((option) => (
+            {NILAI_MAKHROJ_TAJWID_OPTS.map((option) => (
               <option key={option.value} value={option.value}>
-                {option.label}
+                {option.value === '' ? '— Kosong' : option.value === 'A' ? 'A - Sangat Baik' : option.value === 'B' ? 'B - Baik' : option.value === 'C' ? 'C - Cukup' : 'D - Kurang'}
               </option>
             ))}
           </select>
@@ -233,12 +237,12 @@ export default function TahfidzForm({
             value={form.tajwid}
             onChange={(e) => set('tajwid', e.target.value as NilaiTahfidz)}
             disabled={loading}
-            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:bg-slate-100 disabled:cursor-not-allowed"
+            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 disabled:bg-slate-100 disabled:cursor-not-allowed"
           >
             <option value="">— Pilih —</option>
-            {NILAI_OPTIONS.map((option) => (
+            {NILAI_MAKHROJ_TAJWID_OPTS.map((option) => (
               <option key={option.value} value={option.value}>
-                {option.label}
+                {option.value === '' ? '— Kosong' : option.value === 'A' ? 'A - Sangat Baik' : option.value === 'B' ? 'B - Baik' : option.value === 'C' ? 'C - Cukup' : 'D - Kurang'}
               </option>
             ))}
           </select>
@@ -253,12 +257,12 @@ export default function TahfidzForm({
             value={form.lancar}
             onChange={(e) => set('lancar', e.target.value as NilaiTahfidz)}
             disabled={loading}
-            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:bg-slate-100 disabled:cursor-not-allowed"
+            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 disabled:bg-slate-100 disabled:cursor-not-allowed"
           >
             <option value="">— Pilih —</option>
-            {NILAI_OPTIONS.map((option) => (
+            {NILAI_LANCAR_OPTS.map((option) => (
               <option key={option.value} value={option.value}>
-                {option.label}
+                {option.value === '' ? '— Kosong' : option.value === 'L' ? 'L - Lancar' : 'TL - Tidak Lancar'}
               </option>
             ))}
           </select>
@@ -275,7 +279,7 @@ export default function TahfidzForm({
           onChange={(e) => set('catatan', e.target.value)}
           rows={4}
           disabled={loading}
-          className="min-h-[110px] w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:bg-slate-100 disabled:cursor-not-allowed"
+          className="min-h-[110px] w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 disabled:bg-slate-100 disabled:cursor-not-allowed"
           placeholder="Tambahkan catatan singkat tentang pembelajaran hari ini"
         />
       </div>

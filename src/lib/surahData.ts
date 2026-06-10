@@ -1,10 +1,10 @@
 // src/lib/surahData.ts
 // Data daftar surah per juz untuk template raport tahfidz
 
-export type NilaiTahfidz = '✓' | 'A' | 'B' | 'C' | 'D' | '';
+export type NilaiTahfidz = '✓' | 'A' | 'B' | 'C' | 'D' | 'L' | 'TL' | '';
 
 export const NILAI_OPTIONS: { value: NilaiTahfidz; label: string; color: string }[] = [
-  { value: '✓', label: '✓ (Hafal)',       color: 'text-emerald-700 bg-emerald-50' },
+  { value: '✓', label: '✓ (Hafal)',       color: 'text-amber-700 bg-amber-50' },
   { value: 'A', label: 'A (Sangat Baik)', color: 'text-blue-700 bg-blue-50' },
   { value: 'B', label: 'B (Baik)',        color: 'text-indigo-700 bg-indigo-50' },
   { value: 'C', label: 'C (Cukup Baik)', color: 'text-amber-700 bg-amber-50' },
@@ -12,13 +12,29 @@ export const NILAI_OPTIONS: { value: NilaiTahfidz; label: string; color: string 
   { value: '',  label: '— (Kosong)',      color: 'text-slate-400 bg-slate-50' },
 ];
 
+export const NILAI_TANPA_HAFAL: { v: NilaiTahfidz; label: string; cls: string }[] = [
+  { v: '', label: '—', cls: 'bg-slate-50 text-slate-400 border-slate-200' },
+  { v: 'A', label: 'A', cls: 'bg-blue-50 text-blue-700 border-blue-200' },
+  { v: 'B', label: 'B', cls: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
+  { v: 'C', label: 'C', cls: 'bg-amber-50 text-amber-700 border-amber-200' },
+  { v: 'D', label: 'D', cls: 'bg-red-50 text-red-700 border-red-200' },
+];
+
+export const NILAI_LANCAR: { v: NilaiTahfidz; label: string; cls: string }[] = [
+  { v: '', label: '—', cls: 'bg-slate-50 text-slate-400 border-slate-200' },
+  { v: 'L', label: 'L', cls: 'bg-amber-50 text-amber-700 border-amber-200' },
+  { v: 'TL', label: 'TL', cls: 'bg-red-50 text-red-700 border-red-200' },
+];
+
 export function getNilaiColor(nilai: string | null | undefined): string {
   if (!nilai) return 'text-slate-300';
-  if (nilai === '✓') return 'text-emerald-600 font-bold';
+  if (nilai === '✓') return 'text-amber-600 font-bold';
   if (nilai === 'A') return 'text-blue-600 font-bold';
   if (nilai === 'B') return 'text-indigo-600 font-bold';
   if (nilai === 'C') return 'text-amber-600 font-bold';
   if (nilai === 'D') return 'text-red-600 font-bold';
+  if (nilai === 'L') return 'text-amber-600 font-bold';
+  if (nilai === 'TL') return 'text-red-600 font-bold';
   return 'text-slate-600';
 }
 
@@ -29,8 +45,17 @@ export interface SurahTemplate {
 // Daftar surah per juz — bisa dipilih sebagai template
 export const SURAH_PER_JUZ: Record<number, SurahTemplate[]> = {
   1: [
-    { nama: 'Al Fatihah' },
-    { nama: 'Al Baqarah' },
+    { nama: 'Al Fatihah 1-7' },
+    { nama: 'Al Baqarah 1-16' },
+    { nama: 'Al Baqarah 17-29' },
+    { nama: 'Al Baqarah 30-48' },
+    { nama: 'Al Baqarah 49-61' },
+    { nama: 'Al Baqarah 62-76' },
+    { nama: 'Al Baqarah 78-88' },
+    { nama: 'Al Baqarah 89-101' },
+    { nama: 'Al Baqarah 102-112' },
+    { nama: 'Al Baqarah 113-126' },
+    { nama: 'Al Baqarah 127-141' },
   ],
   2: [
     { nama: 'Al Baqarah' },

@@ -23,7 +23,7 @@ const AttendanceChart = dynamic(
     loading: () => (
       <div className="w-full flex items-center justify-center" style={{ height: 320 }}>
         <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
+          <div className="w-8 h-8 border-2 border-amber-600 border-t-transparent rounded-full animate-spin" />
           <p className="text-sm text-slate-400">Memuat grafik…</p>
         </div>
       </div>
@@ -170,7 +170,7 @@ export default function MonitoringAbsensiPage() {
   if (!mounted || sessionStatus === 'loading') {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="w-8 h-8 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
+        <div className="w-8 h-8 border-2 border-amber-600 border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -187,7 +187,7 @@ export default function MonitoringAbsensiPage() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-              <TrendingUp className="text-emerald-600" size={24} />
+              <TrendingUp className="text-amber-600" size={24} />
               Monitoring Absensi
             </h1>
             <p className="text-sm text-slate-500 mt-0.5">
@@ -213,7 +213,7 @@ export default function MonitoringAbsensiPage() {
                   setSelectedClass({ id: kelas.id, name: kelas.name });
                   fetchData(defaultFrom, defaultTo, kelas.id);
                 }}
-                className="group bg-white border border-slate-200 rounded-2xl p-5 text-left hover:border-emerald-300 hover:shadow-md transition-all hover:-translate-y-1"
+                className="group bg-white border border-slate-200 rounded-2xl p-5 text-left hover:border-amber-300 hover:shadow-md transition-all hover:-translate-y-1"
               >
                 <div
                   className="w-10 h-10 rounded-xl mb-3 flex items-center justify-center"
@@ -245,7 +245,7 @@ export default function MonitoringAbsensiPage() {
             <ArrowLeft size={16} /> Semua Kelas
           </button>
           <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-            <TrendingUp className="text-emerald-600" size={24} />
+            <TrendingUp className="text-amber-600" size={24} />
             Monitoring — {selectedClass.name}
           </h1>
           <p className="text-sm text-slate-500 mt-0.5">
@@ -269,7 +269,7 @@ export default function MonitoringAbsensiPage() {
                 value={fromDate}
                 max={today}
                 onChange={(e) => setFromDate(e.target.value)}
-                className="block rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                className="block rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
               />
             </div>
 
@@ -284,7 +284,7 @@ export default function MonitoringAbsensiPage() {
                 min={fromDate}
                 max={today}
                 onChange={(e) => setToDate(e.target.value)}
-                className="block rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                className="block rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
               />
             </div>
 
@@ -338,7 +338,7 @@ export default function MonitoringAbsensiPage() {
           {loading ? (
             <div className="w-full flex items-center justify-center" style={{ height: 320 }}>
               <div className="flex flex-col items-center gap-3">
-                <div className="w-8 h-8 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
+                <div className="w-8 h-8 border-2 border-amber-600 border-t-transparent rounded-full animate-spin" />
                 <p className="text-sm text-slate-400">Memuat data…</p>
               </div>
             </div>

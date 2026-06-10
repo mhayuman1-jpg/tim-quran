@@ -47,14 +47,14 @@ interface RaportPrintableProps {
 
 function scoreColorClass(score?: number | null): string {
   if (score === undefined || score === null) return 'text-slate-400';
-  if (score >= 80) return 'text-emerald-700';
+  if (score >= 80) return 'text-amber-700';
   if (score >= 60) return 'text-yellow-600';
   return 'text-red-600';
 }
 
 function scoreBgClass(score?: number | null): string {
   if (score === undefined || score === null) return 'bg-slate-100';
-  if (score >= 80) return 'bg-emerald-50 border-emerald-200';
+  if (score >= 80) return 'bg-amber-50 border-amber-200';
   if (score >= 60) return 'bg-yellow-50 border-yellow-200';
   return 'bg-red-50 border-red-200';
 }
@@ -425,7 +425,7 @@ export default function RaportPrintable({ raport, className = '' }: RaportPrinta
       let y = 16;
 
       // ── Header ──────────────────────────────────────────────────────────
-      doc.setFillColor(5, 150, 105); // emerald-600
+      doc.setFillColor(5, 150, 105); // amber-600
       doc.rect(0, 0, pageW, 2, 'F');
 
       doc.setFontSize(16);
@@ -610,13 +610,13 @@ export default function RaportPrintable({ raport, className = '' }: RaportPrinta
       {/* ── Preview (screen) ───────────────────────────────────────────────── */}
       <div className="rounded-2xl border border-slate-200 shadow-sm overflow-hidden bg-white">
         {/* Header strip */}
-        <div className="h-2 bg-emerald-600" />
+        <div className="h-2 bg-amber-600" />
 
         <div className="p-6 space-y-6">
           {/* Identitas */}
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h2 className="text-xl font-bold text-emerald-800">Raport Qur'an</h2>
+              <h2 className="text-xl font-bold text-amber-800">Raport Qur'an</h2>
               <p className="text-sm text-slate-500">Program Tahfidz &amp; Tahsin Al-Qur'an</p>
             </div>
             <div className="text-right text-sm text-slate-600">
@@ -678,8 +678,8 @@ export default function RaportPrintable({ raport, className = '' }: RaportPrinta
 
           {/* Catatan */}
           {raport.catatan && (
-            <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-4">
-              <p className="text-xs font-semibold text-emerald-700 uppercase tracking-wide mb-1">
+            <div className="rounded-xl bg-amber-50 border border-amber-200 p-4">
+              <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide mb-1">
                 Catatan Ustadz/ah
               </p>
               <p className="text-sm text-slate-700 leading-relaxed">{raport.catatan}</p>

@@ -1,13 +1,15 @@
 export const dynamic = 'force-dynamic';
 // src/app/api/kelas/list/route.ts
 // GET: Ambil semua kelas dengan jumlah siswa aktif per kelas
+// Tim_Quran / Mode Mengajar: hanya kelas yang punya siswa assigned ke guru tersebut
 
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
+import { shouldFilterByTeacher, getTeacherFilterId } from '@/lib/rbac';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     // Cek autentikasi
     const session = await getServerSession(authOptions);
@@ -19,12 +21,35 @@ export async function GET() {
     }
 
     const supabase = createServerClient();
+    const filterByTeacher = shouldFilterByTeacher(session.user.role, request);
+    const teacherId = getTeacherFilterId(session.user.role, request, session.user.id);
 
-    // Ambil semua kelas
-    const { data: classes, error: classesError } = await supabase
+    // Jika mode guru, ambil dulu ID kelas yang punya siswa assigned ke guru ini
+    let allowedClassIds: string[] | null = null;
+    if (filterByTeacher) {
+      const { data: assignedStudents } = await supabase
+        .from('santri')
+        .select('class_id')
+        .eq('assigned_teacher_id', teacherId)
+        .eq('status', 'Aktif');
+
+      allowedClassIds = Array.from(new Set((assignedStudents ?? []).map((s: any) => s.class_id).filter(Boolean)));
+    }
+
+    // Ambil semua kelas (filter hanya kelas yang punya siswa diampu jika mode guru)
+    let query = supabase
       .from('classes')
       .select('id, name, created_at, teacher1_id, teacher2_id')
       .order('name', { ascending: true });
+
+    if (allowedClassIds !== null) {
+      if (allowedClassIds.length === 0) {
+        return NextResponse.json({ data: [] }, { status: 200 });
+      }
+      query = query.in('id', allowedClassIds);
+    }
+
+    const { data: classes, error: classesError } = await query;
 
     let kelasData: Array<{
       id: any;
@@ -63,14 +88,20 @@ export async function GET() {
       }
     }
 
-    // Ambil jumlah siswa aktif per kelas
+    // Ambil jumlah siswa aktif per kelas (filter per guru jika mode mengajar)
     const classesWithCount = await Promise.all(
       (kelasData || []).map(async (kelas) => {
-        const { count, error: countError } = await supabase
+        let countQuery = supabase
           .from('santri')
           .select('id', { count: 'exact', head: true })
           .eq('class_id', kelas.id)
           .eq('status', 'Aktif');
+
+        if (filterByTeacher) {
+          countQuery = countQuery.eq('assigned_teacher_id', teacherId);
+        }
+
+        const { count, error: countError } = await countQuery;
 
         if (countError) {
           console.error(`Error counting students for class ${kelas.id}:`, countError);

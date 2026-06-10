@@ -394,7 +394,21 @@ export default function KelasPage() {
       if (errors.length > 0) {
         toast.error(`${errors.length} siswa gagal diassign.`);
       } else {
-        toast.success(`${selectedStudents.size} siswa berhasil diassign ke kelas.`);
+        if (assignStudentTarget.teacher1_id || assignStudentTarget.teacher2_id) {
+          const splitRes = await fetch('/api/kelas/split-students', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ class_id: assignStudentTarget.id }),
+          });
+          const splitJson = await splitRes.json();
+          if (splitRes.ok) {
+            toast.success(`${selectedStudents.size} siswa berhasil diassign & dibagi ke guru.`);
+          } else {
+            toast.success(`${selectedStudents.size} siswa berhasil diassign ke kelas.`);
+          }
+        } else {
+          toast.success(`${selectedStudents.size} siswa berhasil diassign ke kelas.`);
+        }
         setAssignStudentTarget(null);
         setSelectedStudents(new Set());
         fetchKelas();
@@ -534,7 +548,7 @@ export default function KelasPage() {
                       )}
                     </td>
                     <td className="px-4 py-3">
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
                         {kelas.jumlah_siswa} siswa
                       </span>
                     </td>
@@ -683,7 +697,7 @@ export default function KelasPage() {
                 if (e.target.value && e.target.value === assignT2) setAssignT2('');
               }}
               disabled={assignLoading}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white"
             >
               <option value="">— Tidak ada —</option>
               {timList.map((t) => (
@@ -698,7 +712,7 @@ export default function KelasPage() {
               value={assignT2}
               onChange={(e) => setAssignT2(e.target.value)}
               disabled={assignLoading}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white"
             >
               <option value="">— Tidak ada —</option>
               {timList
@@ -784,7 +798,7 @@ export default function KelasPage() {
                     checked={selectedStudents.has(student.id)}
                     onChange={() => handleToggleStudent(student.id)}
                     disabled={assignStudentLoading}
-                    className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                    className="w-4 h-4 rounded border-slate-300 text-amber-600 focus:ring-amber-500"
                   />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-slate-800">{student.nama}</p>

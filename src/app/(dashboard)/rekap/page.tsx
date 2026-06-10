@@ -1,699 +1,698 @@
 'use client';
 
 // src/app/(dashboard)/rekap/page.tsx
-// Halaman Rekap Bulanan
-// - Form upload file Excel/PDF dengan pilih periode (bulan/tahun)
-// - Tabel daftar rekap dengan metadata dan tombol download
-// - Kedua role (Kabid dan Tim_Quran) dapat upload dan melihat rekap
+// Halaman Rekap Periode Semester
+// - Grafik perkembangan siswa (hafalan, tahsin, kehadiran)
+// - Tabel rekap per siswa
+// - Fitur pembanding semester
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import Image from 'next/image';
-import { Upload, Download, FileSpreadsheet, FileText, X, Calendar } from 'lucide-react';
+import {
+  BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+  PieChart, Pie, Cell,
+} from 'recharts';
+import { Calendar, Users, BookOpen, CheckCircle, TrendingUp, ArrowLeftRight, Download } from 'lucide-react';
+import { toPng } from 'html-to-image';
+import { toImageUrl } from '@/lib/storage/urls';
 
 import Button from '@/components/ui/Button';
-import Modal from '@/components/ui/Modal';
-import { toImageUrl } from '@/lib/storage/urls';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
-interface RekapItem {
-  id: string;
-  uploader_id: string;
-  uploader_name: string;
-  periode: string;
-  file_name: string;
-  file_url: string;
-  signed_url: string | null;
-  created_at: string;
+interface StudentRecap {
+  student_id: string;
+  nama: string;
+  nisn: string;
+  class_name: string;
+  gender: string;
+  juz_terakhir: number;
+  total_hafalan: number;
+  total_tahsin: number;
+  total_hadir: number;
+  total_tidak_hadir: number;
+  total_hari_aktif: number;
+  persentase_kehadiran: number;
+  rata_rata_makhroj: number;
+  rata_rata_tajwid: number;
+  rata_rata_lancar: number;
 }
 
-interface Toast {
-  id: number;
-  type: 'success' | 'error';
-  message: string;
+interface SemesterRecap {
+  semester_name: string;
+  date_range: { start: string; end: string };
+  total_students: number;
+  total_hafalan: number;
+  total_tahsin: number;
+  average_attendance: number;
+  students: StudentRecap[];
+  monthly_progress: { month: string; hafalan: number; tahsin: number; kehadiran: number }[];
+  comparison?: {
+    semester_name: string;
+    total_hafalan: number;
+    total_tahsin: number;
+    average_attendance: number;
+  };
 }
 
-let toastCounter = 0;
+// ─── Helpers ────────────────────────────────────────────────────────────────
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+const COLORS = ['#6366f1', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
 
-/** Format "2025-01" → "Januari 2025" */
-function formatPeriode(periode: string): string {
-  const bulanNames = [
-    'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-    'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
-  ];
-  const [year, monthStr] = periode.split('-');
-  const monthIndex = parseInt(monthStr, 10) - 1;
-  if (isNaN(monthIndex) || monthIndex < 0 || monthIndex > 11) return periode;
-  return `${bulanNames[monthIndex]} ${year}`;
-}
-
-/** Format ISO date string to locale date */
-function formatDate(iso: string): string {
+function formatDateRange(start: string, end: string): string {
   try {
-    return new Date(iso).toLocaleDateString('id-ID', {
-      day: '2-digit',
-      month: 'long',
-      year: 'numeric',
-    });
+    const s = new Date(start);
+    const e = new Date(end);
+    const options: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'long', year: 'numeric' };
+    return `${s.toLocaleDateString('id-ID', options)} - ${e.toLocaleDateString('id-ID', options)}`;
   } catch {
-    return iso;
+    return `${start} - ${end}`;
   }
 }
 
-/** Detect file type from filename */
-function getFileIcon(fileName: string) {
-  const lower = fileName.toLowerCase();
-  if (lower.endsWith('.pdf')) {
-    return <FileText size={16} className="text-red-500 shrink-0" />;
-  }
-  return <FileSpreadsheet size={16} className="text-emerald-600 shrink-0" />;
+function getSemesterNumber(semesterName: string): string {
+  const lower = semesterName.toLowerCase();
+  if (lower.includes('ganjil')) return '1';
+  if (lower.includes('genap')) return '2';
+  return '';
 }
 
-/** Build list of months for dropdown */
-function buildMonthOptions(): { value: string; label: string }[] {
-  const now = new Date();
-  const options: { value: string; label: string }[] = [];
-  // Show 24 months: current month + past 23 months
-  for (let i = 0; i < 24; i++) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const value = `${year}-${month}`;
-    options.push({ value, label: formatPeriode(value) });
-  }
-  return options;
-}
-
-// ─── Toast Component ────────────────────────────────────────────────────────
-
-function ToastContainer({
-  toasts,
-  onDismiss,
-}: {
-  toasts: Toast[];
-  onDismiss: (id: number) => void;
-}) {
-  if (toasts.length === 0) return null;
-  return (
-    <div className="fixed bottom-5 right-5 z-[200] flex flex-col gap-2 max-w-sm">
-      {toasts.map((t) => (
-        <div
-          key={t.id}
-          role="alert"
-          className={[
-            'flex items-start gap-3 rounded-xl border px-4 py-3 shadow-lg text-sm',
-            t.type === 'success'
-              ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-              : 'bg-red-50 border-red-200 text-red-800',
-          ].join(' ')}
-        >
-          <span className="flex-1">{t.message}</span>
-          <button
-            onClick={() => onDismiss(t.id)}
-            className="text-slate-400 hover:text-slate-600 shrink-0"
-            aria-label="Tutup notifikasi"
-          >
-            ✕
-          </button>
-        </div>
-      ))}
-    </div>
-  );
+function getRecapTitle(semesterName: string): string {
+  const num = getSemesterNumber(semesterName);
+  if (num) return `Rekap Tahfidz dan Tahsin Semester ${num}`;
+  return `Rekap Tahfidz dan Tahsin ${semesterName}`;
 }
 
 // ─── Page ───────────────────────────────────────────────────────────────────
 
 export default function RekapPage() {
-  // ── Data state
-  const [data, setData] = useState<RekapItem[]>([]);
+  const [data, setData] = useState<SemesterRecap | null>(null);
   const [loading, setLoading] = useState(true);
+  const [selectedSemester, setSelectedSemester] = useState('Ganjil 2025/2026');
+  const [compareSemester, setCompareSemester] = useState('');
+  const [showComparison, setShowComparison] = useState(false);
 
-  // ── Upload modal state
-  const [uploadModalOpen, setUploadModalOpen] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [selectedPeriode, setSelectedPeriode] = useState('');
-  const [uploadLoading, setUploadLoading] = useState(false);
-  const [uploadError, setUploadError] = useState('');
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  // Refs for chart containers (for PDF export)
+  const monthlyChartRef = useRef<HTMLDivElement>(null);
+  const attendanceChartRef = useRef<HTMLDivElement>(null);
+  const comparisonChartRef = useRef<HTMLDivElement>(null);
 
-  // ── Download loading state (per item)
-  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const semesterOptions = [
+    { value: 'Ganjil 2024/2025', label: 'Ganjil 2024/2025' },
+    { value: 'Genap 2024/2025', label: 'Genap 2024/2025' },
+    { value: 'Ganjil 2025/2026', label: 'Ganjil 2025/2026' },
+    { value: 'Genap 2025/2026', label: 'Genap 2025/2026' },
+    { value: 'Ganjil 2026/2027', label: 'Ganjil 2026/2027' },
+  ];
 
-  // ── Profil website untuk header laporan
-  const [profilData, setProfilData] = useState<{
-    nama_lembaga?: string;
-    logo_url?: string;
-    nama_sekolah?: string;
-    logo_sekolah_url?: string;
-  } | null>(null);
-
-  // ── Toast notifications
-  const [toasts, setToasts] = useState<Toast[]>([]);
-
-  const showToast = (type: Toast['type'], message: string) => {
-    const id = ++toastCounter;
-    setToasts((prev) => [...prev, { id, type, message }]);
-    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 4000);
-  };
-
-  const dismissToast = (id: number) =>
-    setToasts((prev) => prev.filter((t) => t.id !== id));
-
-  // ── Fetch rekap list
-  const fetchRekap = useCallback(async () => {
+  const fetchRecap = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/rekap/list');
+      const params = new URLSearchParams({ semester_name: selectedSemester });
+      if (showComparison && compareSemester) {
+        params.set('compare_with', compareSemester);
+      }
+      const res = await fetch(`/api/rekap/semester?${params.toString()}`);
       const json = await res.json();
       if (!res.ok) {
-        showToast('error', json.message ?? 'Gagal memuat daftar rekap.');
-        setData([]);
+        console.error(json.message);
+        setData(null);
       } else {
-        setData(json.data ?? []);
+        setData(json.data);
       }
     } catch {
-      showToast('error', 'Terjadi kesalahan saat memuat daftar rekap.');
-      setData([]);
+      console.error('Gagal memuat rekap semester');
+      setData(null);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [selectedSemester, compareSemester, showComparison]);
 
   useEffect(() => {
-    fetchRekap();
-  }, [fetchRekap]);
+    fetchRecap();
+  }, [fetchRecap]);
 
-  useEffect(() => {
-    fetch('/api/website/profil')
-      .then((res) => res.json())
-      .then((json) => {
-        if (json?.data) setProfilData(json.data);
-      })
-      .catch(() => null);
-  }, []);
+  // Chart data for monthly progress
+  const chartData = data?.monthly_progress || [];
 
-  const latestUpload = data.length > 0 ? data.reduce((latest, item) => {
-    return new Date(item.created_at).getTime() > new Date(latest.created_at).getTime() ? item : latest;
-  }, data[0]) : null;
+  // Pie chart data for attendance distribution
+  const attendancePieData = data ? [
+    { name: 'Hadir', value: data.students.reduce((sum, s) => sum + s.total_hadir, 0) },
+    { name: 'Tidak Hadir', value: data.students.reduce((sum, s) => sum + s.total_tidak_hadir, 0) },
+  ] : [];
 
-  // ── Open upload modal
-  const handleOpenUpload = () => {
-    setSelectedFile(null);
-    setSelectedPeriode('');
-    setUploadError('');
-    setUploadModalOpen(true);
-  };
+  // Comparison data
+  const comparisonData = data?.comparison ? [
+    { name: 'Hafalan', current: data.total_hafalan, compare: data.comparison.total_hafalan },
+    { name: 'Tahsin', current: data.total_tahsin, compare: data.comparison.total_tahsin },
+    { name: 'Kehadiran (%)', current: data.average_attendance, compare: data.comparison.average_attendance },
+  ] : [];
 
-  // ── File input change handler
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0] ?? null;
-    setSelectedFile(file);
-    setUploadError('');
-  };
+  // ── PDF Export
+  const [exportingPdf, setExportingPdf] = useState(false);
 
-  // ── Remove selected file
-  const handleRemoveFile = () => {
-    setSelectedFile(null);
-    if (fileInputRef.current) fileInputRef.current.value = '';
-    setUploadError('');
-  };
-
-  // ── Submit upload
-  const handleUploadSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!selectedFile) {
-      setUploadError('Pilih file yang akan diunggah terlebih dahulu.');
-      return;
-    }
-    if (!selectedPeriode) {
-      setUploadError('Pilih periode (bulan/tahun) terlebih dahulu.');
-      return;
-    }
-
-    setUploadLoading(true);
-    setUploadError('');
-
+  const handleExportPDF = async () => {
+    if (!data) return;
+    setExportingPdf(true);
     try {
-      const formData = new FormData();
-      formData.append('file', selectedFile);
-      formData.append('periode', selectedPeriode);
+      const { default: jsPDF } = await import('jspdf');
+      const { default: autoTable } = await import('jspdf-autotable');
 
-      const res = await fetch('/api/rekap/upload', {
-        method: 'POST',
-        body: formData,
+      // Fetch logo URLs and school name
+      let logoSekolah: string | null = null;
+      let logoLembaga: string | null = null;
+      let namaSekolah: string = '';
+      let namaLembaga: string = '';
+      try {
+        const profilRes = await fetch('/api/website/profil');
+        const profilJson = await profilRes.json();
+        if (profilJson?.data) {
+          if (profilJson.data.logo_sekolah_url) {
+            logoSekolah = toImageUrl(profilJson.data.logo_sekolah_url);
+          }
+          if (profilJson.data.logo_url) {
+            logoLembaga = toImageUrl(profilJson.data.logo_url);
+          }
+          namaSekolah = profilJson.data.nama_sekolah || '';
+          namaLembaga = profilJson.data.nama_lembaga || '';
+        }
+      } catch {
+        // logos optional
+      }
+
+      // Convert URL to base64 data URL for jsPDF
+      const urlToBase64 = async (url: string): Promise<string | null> => {
+        try {
+          const res = await fetch(url);
+          const blob = await res.blob();
+          return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.onerror = () => resolve(null);
+            reader.readAsDataURL(blob);
+          });
+        } catch {
+          return null;
+        }
+      };
+
+      const logoSekolahBase64 = logoSekolah ? await urlToBase64(logoSekolah) : null;
+      const logoLembagaBase64 = logoLembaga ? await urlToBase64(logoLembaga) : null;
+
+      // Capture charts as images
+      let monthlyChartImg: string | null = null;
+      let attendanceChartImg: string | null = null;
+      let comparisonChartImg: string | null = null;
+
+      if (monthlyChartRef.current) {
+        try {
+          monthlyChartImg = await toPng(monthlyChartRef.current, { backgroundColor: '#ffffff' });
+        } catch (e) {
+          console.error('Gagal capture chart perkembangan:', e);
+        }
+      }
+      if (attendanceChartRef.current) {
+        try {
+          attendanceChartImg = await toPng(attendanceChartRef.current, { backgroundColor: '#ffffff' });
+        } catch (e) {
+          console.error('Gagal capture chart kehadiran:', e);
+        }
+      }
+      if (showComparison && comparisonChartRef.current) {
+        try {
+          comparisonChartImg = await toPng(comparisonChartRef.current, { backgroundColor: '#ffffff' });
+        } catch (e) {
+          console.error('Gagal capture chart perbandingan:', e);
+        }
+      }
+
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+      const pageW = doc.internal.pageSize.getWidth();
+      const pageH = doc.internal.pageSize.getHeight();
+      let y = 15;
+
+      // ── Header
+      doc.setFillColor(99, 102, 241); // indigo-500
+      doc.rect(0, 0, pageW, 2, 'F');
+
+      // Draw logos on left and right
+      const logoSize = 24;
+      const logoY = y - 2;
+
+      if (logoSekolahBase64) {
+        try {
+          doc.addImage(logoSekolahBase64, 'PNG', 14, logoY, logoSize, logoSize);
+        } catch {
+          // skip logo on error
+        }
+      }
+
+      if (logoLembagaBase64) {
+        try {
+          doc.addImage(logoLembagaBase64, 'PNG', pageW - 14 - logoSize, logoY, logoSize, logoSize);
+        } catch {
+          // skip logo on error
+        }
+      }
+
+      // Center text
+      const centerX = pageW / 2;
+
+      // School name as main title (large)
+      doc.setFontSize(20);
+      doc.setTextColor(31, 41, 55);
+      doc.setFont('helvetica', 'bold');
+      doc.text(namaSekolah || 'SDIT Al Hilmi Dompu', centerX, y + 6, { align: 'center' });
+
+      // Report title (subtitle)
+      doc.setFontSize(12);
+      doc.setTextColor(99, 102, 241);
+      doc.setFont('helvetica', 'bold');
+      doc.text(getRecapTitle(data.semester_name), centerX, y + 13, { align: 'center' });
+
+      // Semester and period
+      doc.setFontSize(10);
+      doc.setTextColor(107, 114, 128);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Semester: ${data.semester_name}`, centerX, y + 19, { align: 'center' });
+      doc.text(`Periode: ${formatDateRange(data.date_range.start, data.date_range.end)}`, centerX, y + 25, { align: 'center' });
+      y += 32;
+
+      doc.setDrawColor(99, 102, 241);
+      doc.setLineWidth(0.5);
+      doc.line(14, y, pageW - 14, y);
+      y += 8;
+
+      // ── Ringkasan
+      doc.setFontSize(11);
+      doc.setTextColor(31, 41, 55);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Ringkasan', 14, y);
+      y += 7;
+
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(75, 85, 99);
+
+      const ringkasanData = [
+        ['Total Siswa', String(data.total_students)],
+        ['Total Hafalan', String(data.total_hafalan)],
+        ['Total Tahsin', String(data.total_tahsin)],
+        ['Rata-rata Kehadiran', `${data.average_attendance}%`],
+      ];
+
+      for (const [label, value] of ringkasanData) {
+        doc.text(label, 14, y);
+        doc.setFont('helvetica', 'bold');
+        doc.text(value, 70, y);
+        doc.setFont('helvetica', 'normal');
+        y += 6;
+      }
+
+      y += 4;
+
+      // ── Charts Section
+      doc.setFontSize(11);
+      doc.setTextColor(31, 41, 55);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Grafik Perkembangan', 14, y);
+      y += 6;
+
+      const chartWidth = 120;
+      const chartHeight = 70;
+
+      // Monthly Progress Chart
+      if (monthlyChartImg) {
+        if (y + chartHeight > pageH - 20) {
+          doc.addPage();
+          y = 15;
+        }
+        doc.setFontSize(9);
+        doc.setTextColor(75, 85, 99);
+        doc.setFont('helvetica', 'normal');
+        doc.text('Perkembangan Bulanan', 14, y);
+        y += 4;
+        doc.addImage(monthlyChartImg, 'PNG', 14, y, chartWidth, chartHeight);
+        y += chartHeight + 6;
+      }
+
+      // Attendance Distribution Chart
+      if (attendanceChartImg) {
+        if (y + chartHeight > pageH - 20) {
+          doc.addPage();
+          y = 15;
+        }
+        doc.setFontSize(9);
+        doc.setTextColor(75, 85, 99);
+        doc.setFont('helvetica', 'normal');
+        doc.text('Distribusi Kehadiran', 14, y);
+        y += 4;
+        doc.setFontSize(8);
+        doc.setTextColor(107, 114, 128);
+        doc.setFont('helvetica', 'italic');
+        doc.text('Grafik ini menunjukkan proporsi kehadiran siswa selama semester, meliputi: Hadir dan Tidak Hadir.', 14, y);
+        y += 5;
+        doc.addImage(attendanceChartImg, 'PNG', 14, y, chartWidth, chartHeight);
+        y += chartHeight + 6;
+      }
+
+      // Comparison Chart
+      if (comparisonChartImg && data.comparison) {
+        if (y + chartHeight > pageH - 20) {
+          doc.addPage();
+          y = 15;
+        }
+        doc.setFontSize(9);
+        doc.setTextColor(75, 85, 99);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Perbandingan: ${data.semester_name} vs ${data.comparison.semester_name}`, 14, y);
+        y += 4;
+        doc.addImage(comparisonChartImg, 'PNG', 14, y, chartWidth, chartHeight);
+        y += chartHeight + 6;
+      }
+
+      // ── Tabel Siswa (on new page)
+      doc.addPage();
+      y = 15;
+
+      doc.setFontSize(11);
+      doc.setTextColor(31, 41, 55);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Detail Per Siswa', 14, y);
+      y += 4;
+
+      const tableHeaders = [['No', 'Nama Siswa', 'Kelas', 'Juz', 'Hafalan', 'Tahsin', 'Hadir', 'Tidak Hadir', 'Kehadiran', 'Makhroj', 'Tajwid', 'Lancar']];
+
+      const tableBody = data.students.map((student, index) => [
+        String(index + 1),
+        student.nama,
+        student.class_name,
+        String(student.juz_terakhir),
+        String(student.total_hafalan),
+        String(student.total_tahsin),
+        String(student.total_hadir),
+        String(student.total_tidak_hadir),
+        `${student.persentase_kehadiran}%`,
+        String(student.rata_rata_makhroj || '-'),
+        String(student.rata_rata_tajwid || '-'),
+        String(student.rata_rata_lancar || '-'),
+      ]);
+
+      autoTable(doc, {
+        startY: y,
+        head: tableHeaders,
+        body: tableBody,
+        theme: 'grid',
+        headStyles: {
+          fillColor: [99, 102, 241],
+          textColor: [255, 255, 255],
+          fontStyle: 'bold',
+          halign: 'center',
+          fontSize: 8,
+        },
+        columnStyles: {
+          0: { halign: 'center', cellWidth: 10 },
+          1: { cellWidth: 45 },
+          2: { cellWidth: 30 },
+          3: { halign: 'center', cellWidth: 12 },
+          4: { halign: 'center', cellWidth: 18 },
+          5: { halign: 'center', cellWidth: 18 },
+          6: { halign: 'center', cellWidth: 16 },
+          7: { halign: 'center', cellWidth: 18 },
+          8: { halign: 'center', cellWidth: 22 },
+          9: { halign: 'center', cellWidth: 20 },
+          10: { halign: 'center', cellWidth: 20 },
+          11: { halign: 'center', cellWidth: 20 },
+        },
+        styles: { fontSize: 8, cellPadding: 2 },
+        alternateRowStyles: { fillColor: [248, 250, 252] },
+        margin: { left: 14, right: 14 },
+        didDrawPage: (hookData) => {
+          const footerY = pageH - 10;
+          doc.setFontSize(8);
+          doc.setTextColor(156, 163, 175);
+          doc.setFont('helvetica', 'normal');
+          doc.text(`Rekap Periode Semester - ${data.semester_name}`, 14, footerY);
+          doc.text(`Halaman ${hookData.pageNumber}`, pageW - 30, footerY);
+        },
       });
-      const json = await res.json();
 
-      if (!res.ok) {
-        setUploadError(json.message ?? 'Gagal mengunggah file rekap.');
-        return;
-      }
-
-      showToast('success', json.message ?? 'File rekap berhasil diunggah.');
-      setUploadModalOpen(false);
-      setSelectedFile(null);
-      setSelectedPeriode('');
-      fetchRekap();
-    } catch {
-      setUploadError('Terjadi kesalahan. Coba lagi.');
-    } finally {
-      setUploadLoading(false);
-    }
-  };
-
-  // ── Download rekap
-  const handleDownload = async (rekap: RekapItem) => {
-    if (!rekap.signed_url) {
-      showToast('error', 'URL unduhan tidak tersedia untuk file ini.');
-      return;
-    }
-
-    setDownloadingId(rekap.id);
-    try {
-      // Fetch the file to trigger download
-      const res = await fetch(rekap.signed_url);
-      if (!res.ok) {
-        showToast('error', 'Gagal mengunduh file. URL mungkin telah kedaluwarsa.');
-        return;
-      }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = rekap.file_name;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-    } catch {
-      showToast('error', 'Terjadi kesalahan saat mengunduh file.');
-    } finally {
-      setDownloadingId(null);
-    }
-  };
-
-  // ── Download template file
-  const handleDownloadTemplate = async () => {
-    try {
-      const res = await fetch('/api/rekap/template');
-      if (!res.ok) {
-        const json = await res.json().catch(() => ({}));
-        showToast('error', json.message ?? 'Gagal mengunduh template.');
-        return;
-      }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `Rekap_Template.xlsx`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-      showToast('success', 'Template rekap berhasil diunduh.');
+      const fileName = `Rekap_Semester_${data.semester_name.replace(/\s+/g, '_')}.pdf`;
+      doc.save(fileName);
     } catch (err) {
-      showToast('error', 'Terjadi kesalahan saat mengunduh template.');
+      console.error('Gagal export PDF:', err);
+      alert('Gagal mengexport PDF. Silakan coba lagi.');
+    } finally {
+      setExportingPdf(false);
     }
   };
-
-  const monthOptions = buildMonthOptions();
 
   return (
     <div className="space-y-6">
-      {/* ── Page header */}
-      <div className="grid gap-5">
-        <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-          <div className="flex flex-col gap-4 border-b border-slate-200 bg-slate-50 p-5 sm:flex-row sm:items-center sm:justify-between">
-            <div className="grid h-20 w-20 place-items-center rounded-3xl border border-slate-200 bg-white">
-              {profilData?.logo_sekolah_url ? (
-                <Image src={toImageUrl(profilData.logo_sekolah_url) || ''} alt={profilData.nama_sekolah ?? 'Logo Sekolah'} width={72} height={72} className="object-contain" />
-              ) : (
-                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-100 text-slate-400 text-xs">Logo</div>
-              )}
-            </div>
-
-            <div className="text-center">
-              <p className="text-xs uppercase tracking-[0.25em] text-slate-500">Laporan Resmi</p>
-              <h1 className="text-3xl font-bold text-slate-900">Rekap Bulanan</h1>
-              <p className="mt-1 text-sm text-slate-600">{profilData?.nama_sekolah ?? 'SDIT Al Hilmi Dompu'}</p>
-              <p className="text-sm text-slate-600">{profilData?.nama_lembaga ?? 'Lembaga Pendidikan'}</p>
-            </div>
-
-            <div className="grid h-20 w-20 place-items-center rounded-3xl border border-slate-200 bg-white">
-              {profilData?.logo_url ? (
-                <Image src={toImageUrl(profilData.logo_url) || ''} alt={profilData.nama_lembaga ?? 'Logo Tim'} width={72} height={72} className="object-contain" />
-              ) : (
-                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-100 text-slate-400 text-xs">Logo</div>
-              )}
-            </div>
+      {/* Page Header */}
+      <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">{getRecapTitle(selectedSemester)}</h1>
+            <p className="text-sm text-slate-500 mt-1">
+              Pantau perkembangan siswa berdasarkan data hafalan, tahsin, dan kehadiran
+            </p>
           </div>
-
-          <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-sm text-slate-500">Periode</p>
-              <p className="text-lg font-semibold text-slate-900">{latestUpload ? formatPeriode(latestUpload.periode) : 'Belum tersedia'}</p>
-            </div>
-            <div>
-              <p className="text-sm text-slate-500">Jumlah File Rekap</p>
-              <p className="text-lg font-semibold text-slate-900">{data.length}</p>
-            </div>
-            <div>
-              <p className="text-sm text-slate-500">Upload Terakhir</p>
-              <p className="text-lg font-semibold text-slate-900">{latestUpload ? formatDate(latestUpload.created_at) : '–'}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="flex items-center justify-between gap-4">
-            <div>
-              <p className="text-sm font-semibold text-slate-700">Unggah Rekap Bulanan</p>
-              <p className="text-sm text-slate-500">Isi file rekap yang valid dan pilih periode.</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button variant="ghost" leftIcon={<Download size={15} />} onClick={handleDownloadTemplate}>
-                Unduh Template
-              </Button>
-              <Button variant="primary" leftIcon={<Upload size={15} />} onClick={handleOpenUpload}>
-                Unggah
-              </Button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="overflow-hidden rounded-3xl border border-slate-200 shadow-sm bg-white">
-        <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5 shadow-sm">
-          <div className="flex items-center gap-4">
-            <div className="grid h-14 w-14 place-items-center rounded-2xl bg-emerald-700 text-white">
-              <FileText size={24} />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-slate-500">Status Rekap Bulanan</p>
-              <p className="text-3xl font-semibold text-slate-900">{data.length}</p>
-            </div>
-          </div>
-          <div className="mt-5 grid gap-3 sm:grid-cols-2">
-            <div className="rounded-2xl border border-slate-200 bg-white p-4">
-              <p className="text-xs uppercase tracking-[0.16em] text-slate-400">Total File</p>
-              <p className="mt-2 text-lg font-semibold text-slate-900">{data.length}</p>
-            </div>
-            <div className="rounded-2xl border border-slate-200 bg-white p-4">
-              <p className="text-xs uppercase tracking-[0.16em] text-slate-400">Periode Terbaru</p>
-              <p className="mt-2 text-lg font-semibold text-slate-900">{latestUpload ? formatPeriode(latestUpload.periode) : '–'}</p>
-            </div>
-            <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:col-span-2">
-              <p className="text-xs uppercase tracking-[0.16em] text-slate-400">Unggahan Terakhir</p>
-              <p className="mt-2 text-lg font-semibold text-slate-900">{latestUpload ? formatDate(latestUpload.created_at) : '–'}</p>
-              {latestUpload && (
-                <p className="mt-1 text-sm text-slate-500">{latestUpload.uploader_name}</p>
-              )}
-            </div>
-          </div>
-        </div>
-
-        <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-sm font-semibold text-slate-700">Petunjuk</p>
-          <ul className="mt-3 space-y-2 text-sm text-slate-600">
-            <li>1. Pastikan file rekap menggunakan format resmi.</li>
-            <li>2. Periode ditentukan bulan/tahun.</li>
-            <li>3. Unduh kembali jika URL kadaluarsa.</li>
-          </ul>
-        </div>
-      </div>
-
-      {/* ── Rekap table */}
-      <div className="overflow-hidden rounded-3xl border border-slate-200 shadow-sm">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-slate-200">
-            <thead>
-              <tr className="bg-slate-900 text-white">
-                <th className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-[0.2em]">
-                  File
-                </th>
-                <th className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-[0.2em]">
-                  Periode
-                </th>
-                <th className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-[0.2em]">
-                  Diunggah Oleh
-                </th>
-                <th className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-[0.2em]">
-                  Tanggal Unggah
-                </th>
-                <th className="px-4 py-4 text-right text-xs font-semibold uppercase tracking-[0.2em]">
-                  Aksi
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {loading ? (
-                // Loading skeleton
-                Array.from({ length: 3 }).map((_, i) => (
-                  <tr key={i}>
-                    <td className="px-4 py-3">
-                      <div className="h-5 bg-slate-200 rounded animate-pulse w-48"></div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="h-5 bg-slate-200 rounded animate-pulse w-28"></div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="h-5 bg-slate-200 rounded animate-pulse w-32"></div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="h-5 bg-slate-200 rounded animate-pulse w-32"></div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="h-8 bg-slate-200 rounded animate-pulse w-24 ml-auto"></div>
-                    </td>
-                  </tr>
-                ))
-              ) : data.length === 0 ? (
-                // Empty state
-                <tr>
-                  <td colSpan={5} className="px-4 py-12 text-center">
-                    <div className="flex flex-col items-center gap-2 text-slate-400">
-                      <FileSpreadsheet size={36} className="opacity-50" />
-                      <p className="text-sm font-medium text-slate-500">
-                        Belum ada rekap yang diunggah
-                      </p>
-                      <p className="text-xs">
-                        Klik tombol &quot;Unggah Rekap&quot; untuk menambahkan file rekap bulanan.
-                      </p>
-                    </div>
-                  </td>
-                </tr>
-              ) : (
-                // Data rows
-                data.map((rekap) => (
-                  <tr key={rekap.id} className="hover:bg-slate-50 transition-colors">
-                    {/* File name with icon */}
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2 max-w-xs">
-                        {getFileIcon(rekap.file_name)}
-                        <span
-                          className="text-sm text-slate-800 truncate"
-                          title={rekap.file_name}
-                        >
-                          {rekap.file_name}
-                        </span>
-                      </div>
-                    </td>
-                    {/* Periode */}
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-1.5 text-sm text-slate-700">
-                        <Calendar size={14} className="text-slate-400 shrink-0" />
-                        <span>{formatPeriode(rekap.periode)}</span>
-                      </div>
-                    </td>
-                    {/* Uploader */}
-                    <td className="px-4 py-3">
-                      <span className="text-sm text-slate-700">{rekap.uploader_name}</span>
-                    </td>
-                    {/* Upload date */}
-                    <td className="px-4 py-3">
-                      <span className="text-sm text-slate-600">{formatDate(rekap.created_at)}</span>
-                    </td>
-                    {/* Download action */}
-                    <td className="px-4 py-3">
-                      <div className="flex justify-end">
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          leftIcon={<Download size={14} />}
-                          onClick={() => handleDownload(rekap)}
-                          loading={downloadingId === rekap.id}
-                          disabled={!rekap.signed_url || downloadingId === rekap.id}
-                          title={rekap.signed_url ? 'Unduh file rekap' : 'URL tidak tersedia'}
-                        >
-                          Unduh
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* ── Total count */}
-      {!loading && data.length > 0 && (
-        <p className="text-xs text-slate-400 text-right">
-          Total {data.length} file rekap
-        </p>
-      )}
-
-      {/* ── Upload modal */}
-      <Modal
-        open={uploadModalOpen}
-        onClose={() => {
-          if (!uploadLoading) setUploadModalOpen(false);
-        }}
-        title="Unggah Rekap Bulanan"
-        size="md"
-        closeOnBackdrop={!uploadLoading}
-      >
-        <form onSubmit={handleUploadSubmit} className="space-y-5">
-          {/* Periode selector */}
-          <div className="space-y-1.5">
-            <label
-              htmlFor="periode-select"
-              className="block text-sm font-medium text-slate-700"
-            >
-              Periode (Bulan/Tahun) <span className="text-red-500">*</span>
-            </label>
+          <div className="flex flex-wrap gap-3">
             <select
-              id="periode-select"
-              value={selectedPeriode}
-              onChange={(e) => {
-                setSelectedPeriode(e.target.value);
-                setUploadError('');
-              }}
-              disabled={uploadLoading}
-              required
-              className={[
-                'w-full rounded-lg border px-3 py-2 text-sm',
-                'focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500',
-                'disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed',
-                'border-slate-300 bg-white text-slate-900',
-              ].join(' ')}
+              value={selectedSemester}
+              onChange={(e) => setSelectedSemester(e.target.value)}
+              className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
             >
-              <option value="">-- Pilih periode --</option>
-              {monthOptions.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
+              {semesterOptions.map((opt) => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+            <Button
+              variant={showComparison ? 'primary' : 'secondary'}
+              leftIcon={<ArrowLeftRight size={16} />}
+              onClick={() => setShowComparison(!showComparison)}
+            >
+              {showComparison ? 'Sembunyikan Pembanding' : 'Bandingkan Semester'}
+            </Button>
+            <Button
+              variant="secondary"
+              leftIcon={<Download size={16} />}
+              onClick={handleExportPDF}
+              loading={exportingPdf}
+              disabled={!data || exportingPdf}
+            >
+              Download PDF
+            </Button>
+          </div>
+        </div>
+
+        {showComparison && (
+          <div className="mt-4 flex flex-wrap gap-3 items-center">
+            <span className="text-sm text-slate-600">Bandingkan dengan:</span>
+            <select
+              value={compareSemester}
+              onChange={(e) => setCompareSemester(e.target.value)}
+              className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+            >
+              <option value="">-- Pilih Semester --</option>
+              {semesterOptions.filter(o => o.value !== selectedSemester).map((opt) => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
               ))}
             </select>
           </div>
+        )}
+      </div>
 
-          {/* File picker */}
-          <div className="space-y-1.5">
-            <label className="block text-sm font-medium text-slate-700">
-              File Rekap <span className="text-red-500">*</span>
-            </label>
-
-            {selectedFile ? (
-              /* File preview */
-              <div className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5">
-                {getFileIcon(selectedFile.name)}
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-slate-800 truncate">
-                    {selectedFile.name}
-                  </p>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    {(selectedFile.size / 1024).toFixed(1)} KB
-                  </p>
+      {loading ? (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="h-32 rounded-2xl bg-slate-100 animate-pulse" />
+          ))}
+        </div>
+      ) : data ? (
+        <>
+          {/* Stats Cards */}
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="flex items-center gap-3">
+                <div className="grid h-12 w-12 place-items-center rounded-xl bg-indigo-100">
+                  <Users size={20} className="text-indigo-600" />
                 </div>
-                <button
-                  type="button"
-                  onClick={handleRemoveFile}
-                  disabled={uploadLoading}
-                  className="text-slate-400 hover:text-slate-600 disabled:cursor-not-allowed"
-                  aria-label="Hapus file yang dipilih"
-                >
-                  <X size={16} />
-                </button>
-              </div>
-            ) : (
-              /* Drop zone / file button */
-              <div
-                onClick={() => !uploadLoading && fileInputRef.current?.click()}
-                className={[
-                  'flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed',
-                  'px-4 py-8 text-center transition-colors',
-                  uploadLoading
-                    ? 'cursor-not-allowed border-slate-200 bg-slate-50'
-                    : 'cursor-pointer border-slate-300 bg-white hover:border-emerald-400 hover:bg-emerald-50',
-                ].join(' ')}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    if (!uploadLoading) fileInputRef.current?.click();
-                  }
-                }}
-                aria-label="Klik untuk memilih file"
-              >
-                <Upload size={24} className="text-slate-400" />
                 <div>
-                  <p className="text-sm font-medium text-slate-700">
-                    Klik untuk memilih file
-                  </p>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    Format yang didukung: Excel (.xlsx, .xls) atau PDF — maks. 10 MB
-                  </p>
+                  <p className="text-sm text-slate-500">Total Siswa</p>
+                  <p className="text-2xl font-bold text-slate-900">{data.total_students}</p>
                 </div>
               </div>
-            )}
-
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".xlsx,.xls,.pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,application/pdf"
-              onChange={handleFileChange}
-              disabled={uploadLoading}
-              className="hidden"
-              aria-hidden="true"
-            />
+            </div>
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="flex items-center gap-3">
+                <div className="grid h-12 w-12 place-items-center rounded-xl bg-amber-100">
+                  <BookOpen size={20} className="text-amber-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-slate-500">Total Hafalan</p>
+                  <p className="text-2xl font-bold text-slate-900">{data.total_hafalan}</p>
+                </div>
+              </div>
+            </div>
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="flex items-center gap-3">
+                <div className="grid h-12 w-12 place-items-center rounded-xl bg-amber-100">
+                  <TrendingUp size={20} className="text-amber-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-slate-500">Total Tahsin</p>
+                  <p className="text-2xl font-bold text-slate-900">{data.total_tahsin}</p>
+                </div>
+              </div>
+            </div>
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="flex items-center gap-3">
+                <div className="grid h-12 w-12 place-items-center rounded-xl bg-amber-100">
+                  <CheckCircle size={20} className="text-amber-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-slate-500">Rata-rata Kehadiran</p>
+                  <p className="text-2xl font-bold text-slate-900">{data.average_attendance}%</p>
+                </div>
+              </div>
+            </div>
           </div>
 
-          {/* Error message */}
-          {uploadError && (
-            <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-              {uploadError}
+          {/* Charts */}
+          <div className="grid gap-6 lg:grid-cols-2">
+            {/* Monthly Progress Chart */}
+            <div ref={monthlyChartRef} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <h3 className="text-lg font-semibold text-slate-800 mb-4">Perkembangan Bulanan</h3>
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={chartData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                  <XAxis dataKey="month" tick={{ fontSize: 12 }} />
+                  <YAxis tick={{ fontSize: 12 }} />
+                  <Tooltip />
+                  <Legend />
+                  <Line type="monotone" dataKey="hafalan" stroke="#6366f1" strokeWidth={2} name="Hafalan" />
+                  <Line type="monotone" dataKey="tahsin" stroke="#22c55e" strokeWidth={2} name="Tahsin" />
+                  <Line type="monotone" dataKey="kehadiran" stroke="#f59e0b" strokeWidth={2} name="Kehadiran (%)" />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* Attendance Distribution */}
+            <div ref={attendanceChartRef} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <h3 className="text-lg font-semibold text-slate-800 mb-2">Distribusi Kehadiran</h3>
+              <p className="text-sm text-slate-500 mb-4">
+                Grafik ini menunjukkan proporsi kehadiran siswa selama semester, meliputi: Hadir dan Tidak Hadir.
+              </p>
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie
+                    data={attendancePieData}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ name, percent }: any) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    outerRadius={100}
+                    fill="#8884d8"
+                    dataKey="value"
+                  >
+                    {attendancePieData.map((_, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          {/* Comparison Chart */}
+          {showComparison && data.comparison && (
+            <div ref={comparisonChartRef} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <h3 className="text-lg font-semibold text-slate-800 mb-4">
+                Perbandingan: {data.semester_name} vs {data.comparison.semester_name}
+              </h3>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={comparisonData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                  <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                  <YAxis tick={{ fontSize: 12 }} />
+                  <Tooltip />
+                  <Legend />
+                  <Bar dataKey="current" fill="#6366f1" name={data.semester_name} />
+                  <Bar dataKey="compare" fill="#22c55e" name={data.comparison.semester_name} />
+                </BarChart>
+              </ResponsiveContainer>
             </div>
           )}
 
-          {/* Footer buttons */}
-          <div className="flex justify-end gap-2 pt-1">
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => setUploadModalOpen(false)}
-              disabled={uploadLoading}
-            >
-              Batal
-            </Button>
-            <Button
-              type="submit"
-              variant="primary"
-              loading={uploadLoading}
-              leftIcon={!uploadLoading ? <Upload size={15} /> : undefined}
-            >
-              {uploadLoading ? 'Mengunggah...' : 'Unggah'}
-            </Button>
+          {/* Student Table */}
+          <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+            <div className="p-5 border-b border-slate-200">
+              <h3 className="text-lg font-semibold text-slate-800">Detail Per Siswa</h3>
+              <p className="text-sm text-slate-500 mt-1">Data hafalan, tahsin, dan kehadiran per siswa</p>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-slate-200">
+                <thead className="bg-slate-50">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Nama Siswa</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Kelas</th>
+                    <th className="px-4 py-3 text-center text-xs font-semibold text-slate-600 uppercase tracking-wider">Juz</th>
+                    <th className="px-4 py-3 text-center text-xs font-semibold text-slate-600 uppercase tracking-wider">Hafalan</th>
+                    <th className="px-4 py-3 text-center text-xs font-semibold text-slate-600 uppercase tracking-wider">Tahsin</th>
+                    <th className="px-4 py-3 text-center text-xs font-semibold text-slate-600 uppercase tracking-wider">Kehadiran</th>
+                    <th className="px-4 py-3 text-center text-xs font-semibold text-slate-600 uppercase tracking-wider">Makhroj</th>
+                    <th className="px-4 py-3 text-center text-xs font-semibold text-slate-600 uppercase tracking-wider">Tajwid</th>
+                    <th className="px-4 py-3 text-center text-xs font-semibold text-slate-600 uppercase tracking-wider">Lancar</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {data.students.map((student) => (
+                    <tr key={student.student_id} className="hover:bg-slate-50 transition-colors">
+                      <td className="px-4 py-3">
+                        <div>
+                          <p className="text-sm font-medium text-slate-800">{student.nama}</p>
+                          <p className="text-xs text-slate-500">{student.nisn}</p>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-slate-600">{student.class_name}</td>
+                      <td className="px-4 py-3 text-center">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
+                          {student.juz_terakhir}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-center text-sm font-medium text-slate-800">{student.total_hafalan}</td>
+                      <td className="px-4 py-3 text-center text-sm font-medium text-slate-800">{student.total_tahsin}</td>
+                      <td className="px-4 py-3 text-center">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          student.persentase_kehadiran >= 80 ? 'bg-amber-100 text-amber-800' :
+                          student.persentase_kehadiran >= 60 ? 'bg-amber-100 text-amber-800' :
+                          'bg-red-100 text-red-800'
+                        }`}>
+                          {student.persentase_kehadiran}%
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-center text-sm text-slate-600">{student.rata_rata_makhroj || '-'}</td>
+                      <td className="px-4 py-3 text-center text-sm text-slate-600">{student.rata_rata_tajwid || '-'}</td>
+                      <td className="px-4 py-3 text-center text-sm text-slate-600">{student.rata_rata_lancar || '-'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {data.students.length === 0 && (
+              <div className="p-8 text-center text-slate-500">
+                Tidak ada data siswa untuk periode ini
+              </div>
+            )}
           </div>
-        </form>
-      </Modal>
-
-      {/* ── Toast notifications */}
-      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+        </>
+      ) : (
+        <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-slate-500">
+          Gagal memuat data rekap semester
+        </div>
+      )}
     </div>
   );
 }

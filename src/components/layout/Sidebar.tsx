@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { useSession } from '@/hooks/useSession';
 import { useRole } from '@/hooks/useRole';
+import { useViewMode } from '@/hooks/useViewMode';
 import type { UserRole } from '@/types';
 import { useEffect, useState } from 'react';
 
@@ -30,21 +31,22 @@ interface SidebarProps {
 const menuItems: MenuItem[] = [
   // ── Utama ────────────────────────────────────────────────────────────
   { label: 'Dashboard',      href: '/dashboard',          icon: <LayoutDashboard size={16} />, group: 'Utama' },
+  { label: 'Dashboard Guru', href: '/dashboard-guru',     icon: <LayoutDashboard size={16} />, group: 'Utama', roles: ['Kabid', 'Sekretaris'] },
 
   // ── Akademik ─────────────────────────────────────────────────────────
   { label: 'Data Siswa',     href: '/siswa',              icon: <Users size={16} />,           group: 'Akademik', roles: ['Kabid', 'Tim_Quran', 'Sekretaris'] },
-  { label: 'Hafalan & Tahsin', href: '/tahsin',           icon: <BookOpen size={16} />,        group: 'Akademik', roles: ['Kabid', 'Tim_Quran'] },
-  { label: 'Raport',         href: '/raport',             icon: <FileText size={16} />,        group: 'Akademik', roles: ['Kabid', 'Tim_Quran'] },
+  { label: 'Hafalan & Tahsin', href: '/tahsin',           icon: <BookOpen size={16} />,        group: 'Akademik', roles: ['Kabid', 'Tim_Quran', 'Sekretaris'] },
+  { label: 'Raport',         href: '/raport',             icon: <FileText size={16} />,        group: 'Akademik', roles: ['Kabid', 'Tim_Quran', 'Sekretaris'] },
 
   // ── Kehadiran ────────────────────────────────────────────────────────
-  { label: 'Absensi',        href: '/absensi',            icon: <BarChart2 size={16} />,       group: 'Kehadiran', roles: ['Kabid', 'Tim_Quran'] },
+  { label: 'Absensi',        href: '/absensi',            icon: <BarChart2 size={16} />,       group: 'Kehadiran', roles: ['Kabid', 'Tim_Quran', 'Sekretaris'] },
   { label: 'Monitoring',     href: '/absensi/monitoring', icon: <TrendingUp size={16} />,      group: 'Kehadiran', roles: ['Kabid'] },
-  { label: 'Scan QR',        href: '/scan',               icon: <QrCode size={16} />,          group: 'Kehadiran', roles: ['Kabid', 'Tim_Quran'] },
+  { label: 'Scan QR',        href: '/scan',               icon: <QrCode size={16} />,          group: 'Kehadiran', roles: ['Kabid', 'Tim_Quran', 'Sekretaris'] },
 
   // ── Manajemen ────────────────────────────────────────────────────────
-  { label: 'Rekap Bulanan',  href: '/rekap',              icon: <Repeat size={16} />,          group: 'Manajemen', roles: ['Kabid', 'Sekretaris'] },
-  { label: 'Laporan',        href: '/laporan',            icon: <TrendingUp size={16} />,      group: 'Manajemen', roles: ['Kabid', 'Sekretaris'] },
-  { label: 'Semester',       href: '/semester',           icon: <CalendarDays size={16} />,     group: 'Manajemen', roles: ['Kabid'] },
+  { label: 'Rekap Tahfidz & Tahsin', href: '/rekap',              icon: <Repeat size={16} />,          group: 'Manajemen', roles: ['Kabid', 'Sekretaris'] },
+  { label: 'Laporan Progres', href: '/laporan',           icon: <TrendingUp size={16} />,      group: 'Manajemen', roles: ['Kabid', 'Sekretaris'] },
+  { label: 'Semester',       href: '/semester',           icon: <CalendarDays size={16} />,    group: 'Manajemen', roles: ['Kabid'] },
   { label: 'Kelas',          href: '/kelas',              icon: <School size={16} />,          group: 'Manajemen', roles: ['Kabid'] },
   { label: "Tim Qur'an",     href: '/tim',                icon: <UserCheck size={16} />,       group: 'Manajemen', roles: ['Kabid'] },
 
@@ -75,6 +77,8 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
   const pathname = usePathname();
   const { userName } = useSession();
   const { role } = useRole();
+  const { getEffectiveRole, isViewingAsOther } = useViewMode();
+  const effectiveRole = getEffectiveRole(role);
   const [navMap, setNavMap] = useState<Record<string, string>>({});
 
   // Fetch public navigation items and build a map label->href so admin sidebar
@@ -101,8 +105,8 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
 
   const visibleMenus = menuItems.filter(item => {
     if (!item.roles || item.roles.length === 0) return true;
-    if (!role) return false;
-    return item.roles.includes(role);
+    if (!effectiveRole) return false;
+    return item.roles.includes(effectiveRole);
   });
 
   // If navMap provides alternate hrefs for public items, use them here so
@@ -125,21 +129,21 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
         isOpen ? 'translate-x-0' : '-translate-x-full',
         'lg:relative lg:translate-x-0 lg:z-auto lg:transition-none',
       ].join(' ')}
-        style={{background: 'linear-gradient(180deg, #0f172a 0%, #1e1b4b 100%)'}}>
+        style={{background: 'linear-gradient(180deg, #fffbeb 0%, #fef3c7 100%)'}}>
 
         {/* Logo area */}
         <div className="flex h-16 items-center gap-3 px-5 shrink-0"
-          style={{borderBottom: '1px solid rgba(255,255,255,0.06)'}}>
+          style={{borderBottom: '1px solid rgba(245,158,11,0.1)'}}>
           <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
-            style={{background: 'linear-gradient(135deg, #6366f1, #8b5cf6)'}}>
+            style={{background: 'linear-gradient(135deg, #d97706, #f59e0b)'}}>
             <BookOpen size={15} className="text-white" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="font-bold text-white text-sm leading-tight">Tim Qur&apos;an</p>
-            <p className="text-indigo-400/60 text-xs leading-tight">Dashboard</p>
+            <p className="font-bold text-slate-900 text-sm leading-tight">Tim Qur&apos;an</p>
+            <p className="text-amber-600/70 text-xs leading-tight">Dashboard</p>
           </div>
           <button onClick={onClose}
-            className="lg:hidden p-2 rounded-lg text-white/30 hover:text-white/70 hover:bg-white/10 transition-colors"
+            className="lg:hidden p-2 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-amber-100 transition-colors"
             style={{minWidth: '44px', minHeight: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center'}}
             aria-label="Tutup sidebar">
             <X size={20} />
@@ -148,13 +152,13 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
 
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-6 scroll-smooth-touch"
-          style={{scrollbarWidth: 'thin', scrollbarColor: 'rgba(255,255,255,0.1) transparent'}}>
+          style={{scrollbarWidth: 'thin', scrollbarColor: 'rgba(217,119,6,0.1) transparent'}}>
           {groups.map(group => {
             const items = visibleMenusWithSyncedHrefs.filter(m => m.group === group);
             return (
               <div key={group}>
                 <p className="text-[10px] font-bold uppercase tracking-widest px-3 mb-2"
-                  style={{color: 'rgba(165,180,252,0.4)'}}>
+                  style={{color: 'rgba(217,119,6,0.5)'}}>
                   {group}
                 </p>
                 <div className="space-y-0.5">
@@ -168,27 +172,27 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
                       <Link key={item.href} href={item.href}
                         className="flex items-center gap-2.5 px-3 py-3 rounded-xl text-sm font-medium transition-all relative min-h-[44px]"
                         style={{
-                          background: isActive ? 'rgba(99,102,241,0.2)' : 'transparent',
-                          color: isActive ? '#a5b4fc' : 'rgba(255,255,255,0.5)',
+                          background: isActive ? 'rgba(245,158,11,0.12)' : 'transparent',
+                          color: isActive ? '#b45309' : 'rgba(120,90,40,0.65)',
                         }}
                         onMouseEnter={e => {
                           if (!isActive) {
-                            (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.05)';
-                            (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.85)';
+                            (e.currentTarget as HTMLElement).style.background = 'rgba(245,158,11,0.06)';
+                            (e.currentTarget as HTMLElement).style.color = 'rgba(120,90,40,0.9)';
                           }
                         }}
                         onMouseLeave={e => {
                           if (!isActive) {
                             (e.currentTarget as HTMLElement).style.background = 'transparent';
-                            (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.5)';
+                            (e.currentTarget as HTMLElement).style.color = 'rgba(120,90,40,0.65)';
                           }
                         }}
                       >
                         {isActive && (
                           <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-r-full"
-                            style={{background: 'linear-gradient(180deg, #6366f1, #8b5cf6)'}} />
+                            style={{background: 'linear-gradient(180deg, #d97706, #f59e0b)'}} />
                         )}
-                        <span style={{color: isActive ? '#818cf8' : 'rgba(255,255,255,0.35)'}}
+                        <span style={{color: isActive ? '#d97706' : 'rgba(217,119,6,0.4)'}}
                           className="shrink-0 ml-1">
                           {item.icon}
                         </span>
@@ -203,26 +207,31 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
         </nav>
 
         {/* User profile */}
-        <div className="p-3 shrink-0" style={{borderTop: '1px solid rgba(255,255,255,0.06)'}}>
+        <div className="p-3 shrink-0" style={{borderTop: '1px solid rgba(245,158,11,0.1)'}}>
           <div className="flex items-center gap-2.5 p-2.5 rounded-xl"
-            style={{background: 'rgba(255,255,255,0.05)'}}>
+            style={{background: 'rgba(245,158,11,0.06)'}}>
             <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-white font-bold text-sm"
-              style={{background: 'linear-gradient(135deg, #6366f1, #8b5cf6)'}}>
+              style={{background: 'linear-gradient(135deg, #d97706, #f59e0b)'}}>
               {userName ? userName.charAt(0).toUpperCase() : '?'}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold text-white truncate leading-tight">
+              <p className="text-sm font-semibold text-slate-900 truncate leading-tight">
                 {userName ?? 'Pengguna'}
               </p>
               <p className="text-xs leading-tight"
-                style={{color: role ? ROLE_COLORS[role] : '#a5b4fc'}}>
-                {role ? ROLE_LABELS[role] : ''}
+                style={{color: effectiveRole ? ROLE_COLORS[effectiveRole] : '#d97706'}}>
+                {effectiveRole ? ROLE_LABELS[effectiveRole] : ''}
               </p>
-              {/* Indikator pemantauan Kabid untuk Sekretaris */}
-              {role === 'Sekretaris' && (
+              {isViewingAsOther && (
                 <div className="flex items-center gap-1 mt-0.5">
-                  <Eye size={9} className="text-emerald-400/60" />
-                  <span className="text-[10px] text-emerald-400/60">Dalam pantauan Kabid</span>
+                  <Eye size={9} className="text-amber-600/60" />
+                  <span className="text-[10px] text-amber-600/60">Mode Mengajar</span>
+                </div>
+              )}
+              {!isViewingAsOther && role === 'Sekretaris' && (
+                <div className="flex items-center gap-1 mt-0.5">
+                  <Eye size={9} className="text-amber-600/60" />
+                  <span className="text-[10px] text-amber-600/60">Dalam pantauan Kabid</span>
                 </div>
               )}
             </div>

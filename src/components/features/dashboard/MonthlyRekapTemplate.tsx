@@ -171,7 +171,7 @@ export default function MonthlyRekapTemplate() {
   }
 
   const trendIcon = stats.trendKehadiran >= 0 ? 
-    <ArrowUpRight size={14} className="text-emerald-600" /> : 
+    <ArrowUpRight size={14} className="text-amber-600" /> : 
     <ArrowDownRight size={14} className="text-red-600" />;
 
   return (
@@ -181,7 +181,7 @@ export default function MonthlyRekapTemplate() {
         {/* Header */}
         <div className="flex items-center justify-between mb-6 pb-6 border-b border-slate-100">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #3b82f6, #06b6d4)' }}>
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #3b82f6, #f59e0b)' }}>
               <Calendar size={18} className="text-white" />
             </div>
             <div>
@@ -191,7 +191,7 @@ export default function MonthlyRekapTemplate() {
           </div>
           <div className="flex items-center gap-3">
             {stats.rekapUploaded && (
-              <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+              <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg>
                 Tersedia
               </span>
@@ -253,9 +253,9 @@ export default function MonthlyRekapTemplate() {
           {/* Hadir */}
           <div className="text-center">
             <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">Santri Hadir</p>
-            <p className="text-2xl font-bold text-emerald-600">{stats.santriHadir}</p>
+            <p className="text-2xl font-bold text-amber-600">{stats.santriHadir}</p>
             <div className="w-full bg-slate-100 rounded-full h-1.5 mt-2 overflow-hidden">
-              <div className="h-full bg-gradient-to-r from-emerald-400 to-emerald-600" 
+              <div className="h-full bg-gradient-to-r from-amber-400 to-amber-600" 
                 style={{ width: `${(stats.santriHadir / stats.totalSantri) * 100}%` }} />
             </div>
           </div>

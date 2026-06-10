@@ -69,6 +69,43 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ message: error.message, detail: error.details ?? null }, { status: 500 });
     }
 
+    const t1 = teacher1_id || null;
+    const t2 = teacher2_id || null;
+
+    if (t1 || t2) {
+      const { data: siswaList } = await supabase
+        .from('santri')
+        .select('id')
+        .eq('class_id', class_id)
+        .eq('status', 'Aktif');
+
+      if (siswaList && siswaList.length > 0) {
+        const assignedTeacher = t1 || t2;
+
+        if (t1 && t2) {
+          const ids = siswaList.map((s: any) => s.id);
+          const half = Math.ceil(ids.length / 2);
+          const first = ids.slice(0, half);
+          const second = ids.slice(half);
+
+          await Promise.all([
+            first.length > 0
+              ? supabase.from('santri').update({ assigned_teacher_id: t1 }).in('id', first)
+              : Promise.resolve({ data: null, error: null }),
+            second.length > 0
+              ? supabase.from('santri').update({ assigned_teacher_id: t2 }).in('id', second)
+              : Promise.resolve({ data: null, error: null }),
+          ]);
+        } else {
+          const ids = siswaList.map((s: any) => s.id);
+          await supabase
+            .from('santri')
+            .update({ assigned_teacher_id: assignedTeacher })
+            .in('id', ids);
+        }
+      }
+    }
+
     return NextResponse.json({ message: 'Guru berhasil ditetapkan.', data }, { status: 200 });
   } catch (err) {
     console.error('[assign-teachers] Unexpected error:', err);

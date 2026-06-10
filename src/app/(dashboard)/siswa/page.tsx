@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Plus, Printer, Upload, CreditCard, CheckCircle2 } from 'lucide-react';
 
@@ -15,10 +15,14 @@ import ImportExcelModal from '@/components/features/siswa/ImportExcelModal';
 
 import type { Santri } from '@/types';
 import { useToast } from '@/lib/toast';
+import { useRole } from '@/hooks/useRole';
+import { useViewMode } from '@/hooks/useViewMode';
 
 export default function SiswaPage() {
   const router = useRouter();
   const { toast } = useToast();
+  const { role } = useRole();
+  const { viewAsRole, viewAsTeacherId } = useViewMode();
 
   // ── Data
   const [data, setData] = useState<Santri[]>([]);
@@ -42,17 +46,26 @@ export default function SiswaPage() {
   const [printConfirmSiswa, setPrintConfirmSiswa] = useState<Santri | null>(null);
 
   // ── Fetch
+  const viewHeaders = useMemo(() => {
+    const h: Record<string, string> = {};
+    if (viewAsRole === 'Tim_Quran') {
+      h['x-view-mode'] = 'teaching';
+      if (viewAsTeacherId) h['x-view-as-teacher-id'] = viewAsTeacherId;
+    }
+    return h;
+  }, [viewAsRole, viewAsTeacherId]);
+
   const fetchSiswa = useCallback(async (q = '') => {
     setLoading(true);
     try {
       const url = q ? `/api/siswa/list?search=${encodeURIComponent(q)}` : '/api/siswa/list';
-      const res = await fetch(url);
+      const res = await fetch(url, { headers: viewHeaders });
       const json = await res.json();
       if (!res.ok) { toast.error(json.message ?? 'Gagal memuat data siswa.'); setData([]); }
       else setData(json.data ?? []);
     } catch { toast.error('Terjadi kesalahan saat memuat data siswa.'); setData([]); }
     finally { setLoading(false); }
-  }, [toast]);
+  }, [toast, viewHeaders]);
 
   useEffect(() => { fetchSiswa(); }, [fetchSiswa]);
 
@@ -138,12 +151,16 @@ export default function SiswaPage() {
               Cetak ID Card ({selectedIds.length})
             </Button>
           )}
-          <Button variant="secondary" leftIcon={<Upload size={15} />} onClick={() => setImportOpen(true)}>
-            Import Excel
-          </Button>
-          <Button variant="primary" leftIcon={<Plus size={15} />} onClick={() => { setEditTarget(null); setFormOpen(true); }}>
-            Tambah Siswa
-          </Button>
+          {role !== 'Tim_Quran' && (
+            <>
+              <Button variant="secondary" leftIcon={<Upload size={15} />} onClick={() => setImportOpen(true)}>
+                Import Excel
+              </Button>
+              <Button variant="primary" leftIcon={<Plus size={15} />} onClick={() => { setEditTarget(null); setFormOpen(true); }}>
+                Tambah Siswa
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
@@ -176,6 +193,7 @@ export default function SiswaPage() {
       >
         <SiswaForm
           initialData={editTarget} loading={formLoading}
+          userRole={role}
           onSubmit={handleFormSubmit}
           onCancel={() => { if (!formLoading) { setFormOpen(false); setEditTarget(null); } }}
         />
@@ -207,9 +225,9 @@ export default function SiswaPage() {
           size="sm"
         >
           <div className="space-y-4">
-            <div className="flex items-center gap-3 p-4 bg-emerald-50 rounded-xl border border-emerald-100">
-              <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
-                <CheckCircle2 size={20} className="text-emerald-600" />
+            <div className="flex items-center gap-3 p-4 bg-amber-50 rounded-xl border border-amber-100">
+              <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center shrink-0">
+                <CheckCircle2 size={20} className="text-amber-600" />
               </div>
               <div>
                 <p className="font-semibold text-slate-800">{printConfirmSiswa.nama}</p>

@@ -8,11 +8,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { createServerClient, withRetry } from '@/lib/supabase/server';
+import { shouldFilterByTeacher, getTeacherFilterId } from '@/lib/rbac';
 
 export const dynamic = 'force-dynamic';
 
 const HEADER_SELECT = `
-  id, student_id, teacher_id, periode, tahun_ajaran, juz, catatan,
+  id, student_id, teacher_id, periode, tahun_ajaran, juz, catatan, catatan_ai,
   nama_guru_kelas, niy_guru_kelas, nama_kabid, niy_kabid, nama_kepala_sekolah, niy_kepala_sekolah,
   tahsin_metode, tahsin_buku, tahsin_halaman, tahsin_makhroj, tahsin_kelancaran, tahsin_adab, tahsin_catatan,
   html_custom, pdf_path,
@@ -56,12 +57,13 @@ export async function GET(request: NextRequest) {
     if (studentId) query = query.eq('student_id', studentId);
     if (periode) query = query.ilike('periode', `%${periode}%`);
 
-    // Tim_Quran hanya lihat siswa tanggung jawabnya
-    if (session.user.role === 'Tim_Quran') {
+    // Tim_Quran hanya lihat siswa tanggung jawabnya (berlaku juga untuk Kabid/Sekretaris dalam Mode Mengajar)
+    if (shouldFilterByTeacher(session.user.role, request)) {
+      const teacherId = getTeacherFilterId(session.user.role, request, session.user.id);
       const { data: myStudents } = await withRetry(() => supabase
         .from('santri')
         .select('id')
-        .eq('assigned_teacher_id', session.user.id) as any);
+        .eq('assigned_teacher_id', teacherId) as any);
       const ids = ((myStudents as any) ?? []).map((s: any) => s.id);
       if (ids.length === 0) return NextResponse.json({ data: [] }, { status: 200 });
       query = query.in('student_id', ids);
@@ -84,7 +86,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { student_id, periode, tahun_ajaran, juz, catatan,
+    const { student_id, periode, tahun_ajaran, juz, catatan, catatan_ai,
             nama_guru_kelas, niy_guru_kelas, nama_kabid, niy_kabid,
             nama_kepala_sekolah, niy_kepala_sekolah,
             tahsin_metode, tahsin_buku, tahsin_halaman, tahsin_makhroj, tahsin_kelancaran, tahsin_adab, tahsin_catatan,
@@ -101,7 +103,7 @@ export async function POST(request: NextRequest) {
     const supabase = createServerClient();
 
     // RBAC check
-    if (session.user.role === 'Tim_Quran') {
+    if (shouldFilterByTeacher(session.user.role, request)) {
       const { data: santri } = await supabase
         .from('santri').select('assigned_teacher_id').eq('id', student_id).single();
       if (!santri || santri.assigned_teacher_id !== session.user.id) {
@@ -134,6 +136,7 @@ export async function POST(request: NextRequest) {
         tahun_ajaran: tahun_ajaran.trim(),
         juz: parsedJuz ?? null,
         catatan: catatan?.trim() || null,
+        catatan_ai: catatan_ai?.trim() || null,
         nama_guru_kelas: nama_guru_kelas?.trim() || null,
         niy_guru_kelas: niy_guru_kelas?.trim() || null,
         nama_kabid: nama_kabid?.trim() || null,
@@ -196,7 +199,7 @@ export async function PUT(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { id, periode, tahun_ajaran, juz, catatan,
+    const { id, periode, tahun_ajaran, juz, catatan, catatan_ai,
             nama_guru_kelas, niy_guru_kelas, nama_kabid, niy_kabid,
             nama_kepala_sekolah, niy_kepala_sekolah,
             tahsin_metode, tahsin_buku, tahsin_halaman, tahsin_makhroj, tahsin_kelancaran, tahsin_adab, tahsin_catatan,
@@ -216,7 +219,7 @@ export async function PUT(request: NextRequest) {
 
     if (!existing) return NextResponse.json({ message: 'Raport tidak ditemukan.' }, { status: 404 });
 
-    if (session.user.role === 'Tim_Quran') {
+    if (shouldFilterByTeacher(session.user.role, request)) {
       const assignedId = (existing.santri as any)?.assigned_teacher_id;
       if (assignedId !== session.user.id) {
         return NextResponse.json({ message: 'Akses ditolak.' }, { status: 403 });
@@ -233,6 +236,7 @@ export async function PUT(request: NextRequest) {
     if (tahun_ajaran?.trim()) updateHeader.tahun_ajaran = tahun_ajaran.trim();
     if (juz !== undefined) updateHeader.juz = parsedJuz ?? null;
     if (catatan !== undefined) updateHeader.catatan = catatan?.trim() || null;
+    if (catatan_ai !== undefined) updateHeader.catatan_ai = catatan_ai?.trim() || null;
     if (nama_guru_kelas !== undefined) updateHeader.nama_guru_kelas = nama_guru_kelas?.trim() || null;
     if (niy_guru_kelas !== undefined) updateHeader.niy_guru_kelas = niy_guru_kelas?.trim() || null;
     if (nama_kabid !== undefined) updateHeader.nama_kabid = nama_kabid?.trim() || null;

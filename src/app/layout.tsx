@@ -1,11 +1,18 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Inter, Amiri } from "next/font/google";
 import { SessionProvider } from "./providers";
 import "./globals.css";
 
 const inter = Inter({
   subsets: ["latin"],
   variable: "--font-inter",
+  display: "swap",
+});
+
+const amiri = Amiri({
+  subsets: ["arabic"],
+  weight: ["400", "700"],
+  variable: "--font-amiri",
   display: "swap",
 });
 
@@ -23,7 +30,7 @@ export const viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="id" className={`${inter.variable} light`}>
+    <html lang="id" className={`${inter.variable} ${amiri.variable} light`}>
       <body className="antialiased">
         <SessionProvider>
           {children}

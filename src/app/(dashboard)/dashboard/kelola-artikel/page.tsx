@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useState, lazy, Suspense } from 'react';
-import { Plus, Pencil, Trash2, Newspaper, Eye, EyeOff, ExternalLink, X, Save, Loader2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, Newspaper, Eye, EyeOff, ExternalLink, X, Save, Loader2, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 
@@ -10,6 +10,7 @@ import Badge from '@/components/ui/Badge';
 import ConfirmDialog from '@/components/shared/ConfirmDialog';
 import { toImageUrl } from '@/lib/storage/urls';
 import ImageUpload from '@/components/shared/ImageUpload';
+import ArtikelGenerator from '@/components/features/artikel/ArtikelGenerator';
 
 // Lazy load RichTextEditor agar tidak memperberat bundle
 const RichTextEditor = lazy(() => import('@/components/shared/RichTextEditor'));
@@ -48,7 +49,7 @@ function ToastContainer({ toasts, onDismiss }: { toasts: Toast[]; onDismiss: (id
       {toasts.map(t => (
         <div key={t.id} role="alert"
           className={`flex items-start gap-3 rounded-xl border px-4 py-3 shadow-lg text-sm ${
-            t.type === 'success' ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-red-50 border-red-200 text-red-800'
+            t.type === 'success' ? 'bg-amber-50 border-amber-200 text-amber-800' : 'bg-red-50 border-red-200 text-red-800'
           }`}>
           <span className="flex-1">{t.message}</span>
           <button onClick={() => onDismiss(t.id)} className="text-slate-400 hover:text-slate-600 shrink-0">✕</button>
@@ -194,7 +195,7 @@ function EditorModal({
               value={coverUrl}
               onChange={e => setCoverUrl(e.target.value)}
               placeholder="atau paste URL gambar..."
-              className="mt-2 w-full text-xs rounded-lg border border-slate-200 px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-emerald-400"
+              className="mt-2 w-full text-xs rounded-lg border border-slate-200 px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-amber-400"
             />
           </div>
 
@@ -249,6 +250,7 @@ export default function ArtikelPage() {
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [publishLoadingId, setPublishLoadingId] = useState<string | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const [showGenerator, setShowGenerator] = useState(false);
 
   const showToast = (type: Toast['type'], message: string) => {
     const id = ++toastCounter;
@@ -277,6 +279,17 @@ export default function ArtikelPage() {
     setFormCoverUrl('');
     setFormError('');
     setEditorOpen(true);
+  };
+
+  const handleApplyGenerated = (html: string) => {
+    setEditorMode('add');
+    setEditTarget(null);
+    setFormJudul('');
+    setFormKonten(html);
+    setFormCoverUrl('');
+    setFormError('');
+    setEditorOpen(true);
+    setShowGenerator(false);
   };
 
   const handleOpenEdit = async (item: ArtikelItem) => {
@@ -399,14 +412,23 @@ export default function ArtikelPage() {
           </div>
           <div className="flex items-center gap-2">
             <Link href="/artikel" target="_blank" rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-emerald-700 border border-emerald-200 rounded-lg hover:bg-emerald-50 transition-colors">
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-amber-700 border border-amber-200 rounded-lg hover:bg-amber-50 transition-colors">
               <ExternalLink size={14} /> Lihat Publik
             </Link>
+            <Button variant="secondary" leftIcon={<Sparkles size={15} />}
+              onClick={() => setShowGenerator(!showGenerator)}>
+              {showGenerator ? 'Tutup Generator' : 'Generate dengan AI'}
+            </Button>
             <Button variant="primary" leftIcon={<Plus size={15} />} onClick={handleOpenAdd}>
               Tambah Artikel
             </Button>
           </div>
         </div>
+
+        {/* ── AI Artikel Generator ───────────────────────────────────────── */}
+        {showGenerator && (
+          <ArtikelGenerator onApply={handleApplyGenerated} />
+        )}
 
         {/* Tabel */}
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
@@ -476,7 +498,7 @@ export default function ArtikelPage() {
                           leftIcon={item.is_published ? <EyeOff size={14} /> : <Eye size={14} />}
                           loading={publishLoadingId === item.id}
                           onClick={() => handleTogglePublish(item)}
-                          className={item.is_published ? 'text-amber-600 hover:bg-amber-50' : 'text-emerald-600 hover:bg-emerald-50'}
+                          className={item.is_published ? 'text-amber-600 hover:bg-amber-50' : 'text-amber-600 hover:bg-amber-50'}
                           title={item.is_published ? 'Cabut terbit' : 'Terbitkan'}>
                           {item.is_published ? 'Cabut' : 'Terbitkan'}
                         </Button>

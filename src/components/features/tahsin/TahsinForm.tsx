@@ -25,6 +25,9 @@ export interface TahsinFormData {
   buku: string;
   halaman: number;
   catatan: string;
+  makhroj?: string;
+  kelancaran?: string;
+  adab?: string;
 }
 
 interface TahsinFormProps {
@@ -91,6 +94,9 @@ export default function TahsinForm({
     buku: '',
     halaman: 1,
     catatan: '',
+    makhroj: '',
+    kelancaran: '',
+    adab: '',
   });
 
   const [errors, setErrors] = useState<FormErrors>({});
@@ -137,6 +143,9 @@ export default function TahsinForm({
         buku: initialData.buku ?? '',
         halaman: initialData.halaman ?? 1,
         catatan: initialData.catatan ?? '',
+        makhroj: (initialData as any).makhroj ?? '',
+        kelancaran: (initialData as any).kelancaran ?? '',
+        adab: (initialData as any).adab ?? '',
       });
     } else {
       setForm({
@@ -146,6 +155,9 @@ export default function TahsinForm({
         buku: '',
         halaman: 1,
         catatan: '',
+        makhroj: '',
+        kelancaran: '',
+        adab: '',
       });
     }
     setErrors({});
@@ -182,7 +194,7 @@ export default function TahsinForm({
             value={form.student_id}
             onChange={(e) => set('student_id', e.target.value)}
             disabled={loading || isEdit}
-            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:bg-slate-100 disabled:cursor-not-allowed"
+            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 disabled:bg-slate-100 disabled:cursor-not-allowed"
           >
             <option value="">— Pilih Siswa —</option>
             {students.map((s) => (
@@ -217,7 +229,7 @@ export default function TahsinForm({
           value={form.metode}
           onChange={(e) => set('metode', e.target.value as TahsinMetode)}
           disabled={loading}
-          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:bg-slate-100 disabled:cursor-not-allowed"
+          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 disabled:bg-slate-100 disabled:cursor-not-allowed"
         >
           {METODE_OPTIONS.map((m) => (
             <option key={m} value={m}>
@@ -263,9 +275,36 @@ export default function TahsinForm({
           rows={3}
           disabled={loading}
           placeholder="Contoh: Perbaiki makhroj huruf Qaf, perhatikan ghunnah..."
-          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:bg-slate-100 disabled:cursor-not-allowed resize-none"
+          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 disabled:bg-slate-100 disabled:cursor-not-allowed resize-none"
         />
       </div>
+
+      {/* Extra fields - hanya tampil saat edit */}
+      {isEdit && (
+        <div className="grid grid-cols-3 gap-3">
+          <Input
+            label="Makhroj"
+            value={form.makhroj ?? ''}
+            onChange={(e) => set('makhroj', e.target.value)}
+            placeholder="Makhroj"
+            disabled={loading}
+          />
+          <Input
+            label="Kelancaran"
+            value={form.kelancaran ?? ''}
+            onChange={(e) => set('kelancaran', e.target.value)}
+            placeholder="Kelancaran"
+            disabled={loading}
+          />
+          <Input
+            label="Adab"
+            value={form.adab ?? ''}
+            onChange={(e) => set('adab', e.target.value)}
+            placeholder="Adab"
+            disabled={loading}
+          />
+        </div>
+      )}
 
       {/* Tombol Aksi */}
       <div className="flex justify-end gap-3 pt-2">

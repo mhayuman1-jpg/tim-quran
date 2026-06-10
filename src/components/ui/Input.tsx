@@ -60,7 +60,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
             required={required}
             className={[
               'w-full rounded-lg border text-sm md:text-base text-slate-800 placeholder-slate-400',
-              'focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500',
+              'focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500',
               'transition-colors',
               error
                 ? 'border-red-400 bg-red-50 focus:ring-red-400 focus:border-red-400'

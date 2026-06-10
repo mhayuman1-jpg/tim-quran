@@ -5,7 +5,7 @@
 // Kolom: Tanggal, Nama Siswa, Metode, Buku, Halaman, Catatan, (tombol edit)
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { CalendarDays, Pencil } from 'lucide-react';
+import { CalendarDays, Pencil, RotateCcw } from 'lucide-react';
 import DataTable, { type ColumnDef } from '@/components/shared/DataTable';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -27,6 +27,7 @@ interface TahsinRow {
   adab?: string | null;
   catatan?: string | null;
   created_at?: string;
+  edited_fields?: Record<string, string> | null;
   santri?: { id: string; nama: string } | null;
   users?: { id: string; name: string } | null;
 }
@@ -40,6 +41,8 @@ interface TahsinHistoryProps {
   onSelectStudent?: (student: { id: string; nama: string }) => void;
   /** Key untuk trigger refetch dari parent */
   refreshKey?: number;
+  /** Callback saat reset dilakukan */
+  onReset?: () => void;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -57,6 +60,31 @@ function formatDate(dateStr: string): string {
   }
 }
 
+function formatEditTimestamp(isoStr: string): string {
+  if (!isoStr) return '';
+  try {
+    return new Date(isoStr).toLocaleDateString('id-ID', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  } catch {
+    return isoStr;
+  }
+}
+
+function EditIndicator({ editedFields, field }: { editedFields?: Record<string, string> | null; field: string }) {
+  const ts = editedFields?.[field];
+  if (!ts) return null;
+  return (
+    <span className="block text-[10px] text-amber-500 mt-0.5" title={`Terakhir diedit: ${formatEditTimestamp(ts)}`}>
+      edit: {formatDate(ts.split('T')[0])}
+    </span>
+  );
+}
+
 /** Warna badge per metode */
 function metodeVariant(metode: TahsinMetode): 'green' | 'blue' | 'red' {
   if (metode === 'Wafa') return 'green';
@@ -71,10 +99,12 @@ export default function TahsinHistory({
   onEdit,
   onSelectStudent,
   refreshKey = 0,
+  onReset,
 }: TahsinHistoryProps) {
   const [data, setData] = useState<TahsinRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [resetting, setResetting] = useState(false);
 
   // Filter tanggal
   const [dateFrom, setDateFrom] = useState('');
@@ -111,6 +141,40 @@ export default function TahsinHistory({
     fetchTahsin();
   }, [fetchTahsin]);
 
+  const handleReset = async () => {
+    if (!studentId) return;
+    if (!window.confirm('Yakin ingin mereset semua jurnal tahsin siswa ini? Tindakan ini tidak dapat dibatalkan.')) {
+      return;
+    }
+
+    setResetting(true);
+    try {
+      const res = await fetch('/api/tahsin/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          student_id: studentId,
+          date_from: dateFrom || undefined,
+          date_to: dateTo || undefined,
+        }),
+      });
+
+      const json = await res.json();
+      if (!res.ok) {
+        alert(json.message ?? 'Gagal mereset jurnal.');
+        return;
+      }
+
+      alert(json.message ?? 'Jurnal berhasil direset.');
+      fetchTahsin();
+      onReset?.();
+    } catch {
+      alert('Terjadi kesalahan. Silakan coba lagi.');
+    } finally {
+      setResetting(false);
+    }
+  };
+
   // ── Kolom tabel
   const columns: ColumnDef<TahsinRow>[] = [
     {
@@ -139,7 +203,7 @@ export default function TahsinHistory({
                 e.stopPropagation();
                 onSelectStudent({ id: row.santri!.id, nama: row.santri!.nama });
               }}
-              className="text-left font-medium text-slate-800 hover:text-emerald-600 transition-colors"
+              className="text-left font-medium text-slate-800 hover:text-amber-600 transition-colors"
             >
               {name}
             </button>
@@ -167,7 +231,7 @@ export default function TahsinHistory({
       align: 'center',
       width: '90px',
       render: (row) => (
-        <span className="text-slate-600">{row.makhroj || '—'}</span>
+        <span className="text-slate-600">{row.makhroj || '—'}<EditIndicator editedFields={row.edited_fields} field="makhroj" /></span>
       ),
     },
     {
@@ -176,7 +240,7 @@ export default function TahsinHistory({
       align: 'center',
       width: '90px',
       render: (row) => (
-        <span className="text-slate-600">{row.kelancaran || '—'}</span>
+        <span className="text-slate-600">{row.kelancaran || '—'}<EditIndicator editedFields={row.edited_fields} field="kelancaran" /></span>
       ),
     },
     {
@@ -185,14 +249,14 @@ export default function TahsinHistory({
       align: 'center',
       width: '90px',
       render: (row) => (
-        <span className="text-slate-600">{row.adab || '—'}</span>
+        <span className="text-slate-600">{row.adab || '—'}<EditIndicator editedFields={row.edited_fields} field="adab" /></span>
       ),
     },
     {
       key: 'buku',
       header: 'Buku',
       render: (row) => (
-        <span className="text-slate-700">{row.buku || <em className="text-slate-300">—</em>}</span>
+        <span className="text-slate-700">{row.buku || <em className="text-slate-300">—</em>}<EditIndicator editedFields={row.edited_fields} field="buku" /></span>
       ),
     },
     {
@@ -201,7 +265,7 @@ export default function TahsinHistory({
       align: 'center',
       width: '90px',
       render: (row) => (
-        <span className="text-slate-600">{row.halaman ?? '—'}</span>
+        <span className="text-slate-600">{row.halaman ?? '—'}<EditIndicator editedFields={row.edited_fields} field="halaman" /></span>
       ),
     },
     {
@@ -213,6 +277,7 @@ export default function TahsinHistory({
           title={row.catatan ?? ''}
         >
           {row.catatan || <em className="text-slate-300">—</em>}
+          <EditIndicator editedFields={row.edited_fields} field="catatan" />
         </span>
       ),
     },
@@ -276,6 +341,20 @@ export default function TahsinHistory({
                 }}
               >
                 Reset Filter
+              </Button>
+            </div>
+          )}
+          {studentId && (
+            <div className="flex items-end ml-auto">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleReset}
+                loading={resetting}
+                leftIcon={<RotateCcw size={14} />}
+                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+              >
+                Reset Jurnal
               </Button>
             </div>
           )}

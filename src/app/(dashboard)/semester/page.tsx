@@ -192,7 +192,7 @@ export default function SemesterPage() {
       <div className="grid gap-6 xl:grid-cols-2">
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex items-center gap-3 mb-4">
-            <div className="rounded-2xl bg-emerald-100 p-3 text-emerald-700">
+            <div className="rounded-2xl bg-amber-100 p-3 text-amber-700">
               <CalendarDays size={20} />
             </div>
             <div>
@@ -243,7 +243,7 @@ export default function SemesterPage() {
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 rows={4}
-                className="w-full rounded-2xl border border-slate-300 px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                className="w-full rounded-2xl border border-slate-300 px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500"
                 placeholder="Contoh: Semester genap 2025/2026"
               />
             </div>
@@ -331,7 +331,7 @@ export default function SemesterPage() {
                         type="checkbox"
                         checked={selectedStudents.includes(student.id)}
                         onChange={() => handleToggleStudent(student.id)}
-                        className="h-4 w-4 text-emerald-600 border-slate-300 rounded"
+                        className="h-4 w-4 text-amber-600 border-slate-300 rounded"
                       />
                     </td>
                     <td className="px-4 py-3 font-medium text-slate-800">{student.nama}</td>

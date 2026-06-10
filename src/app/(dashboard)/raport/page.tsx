@@ -23,6 +23,7 @@ interface RaportRow {
   tahun_ajaran: string;
   juz?: number | null;
   catatan?: string | null;
+  catatan_ai?: string | null;
   nama_guru_kelas?: string | null;
   niy_guru_kelas?: string | null;
   nama_kabid?: string | null;
@@ -438,7 +439,7 @@ export default function RaportPage() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
-            <ClipboardList size={24} className="text-emerald-600" />
+            <ClipboardList size={24} className="text-amber-600" />
             Raport Tahfidz & Tahsin
           </h1>
           <p className="text-slate-500 text-sm mt-0.5">Penilaian hafalan dan tahsin Al-Qur'an per surah — format resmi siap cetak.</p>
@@ -450,7 +451,7 @@ export default function RaportPage() {
       </div>
 
       {formSuccess && (
-        <div className="rounded-lg bg-emerald-50 border border-emerald-200 px-4 py-3 text-sm text-emerald-700 flex justify-between">
+        <div className="rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-700 flex justify-between">
           <span>{formSuccess}</span>
           <button onClick={() => setFormSuccess(null)}>✕</button>
         </div>
@@ -469,7 +470,7 @@ export default function RaportPage() {
               onChange={e => setFilterPeriode(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && fetchRaport()}
               placeholder="Filter periode..."
-              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
             />
             <Button variant="primary" leftIcon={<Search size={14} />} onClick={fetchRaport} loading={listLoading} className="w-full justify-center">
               Tampilkan
@@ -493,7 +494,7 @@ export default function RaportPage() {
                     return (
                       <div key={row.id}
                         onClick={() => handleSelect(row)}
-                        className={`p-3 cursor-pointer transition-colors hover:bg-emerald-50 ${isActive ? 'bg-emerald-50 border-l-2 border-emerald-500' : ''}`}>
+                        className={`p-3 cursor-pointer transition-colors hover:bg-amber-50 ${isActive ? 'bg-amber-50 border-l-2 border-amber-500' : ''}`}>
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0">
                             <p className="text-sm font-semibold text-slate-800 truncate">{row.santri?.nama ?? '—'}</p>
@@ -534,7 +535,7 @@ export default function RaportPage() {
         <div className="flex-1 min-w-0">
           {selectedLoading ? (
             <div className="bg-white rounded-xl border border-slate-200 p-16 flex items-center justify-center">
-              <span className="w-8 h-8 border-2 border-emerald-200 border-t-emerald-600 rounded-full animate-spin" />
+              <span className="w-8 h-8 border-2 border-amber-200 border-t-amber-600 rounded-full animate-spin" />
             </div>
           ) : selected ? (
             <div className="space-y-4">
@@ -572,7 +573,7 @@ export default function RaportPage() {
                   >
                     Download PDF
                     {selected.pdf_path ? (
-                      <span className="ml-1.5 inline-flex items-center rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700">
+                      <span className="ml-1.5 inline-flex items-center rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">
                         ⚡ Cached
                       </span>
                     ) : (

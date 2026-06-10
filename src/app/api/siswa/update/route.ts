@@ -82,7 +82,7 @@ export async function PUT(request: NextRequest) {
     if (photo_url !== undefined) updateData.photo_url = photo_url;
     // Hanya Kabid yang bisa mengubah assigned_teacher_id
     if (assigned_teacher_id !== undefined && session.user.role === 'Kabid') {
-      updateData.assigned_teacher_id = assigned_teacher_id;
+      updateData.assigned_teacher_id = assigned_teacher_id || null;
     }
 
     const { data, error } = await supabase

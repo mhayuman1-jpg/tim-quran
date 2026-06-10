@@ -27,11 +27,11 @@ function CustomTooltip({ active, payload, label }: { active?: boolean; payload?:
   if (!active || !payload || !payload.length || !label) return null;
   
   return (
-    <div className="bg-slate-900 border border-slate-700 rounded-2xl shadow-lg px-4 py-3 text-sm">
-      <p className="font-semibold text-slate-200 mb-2">{label}</p>
+    <div style={{ background: '#fff', border: '1px solid #fde68a', borderRadius: '16px', boxShadow: '0 4px 20px rgba(0,0,0,0.08)', padding: '12px 16px', fontSize: '14px' }}>
+      <p style={{ fontWeight: 600, color: '#1e293b', marginBottom: '8px' }}>{label}</p>
       {payload.map((entry, index) => (
-        <p key={index} className="text-sm" style={{ color: entry.name === 'Tahfidz' ? '#38bdf8' : '#34d399' }}>
-          {entry.name}: <span className="font-semibold">{entry.value}%</span>
+        <p key={index} style={{ fontSize: '14px', color: entry.name === 'Tahfidz' ? '#d97706' : '#059669' }}>
+          {entry.name}: <span style={{ fontWeight: 600 }}>{entry.value}%</span>
         </p>
       ))}
     </div>
@@ -49,45 +49,84 @@ export default function StudentProgressChart({ data }: StudentProgressChartProps
     ? Math.round(chartData.reduce((sum, item) => sum + (item.tahsin ?? 0), 0) / chartData.length)
     : 0;
 
+  const cardStyle = {
+    borderRadius: '24px',
+    border: '1px solid #fde68a',
+    background: '#ffffff',
+    padding: '20px',
+    textAlign: 'center' as const,
+    boxShadow: '0 2px 8px rgba(245,158,11,0.06)',
+  };
+
+  const labelStyle = {
+    fontSize: '11px',
+    textTransform: 'uppercase' as const,
+    letterSpacing: '0.1em',
+    color: '#94a3b8',
+  };
+
+  const valueStyle = {
+    fontSize: '32px',
+    fontWeight: 700 as const,
+    marginTop: '12px',
+  };
+
+  const subStyle = {
+    fontSize: '12px',
+    color: '#94a3b8',
+    marginTop: '8px',
+  };
+
+  const legendCardStyle = {
+    borderRadius: '16px',
+    border: '1px solid #fde68a',
+    background: '#fffbeb',
+    padding: '16px',
+  };
+
   return (
     <div className="w-full">
       <div className="mb-8 grid gap-4 sm:grid-cols-3">
-        <div className="rounded-3xl border border-slate-700 bg-slate-950/80 px-5 py-4 text-center">
-          <p className="text-xs text-slate-400 uppercase tracking-widest">Rata-rata Tahfidz</p>
-          <p className="mt-3 text-3xl font-bold text-cyan-300">{tahfidzAvg}%</p>
-          <p className="mt-2 text-xs text-slate-500">Makhroj, Tajwid, Kelancaran</p>
+        <div style={cardStyle}>
+          <p style={labelStyle}>Rata-rata Tahfidz</p>
+          <p style={{ ...valueStyle, color: '#d97706' }}>{tahfidzAvg}%</p>
+          <p style={subStyle}>Makhroj, Tajwid, Kelancaran</p>
         </div>
-        <div className="rounded-3xl border border-slate-700 bg-slate-950/80 px-5 py-4 text-center">
-          <p className="text-xs text-slate-400 uppercase tracking-widest">Rata-rata Tahsin</p>
-          <p className="mt-3 text-3xl font-bold text-emerald-400">{tahsinAvg}%</p>
-          <p className="mt-2 text-xs text-slate-500">Makhroj, Kelancaran, Adab</p>
+        <div style={cardStyle}>
+          <p style={labelStyle}>Rata-rata Tahsin</p>
+          <p style={{ ...valueStyle, color: '#b45309' }}>{tahsinAvg}%</p>
+          <p style={subStyle}>Makhroj, Kelancaran, Adab</p>
         </div>
-        <div className="rounded-3xl border border-slate-700 bg-slate-950/80 px-5 py-4 text-center">
-          <p className="text-xs text-slate-400 uppercase tracking-widest">Periode</p>
-          <p className="mt-3 text-3xl font-bold text-white">{chartData.length}</p>
-          <p className="mt-2 text-xs text-slate-500">Bulan terakhir</p>
+        <div style={cardStyle}>
+          <p style={labelStyle}>Periode</p>
+          <p style={{ ...valueStyle, color: '#1e293b' }}>{chartData.length}</p>
+          <p style={subStyle}>Bulan terakhir</p>
         </div>
       </div>
 
-      <div className="rounded-[32px] border border-slate-700 bg-slate-900/85 p-6 shadow-lg shadow-slate-950/20" style={{ minHeight: 380 }}>
+      <div style={{ borderRadius: '24px', border: '1px solid #fde68a', background: '#ffffff', padding: '24px', boxShadow: '0 4px 20px rgba(245,158,11,0.06)', minHeight: 380 }}>
         {chartData.length > 0 ? (
           <ResponsiveContainer width="100%" height={340}>
             <LineChart data={chartData} margin={{ top: 16, right: 16, left: -12, bottom: 8 }}>
               <defs>
                 <linearGradient id="tahfidzGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#38bdf8" stopOpacity={0.2} />
-                  <stop offset="95%" stopColor="#38bdf8" stopOpacity={0} />
+                  <stop offset="5%" stopColor="#d97706" stopOpacity={0.12} />
+                  <stop offset="95%" stopColor="#d97706" stopOpacity={0} />
+                </linearGradient>
+                <linearGradient id="tahsinGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#059669" stopOpacity={0.12} />
+                  <stop offset="95%" stopColor="#059669" stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
-              <XAxis dataKey="month" tick={{ fill: '#94a3b8', fontSize: 12 }} axisLine={{ stroke: '#334155' }} tickLine={false} />
+              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
+              <XAxis dataKey="month" tick={{ fill: '#6b7280', fontSize: 12 }} axisLine={{ stroke: '#e5e7eb' }} tickLine={false} />
               <YAxis 
                 domain={[0, 100]} 
-                tick={{ fill: '#94a3b8', fontSize: 12 }} 
+                tick={{ fill: '#6b7280', fontSize: 12 }} 
                 axisLine={false} 
                 tickLine={false} 
                 width={32}
-                label={{ value: '%', angle: -90, position: 'insideLeft', offset: 8, fill: '#94a3b8' }}
+                label={{ value: '%', angle: -90, position: 'insideLeft', offset: 8, fill: '#6b7280' }}
               />
               <Tooltip content={<CustomTooltip />} />
               <Legend 
@@ -97,45 +136,45 @@ export default function StudentProgressChart({ data }: StudentProgressChartProps
               <Line
                 type="monotone"
                 dataKey="tahfidz"
-                stroke="#38bdf8"
+                stroke="#d97706"
                 strokeWidth={3}
-                dot={{ r: 4, fill: '#38bdf8' }}
-                activeDot={{ r: 6, fill: '#38bdf8', fillOpacity: 1 }}
+                dot={{ r: 4, fill: '#d97706' }}
+                activeDot={{ r: 6, fill: '#d97706', fillOpacity: 1 }}
                 name="Tahfidz"
               />
               <Line
                 type="monotone"
                 dataKey="tahsin"
-                stroke="#34d399"
+                stroke="#059669"
                 strokeWidth={3}
-                dot={{ r: 4, fill: '#34d399' }}
-                activeDot={{ r: 6, fill: '#34d399', fillOpacity: 1 }}
+                dot={{ r: 4, fill: '#059669' }}
+                activeDot={{ r: 6, fill: '#059669', fillOpacity: 1 }}
                 name="Tahsin"
               />
             </LineChart>
           </ResponsiveContainer>
         ) : (
           <div className="flex h-[340px] flex-col items-center justify-center text-center">
-            <p className="text-slate-400">Data progres bulanan belum tersedia.</p>
-            <p className="mt-2 text-sm text-slate-500">Tambahkan penilaian harian tahfidz dan tahsin untuk melihat tren progres.</p>
+            <p style={{ color: '#94a3b8' }}>Data progres bulanan belum tersedia.</p>
+            <p style={{ color: '#94a3b8', fontSize: '14px', marginTop: '8px' }}>Tambahkan penilaian harian tahfidz dan tahsin untuk melihat tren progres.</p>
           </div>
         )}
       </div>
 
       <div className="mt-6 grid gap-4 sm:grid-cols-2">
-        <div className="rounded-2xl border border-slate-700 bg-slate-900/50 p-4">
+        <div style={legendCardStyle}>
           <div className="flex items-center gap-3 mb-2">
-            <div className="h-3 w-3 rounded-full bg-cyan-400"></div>
-            <p className="font-semibold text-slate-200">Tahfidz</p>
+            <div className="h-3 w-3 rounded-full bg-amber-500"></div>
+            <p style={{ fontWeight: 600, color: '#1e293b' }}>Tahfidz</p>
           </div>
-          <p className="text-sm text-slate-400">Penilaian berdasarkan makhroj (pengucapan), tajwid, dan kelancaran bacaan harian.</p>
+          <p style={{ fontSize: '14px', color: '#94a3b8' }}>Penilaian harian mencakup makhroj (pengucapan huruf), tajwid (aturan bacaan), dan kelancaran membaca Al-Qur&apos;an.</p>
         </div>
-        <div className="rounded-2xl border border-slate-700 bg-slate-900/50 p-4">
+        <div style={legendCardStyle}>
           <div className="flex items-center gap-3 mb-2">
-            <div className="h-3 w-3 rounded-full bg-emerald-400"></div>
-            <p className="font-semibold text-slate-200">Tahsin</p>
+            <div className="h-3 w-3 rounded-full bg-emerald-500"></div>
+            <p style={{ fontWeight: 600, color: '#1e293b' }}>Tahsin</p>
           </div>
-          <p className="text-sm text-slate-400">Penilaian berdasarkan makhroj, kelancaran, dan adab (etika) membaca Al-Qur'an.</p>
+          <p style={{ fontSize: '14px', color: '#94a3b8' }}>Penilaian harian mencakup makhroj, kelancaran, dan adab (etika) dalam membaca dan menghormati Al-Qur&apos;an.</p>
         </div>
       </div>
     </div>

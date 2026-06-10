@@ -127,7 +127,7 @@ export function generateExcelTemplate(kelasList: string[] = []): Buffer {
   // Style header row — bold + background
   const headerStyle = {
     font: { bold: true, color: { rgb: 'FFFFFF' }, sz: 11 },
-    fill: { fgColor: { rgb: '065F46' } },        // emerald-900
+    fill: { fgColor: { rgb: '78350F' } },        // amber-900
     alignment: { horizontal: 'center', vertical: 'center' },
     border: {
       bottom: { style: 'medium', color: { rgb: '064E3B' } },
@@ -135,7 +135,7 @@ export function generateExcelTemplate(kelasList: string[] = []): Buffer {
   };
 
   // Style contoh rows (alternating)
-  const rowStyleEven = { fill: { fgColor: { rgb: 'F0FDF4' } } };  // emerald-50
+  const rowStyleEven = { fill: { fgColor: { rgb: 'FFFBEB' } } };  // amber-50
   const rowStyleOdd  = { fill: { fgColor: { rgb: 'FFFFFF' } } };
 
   headers.forEach((_, colIdx) => {

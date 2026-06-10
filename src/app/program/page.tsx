@@ -45,26 +45,26 @@ async function getPrograms(): Promise<Program[]> {
 }
 
 const CARD_STYLES = [
-  { border: 'border-slate-700', icon: 'from-sky-500 to-cyan-400', bg: 'bg-slate-900' },
-  { border: 'border-slate-700', icon: 'from-indigo-500 to-sky-500', bg: 'bg-slate-900' },
-  { border: 'border-slate-700', icon: 'from-cyan-500 to-sky-600', bg: 'bg-slate-900' },
-  { border: 'border-slate-700', icon: 'from-slate-500 to-indigo-500', bg: 'bg-slate-900' },
-  { border: 'border-slate-700', icon: 'from-emerald-500 to-cyan-500', bg: 'bg-slate-900' },
-  { border: 'border-slate-700', icon: 'from-sky-500 to-indigo-500', bg: 'bg-slate-900' },
+  { border: 'border-amber-100', icon: 'from-amber-500 to-amber-400', bg: 'bg-white' },
+  { border: 'border-amber-100', icon: 'from-indigo-500 to-amber-500', bg: 'bg-white' },
+  { border: 'border-amber-100', icon: 'from-amber-500 to-amber-600', bg: 'bg-white' },
+  { border: 'border-amber-100', icon: 'from-slate-500 to-indigo-500', bg: 'bg-white' },
+  { border: 'border-amber-100', icon: 'from-amber-500 to-amber-400', bg: 'bg-white' },
+  { border: 'border-amber-100', icon: 'from-amber-500 to-indigo-500', bg: 'bg-white' },
 ];
 
 export default async function ProgramPage() {
   const programs = await getPrograms();
 
   return (
-    <div className="bg-slate-950 min-h-screen text-slate-100">
+    <div className="bg-amber-50 min-h-screen text-slate-800">
       {/* Hero */}
-      <div className="bg-gradient-to-br from-slate-900 via-sky-950 to-slate-950 py-20 px-6 text-center">
-        <span className="inline-block px-4 py-1 rounded-full border text-cyan-200 text-sm font-semibold mb-4 border-cyan-500/20 bg-cyan-500/10">
+      <div className="bg-gradient-to-br from-amber-50 via-amber-100 to-white py-20 px-6 text-center">
+        <span className="inline-block px-4 py-1 rounded-full border text-amber-600 text-sm font-semibold mb-4 border-amber-500/20 bg-amber-500/10">
           Program Kami
         </span>
-        <h1 className="text-4xl font-bold text-white mb-4">Program Pembelajaran</h1>
-        <p className="text-cyan-100/75 text-lg max-w-xl mx-auto">
+        <h1 className="text-4xl font-bold text-slate-900 mb-4">Program Pembelajaran</h1>
+        <p className="text-slate-700 text-lg max-w-xl mx-auto">
           Program unggulan untuk membimbing santri menghafal dan membaca Al-Qur&apos;an dengan metode terbaik.
         </p>
       </div>
@@ -72,9 +72,9 @@ export default async function ProgramPage() {
       <div className="max-w-6xl mx-auto px-6 py-16">
         {programs.length === 0 ? (
           <div className="text-center py-24">
-            <BookOpen size={48} className="text-stone-200 mx-auto mb-4" />
-            <p className="text-lg font-semibold text-stone-400">Belum ada program</p>
-            <p className="text-sm text-stone-400 mt-1">Program akan ditampilkan setelah diaktifkan.</p>
+            <BookOpen size={48} className="text-stone-400 mx-auto mb-4" />
+            <p className="text-lg font-semibold text-stone-500">Belum ada program</p>
+            <p className="text-sm text-stone-500 mt-1">Program akan ditampilkan setelah diaktifkan.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">

@@ -4,7 +4,7 @@
 export type UserRole = 'Kabid' | 'Tim_Quran' | 'Sekretaris' | 'Bendahara';
 export type UserStatus = 'Aktif' | 'Nonaktif';
 export type Gender = 'Laki-laki' | 'Perempuan';
-export type AttendanceStatus = 'Hadir' | 'Tidak Hadir' | 'Izin' | 'Sakit';
+export type AttendanceStatus = 'Hadir' | 'Tidak Hadir';
 export type TahsinMetode = 'Wafa' | 'IWR' | 'Al-Quran';
 export type AnnouncementTarget = 'Guru' | 'Siswa' | 'Orang Tua' | 'Semua';
 

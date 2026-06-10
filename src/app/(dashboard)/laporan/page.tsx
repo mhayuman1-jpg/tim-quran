@@ -94,7 +94,7 @@ function ToastContainer({ toasts, onDismiss }: { toasts: Toast[]; onDismiss: (id
           className={[
             'flex items-start gap-3 rounded-xl border px-4 py-3 shadow-lg text-sm',
             t.type === 'success'
-              ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+              ? 'bg-amber-50 border-amber-200 text-amber-800'
               : 'bg-red-50 border-red-200 text-red-800',
           ].join(' ')}
         >
@@ -259,7 +259,7 @@ export default function LaporanPage() {
           value={selectedTeacherId}
           onChange={(e) => setSelectedTeacherId(e.target.value)}
           disabled={loadingMembers}
-          className="w-full md:w-96 px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:bg-slate-100 disabled:text-slate-400"
+          className="w-full md:w-96 px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 disabled:bg-slate-100 disabled:text-slate-400"
         >
           {loadingMembers ? (
             <option>Memuat...</option>
@@ -285,7 +285,7 @@ export default function LaporanPage() {
 
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
             <div className="text-sm font-medium text-slate-600 mb-1">Siswa dengan Hafalan</div>
-            <div className="text-3xl font-bold text-emerald-600">{laporanData.summary.students_with_hafalan}</div>
+            <div className="text-3xl font-bold text-amber-600">{laporanData.summary.students_with_hafalan}</div>
           </div>
 
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
@@ -398,7 +398,7 @@ export default function LaporanPage() {
                       <Badge variant="blue">{student.juz_terakhir}</Badge>
                     </td>
                     <td className="px-4 py-3 text-center">
-                      <span className={`text-sm font-semibold ${student.total_hafalan > 0 ? 'text-emerald-600' : 'text-slate-400'}`}>
+                      <span className={`text-sm font-semibold ${student.total_hafalan > 0 ? 'text-amber-600' : 'text-slate-400'}`}>
                         {student.total_hafalan}
                       </span>
                     </td>
@@ -476,7 +476,7 @@ export default function LaporanPage() {
                 onClick={() => setDetailTab('hafalan')}
                 className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 ${
                   detailTab === 'hafalan'
-                    ? 'border-emerald-500 text-emerald-600'
+                    ? 'border-amber-500 text-amber-600'
                     : 'border-transparent text-slate-600 hover:text-slate-800'
                 }`}
               >

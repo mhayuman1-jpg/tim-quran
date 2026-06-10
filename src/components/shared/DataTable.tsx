@@ -136,7 +136,7 @@ export default function DataTable<T>({
                 className={[
                   'bg-white transition-colors',
                   onRowClick
-                    ? 'cursor-pointer hover:bg-emerald-50'
+                    ? 'cursor-pointer hover:bg-amber-50'
                     : 'hover:bg-slate-50',
                   rowClassName ? rowClassName(row, index) : '',
                 ].join(' ')}

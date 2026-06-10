@@ -73,7 +73,7 @@ export default function SearchInput({
         className={[
           'w-full pl-9 pr-8 py-2 text-sm rounded-lg border border-slate-300 bg-white',
           'text-slate-800 placeholder-slate-400',
-          'focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500',
+          'focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500',
           'disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed',
           'transition-colors',
         ].join(' ')}

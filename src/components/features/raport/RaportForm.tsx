@@ -109,7 +109,7 @@ function ScoreInput({
   let badgeClass = 'bg-slate-100 text-slate-500';
   if (value !== '') {
     const num = Number(value);
-    if (num >= 80) badgeClass = 'bg-emerald-100 text-emerald-700';
+    if (num >= 80) badgeClass = 'bg-amber-100 text-amber-700';
     else if (num >= 60) badgeClass = 'bg-yellow-100 text-yellow-700';
     else badgeClass = 'bg-red-100 text-red-600';
   }
@@ -136,7 +136,7 @@ function ScoreInput({
           placeholder="0–100"
           className={[
             'w-full rounded-lg border text-sm text-slate-800 placeholder-slate-400',
-            'focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500',
+            'focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500',
             'transition-colors px-3 py-2',
             error
               ? 'border-red-400 bg-red-50 focus:ring-red-400 focus:border-red-400'
@@ -312,7 +312,7 @@ export default function RaportForm({
               value={form.student_id}
               onChange={(e) => set('student_id', e.target.value)}
               disabled={loading}
-              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:bg-slate-100 disabled:cursor-not-allowed"
+              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 disabled:bg-slate-100 disabled:cursor-not-allowed"
             >
               <option value="">— Pilih Siswa —</option>
               {students.map((s) => (
@@ -342,7 +342,7 @@ export default function RaportForm({
             helperText="Format bebas, misal: Semester 1 2024 atau 2024-01"
             rightAddon={
               checkingDuplicate ? (
-                <span className="w-4 h-4 border-2 border-slate-300 border-t-emerald-500 rounded-full animate-spin" />
+                <span className="w-4 h-4 border-2 border-slate-300 border-t-amber-500 rounded-full animate-spin" />
               ) : undefined
             }
           />
@@ -427,7 +427,7 @@ export default function RaportForm({
           rows={3}
           disabled={loading}
           placeholder="Tuliskan catatan atau rekomendasi untuk orang tua..."
-          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:bg-slate-100 disabled:cursor-not-allowed resize-none"
+          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 disabled:bg-slate-100 disabled:cursor-not-allowed resize-none"
         />
       </div>
 

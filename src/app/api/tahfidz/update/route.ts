@@ -9,7 +9,7 @@ import { createServerClient } from '@/lib/supabase/server';
 import type { NilaiTahfidz } from '@/lib/surahData';
 
 export const dynamic = 'force-dynamic';
-const VALID_NILAI: NilaiTahfidz[] = ['✓', 'A', 'B', 'C', 'D'];
+const VALID_NILAI: NilaiTahfidz[] = ['✓', 'A', 'B', 'C', 'D', 'L', 'TL'];
 
 export async function PUT(request: NextRequest) {
   const session = await getServerSession(authOptions);

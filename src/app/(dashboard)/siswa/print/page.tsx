@@ -105,7 +105,7 @@ export default function PrintIDCardPage() {
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3 text-slate-500">
-        <Loader2 size={32} className="animate-spin text-emerald-600" />
+        <Loader2 size={32} className="animate-spin text-amber-600" />
         <p className="text-sm">Memuat data siswa dan profil...</p>
       </div>
     );
@@ -129,7 +129,7 @@ export default function PrintIDCardPage() {
         <p className="text-slate-500 text-sm">
           {selectedIds.length === 0 ? "Tidak ada ID siswa yang dipilih." : "Siswa yang dipilih tidak ditemukan."}
         </p>
-        <button onClick={() => router.back()} className="flex items-center gap-2 text-sm text-emerald-600 hover:text-emerald-700 font-medium">
+        <button onClick={() => router.back()} className="flex items-center gap-2 text-sm text-amber-600 hover:text-amber-700 font-medium">
           <ArrowLeft size={16} /> Kembali ke Data Siswa
         </button>
       </div>
@@ -142,7 +142,7 @@ export default function PrintIDCardPage() {
       <div className="no-print flex flex-col sm:flex-row sm:items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-            <CreditCard size={22} className="text-emerald-600" />
+            <CreditCard size={22} className="text-amber-600" />
             Cetak ID Card Santri
           </h1>
           <p className="text-sm text-slate-500 mt-1">
@@ -151,7 +151,7 @@ export default function PrintIDCardPage() {
           {/* Summary */}
           <div className="mt-3 flex flex-wrap gap-2">
             {students.map(s => (
-              <span key={s.id} className="inline-flex items-center gap-1.5 text-xs bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-full px-3 py-0.5">
+              <span key={s.id} className="inline-flex items-center gap-1.5 text-xs bg-amber-50 text-amber-700 border border-amber-100 rounded-full px-3 py-0.5">
                 <CheckCircle2 size={11} /> {s.nama}
               </span>
             ))}
@@ -167,7 +167,7 @@ export default function PrintIDCardPage() {
           </button>
           <button
             onClick={handlePrint}
-            className="flex items-center gap-2 px-6 py-2.5 bg-emerald-600 text-white text-sm font-semibold rounded-lg hover:bg-emerald-700 transition-all shadow-md shadow-emerald-200 hover:scale-105 active:scale-100"
+            className="flex items-center gap-2 px-6 py-2.5 bg-amber-600 text-white text-sm font-semibold rounded-lg hover:bg-amber-700 transition-all shadow-md shadow-amber-200 hover:scale-105 active:scale-100"
           >
             <Printer size={16} /> Cetak {students.length} Kartu
           </button>
@@ -196,7 +196,7 @@ export default function PrintIDCardPage() {
               {/* Tombol download individual — tidak ikut cetak */}
               <button
                 onClick={() => handleDownloadCard(student)}
-                className="no-print flex items-center gap-1.5 text-xs text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg px-3 py-1.5 transition-colors"
+                className="no-print flex items-center gap-1.5 text-xs text-amber-700 hover:text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-lg px-3 py-1.5 transition-colors"
               >
                 <Download size={12} /> Download PDF
               </button>

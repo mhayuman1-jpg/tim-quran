@@ -3,7 +3,7 @@
 // src/app/(dashboard)/tahsin/page.tsx
 // Halaman jurnal hafalan & tahsin gabungan dengan ringkasan riwayat.
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { Plus, BookOpenCheck, Users, XCircle } from 'lucide-react';
 import Modal from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
@@ -12,6 +12,10 @@ import { toImageUrl } from '@/lib/storage/urls';
 import JurnalHafalanTahsinForm from '@/components/features/tahsin/JurnalHafalanTahsinForm';
 import TahsinHistory from '@/components/features/tahsin/TahsinHistory';
 import HafalanHistory from '@/components/features/hafalan/HafalanHistory';
+import HafalanForm, { type HafalanFormData } from '@/components/features/hafalan/HafalanForm';
+import TahsinForm, { type TahsinFormData } from '@/components/features/tahsin/TahsinForm';
+import { useViewMode } from '@/hooks/useViewMode';
+import type { Hafalan, Tahsin } from '@/types';
 
 interface StudentOption {
   id: string;
@@ -26,6 +30,15 @@ interface StudentOption {
 }
 
 export default function TahsinPage() {
+  const { viewAsRole, viewAsTeacherId } = useViewMode();
+  const viewHeaders = useMemo(() => {
+    const h: Record<string, string> = {};
+    if (viewAsRole === 'Tim_Quran') {
+      h['x-view-mode'] = 'teaching';
+      if (viewAsTeacherId) h['x-view-as-teacher-id'] = viewAsTeacherId;
+    }
+    return h;
+  }, [viewAsRole, viewAsTeacherId]);
   const [modalOpen, setModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -39,6 +52,18 @@ export default function TahsinPage() {
   const [selectedStudent, setSelectedStudent] = useState<StudentOption | null>(null);
   const [studentModalOpen, setStudentModalOpen] = useState(false);
 
+  // Edit hafalan state
+  const [editHafalanOpen, setEditHafalanOpen] = useState(false);
+  const [editingHafalan, setEditingHafalan] = useState<any>(null);
+  const [hafalanSubmitting, setHafalanSubmitting] = useState(false);
+  const [hafalanError, setHafalanError] = useState<string | null>(null);
+
+  // Edit tahsin state
+  const [editTahsinOpen, setEditTahsinOpen] = useState(false);
+  const [editingTahsin, setEditingTahsin] = useState<any>(null);
+  const [tahsinSubmitting, setTahsinSubmitting] = useState(false);
+  const [tahsinError, setTahsinError] = useState<string | null>(null);
+
   const handleOpenAdd = () => {
     setSubmitError(null);
     setSubmitSuccess(null);
@@ -51,6 +76,89 @@ export default function TahsinPage() {
     setSubmitError(null);
   };
 
+  // Edit hafalan handlers
+  const handleOpenEditHafalan = (hafalan: any) => {
+    setEditingHafalan(hafalan);
+    setHafalanError(null);
+    setEditHafalanOpen(true);
+  };
+
+  const handleEditHafalanSubmit = async (formData: HafalanFormData) => {
+    setHafalanSubmitting(true);
+    setHafalanError(null);
+    try {
+      const res = await fetch('/api/hafalan/update', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: editingHafalan.id,
+          tanggal: formData.tanggal,
+          surah_juz: formData.surah_juz,
+          halaman: formData.ayat,
+          catatan: formData.catatan || null,
+          makhroj: (formData as any).makhroj || null,
+          tajwid: (formData as any).tajwid || null,
+          lancar: (formData as any).lancar || null,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setHafalanError(json.message ?? 'Gagal memperbarui hafalan.');
+        return;
+      }
+      setSubmitSuccess(json.message ?? 'Hafalan berhasil diperbarui.');
+      setRefreshKey((k) => k + 1);
+      setEditHafalanOpen(false);
+      setEditingHafalan(null);
+    } catch {
+      setHafalanError('Terjadi kesalahan. Silakan coba lagi.');
+    } finally {
+      setHafalanSubmitting(false);
+    }
+  };
+
+  // Edit tahsin handlers
+  const handleOpenEditTahsin = (tahsin: any) => {
+    setEditingTahsin(tahsin);
+    setTahsinError(null);
+    setEditTahsinOpen(true);
+  };
+
+  const handleEditTahsinSubmit = async (formData: TahsinFormData) => {
+    setTahsinSubmitting(true);
+    setTahsinError(null);
+    try {
+      const res = await fetch('/api/tahsin/update', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: editingTahsin.id,
+          tanggal: formData.tanggal,
+          metode: formData.metode,
+          buku: formData.buku,
+          halaman: formData.halaman,
+          catatan: formData.catatan || null,
+          makhroj: formData.makhroj || null,
+          kelancaran: formData.kelancaran || null,
+          adab: formData.adab || null,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setTahsinError(json.message ?? 'Gagal memperbarui tahsin.');
+        return;
+      }
+      setSubmitSuccess(json.message ?? 'Tahsin berhasil diperbarui.');
+      setRefreshKey((k) => k + 1);
+      setEditTahsinOpen(false);
+      setEditingTahsin(null);
+    } catch {
+      setTahsinError('Terjadi kesalahan. Silakan coba lagi.');
+    } finally {
+      setTahsinSubmitting(false);
+    }
+  };
+
   const fetchStudents = useCallback(async (query = '') => {
     setStudentError(null);
     setStudentLoading(true);
@@ -59,7 +167,7 @@ export default function TahsinPage() {
       const url = query.trim().length >= 2
         ? `/api/siswa/list?search=${encodeURIComponent(query.trim())}`
         : '/api/siswa/list';
-      const res = await fetch(url);
+      const res = await fetch(url, { headers: viewHeaders });
       const json = await res.json();
 
       if (!res.ok) {
@@ -81,7 +189,7 @@ export default function TahsinPage() {
     } finally {
       setStudentLoading(false);
     }
-  }, []);
+  }, [viewHeaders]);
 
   const handleSearchStudents = useCallback(async (value: string) => {
     setSearchQuery(value);
@@ -113,7 +221,7 @@ export default function TahsinPage() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
-            <BookOpenCheck size={24} className="text-emerald-600" />
+            <BookOpenCheck size={24} className="text-amber-600" />
             Jurnal Hafalan & Tahsin
           </h1>
           <p className="text-slate-500 text-sm mt-1">
@@ -126,10 +234,10 @@ export default function TahsinPage() {
       </div>
 
       {submitSuccess && (
-        <div className="rounded-lg bg-emerald-50 border border-emerald-200 px-4 py-3 text-sm text-emerald-700 flex justify-between items-center">
+        <div className="rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-700 flex justify-between items-center">
           <span>{submitSuccess}</span>
-          <button onClick={() => setSubmitSuccess(null)} className="ml-4 text-emerald-500 hover:text-emerald-700 font-medium">
-            ✕
+          <button onClick={() => setSubmitSuccess(null)} className="ml-4 text-amber-500 hover:text-amber-700 font-medium">
+            x
           </button>
         </div>
       )}
@@ -145,7 +253,7 @@ export default function TahsinPage() {
               <button
                 type="button"
                 onClick={clearSelectedStudent}
-                className="inline-flex items-center gap-2 text-slate-500 hover:text-emerald-600"
+                className="inline-flex items-center gap-2 text-slate-500 hover:text-amber-600"
               >
                 <XCircle size={16} />
                 Reset
@@ -186,8 +294,8 @@ export default function TahsinPage() {
                     className={[
                       'w-full text-left rounded-2xl border px-4 py-3 text-slate-800 transition',
                       selectedStudent?.id === student.id
-                        ? 'border-emerald-400 bg-emerald-50'
-                        : 'border-slate-200 hover:border-emerald-300 hover:bg-emerald-50',
+                        ? 'border-amber-400 bg-amber-50'
+                        : 'border-slate-200 hover:border-amber-300 hover:bg-amber-50',
                     ].join(' ')}
                   >
                     <div className="flex items-center justify-between gap-3">
@@ -214,11 +322,21 @@ export default function TahsinPage() {
             <>
               <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
                 <h2 className="text-base font-semibold text-slate-800 mb-4">Riwayat Hafalan</h2>
-                <HafalanHistory studentId={selectedStudent.id} refreshKey={refreshKey} onSelectStudent={setSelectedStudent} />
+                <HafalanHistory
+                  studentId={selectedStudent.id}
+                  refreshKey={refreshKey}
+                  onSelectStudent={setSelectedStudent}
+                  onEdit={handleOpenEditHafalan}
+                />
               </div>
               <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
                 <h2 className="text-base font-semibold text-slate-800 mb-4">Riwayat Tahsin</h2>
-                <TahsinHistory studentId={selectedStudent.id} refreshKey={refreshKey} onSelectStudent={setSelectedStudent} />
+                <TahsinHistory
+                  studentId={selectedStudent.id}
+                  refreshKey={refreshKey}
+                  onSelectStudent={setSelectedStudent}
+                  onEdit={handleOpenEditTahsin}
+                />
               </div>
             </>
           ) : (
@@ -285,6 +403,7 @@ export default function TahsinPage() {
         )}
       </Modal>
 
+      {/* Modal Tambah Jurnal */}
       <Modal
         open={modalOpen}
         onClose={handleCloseModal}
@@ -325,6 +444,70 @@ export default function TahsinPage() {
             }
           }}
           onCancel={handleCloseModal}
+        />
+      </Modal>
+
+      {/* Modal Edit Hafalan */}
+      <Modal
+        open={editHafalanOpen}
+        onClose={() => { if (!hafalanSubmitting) { setEditHafalanOpen(false); setEditingHafalan(null); } }}
+        title="Edit Catatan Hafalan"
+        size="md"
+        closeOnBackdrop={!hafalanSubmitting}
+      >
+        {hafalanError && (
+          <div className="mb-4 rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-600">
+            {hafalanError}
+          </div>
+        )}
+        <HafalanForm
+          initialData={editingHafalan ? {
+            id: editingHafalan.id,
+            student_id: editingHafalan.student_id,
+            teacher_id: editingHafalan.teacher_id,
+            tanggal: editingHafalan.tanggal,
+            surah_juz: editingHafalan.surah_juz,
+            halaman: editingHafalan.halaman,
+            catatan: editingHafalan.catatan ?? undefined,
+            created_at: editingHafalan.created_at,
+          } : null}
+          loading={hafalanSubmitting}
+          onSubmit={handleEditHafalanSubmit}
+          onCancel={() => { if (!hafalanSubmitting) { setEditHafalanOpen(false); setEditingHafalan(null); } }}
+        />
+      </Modal>
+
+      {/* Modal Edit Tahsin */}
+      <Modal
+        open={editTahsinOpen}
+        onClose={() => { if (!tahsinSubmitting) { setEditTahsinOpen(false); setEditingTahsin(null); } }}
+        title="Edit Catatan Tahsin"
+        size="md"
+        closeOnBackdrop={!tahsinSubmitting}
+      >
+        {tahsinError && (
+          <div className="mb-4 rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-600">
+            {tahsinError}
+          </div>
+        )}
+        <TahsinForm
+          initialData={editingTahsin ? {
+            id: editingTahsin.id,
+            student_id: editingTahsin.student_id,
+            teacher_id: editingTahsin.teacher_id,
+            tanggal: editingTahsin.tanggal,
+            metode: editingTahsin.metode,
+            buku: editingTahsin.buku ?? undefined,
+            halaman: editingTahsin.halaman ?? undefined,
+            catatan: editingTahsin.catatan ?? undefined,
+            makhroj: editingTahsin.makhroj ?? undefined,
+            kelancaran: editingTahsin.kelancaran ?? undefined,
+            adab: editingTahsin.adab ?? undefined,
+            created_at: editingTahsin.created_at,
+          } : null}
+          loading={tahsinSubmitting}
+          onSubmit={handleEditTahsinSubmit}
+          onCancel={() => { if (!tahsinSubmitting) { setEditTahsinOpen(false); setEditingTahsin(null); } }}
         />
       </Modal>
     </div>

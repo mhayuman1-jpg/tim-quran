@@ -8,6 +8,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
 import { normalizeAttendanceRows } from '@/lib/attendance';
+import { shouldFilterByTeacher, getTeacherFilterId } from '@/lib/rbac';
 import * as xlsx from 'xlsx';
 
 export async function GET(request: NextRequest) {
@@ -35,8 +36,9 @@ export async function GET(request: NextRequest) {
       .eq('status', 'Aktif')
       .order('nama');
 
-    if ((session.user as any).role === 'Tim_Quran') {
-      santriQ = santriQ.eq('assigned_teacher_id', (session.user as any).id);
+    if (shouldFilterByTeacher((session.user as any).role, request)) {
+      const teacherId = getTeacherFilterId((session.user as any).role, request, (session.user as any).id);
+      santriQ = santriQ.eq('assigned_teacher_id', teacherId);
     }
     if (classId) santriQ = santriQ.eq('class_id', classId);
 

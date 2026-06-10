@@ -67,7 +67,7 @@ export async function PUT(request: NextRequest) {
     // Ambil data tahsin yang ada untuk validasi akses
     const { data: existingTahsin, error: fetchError } = await supabase
       .from('tahsin')
-      .select('id, student_id, teacher_id, santri ( id, assigned_teacher_id )')
+      .select('id, student_id, teacher_id, edited_fields, santri ( id, assigned_teacher_id )')
       .eq('id', id.trim())
       .single();
 
@@ -89,17 +89,24 @@ export async function PUT(request: NextRequest) {
       }
     }
 
-    // Bangun object update â€” hanya field yang diberikan
+    // Bangun object update - hanya field yang diberikan
     const updateData: Record<string, unknown> = {};
-    if (tanggal) updateData.tanggal = tanggal;
+    const now = new Date().toISOString();
+    const existingEdited = ((existingTahsin as any).edited_fields || {}) as Record<string, string>;
+    const editedFields: Record<string, string> = { ...existingEdited };
+
+    if (tanggal) { updateData.tanggal = tanggal; editedFields.tanggal = now; }
     if (metode && VALID_METODE.includes(metode as TahsinMetode)) {
       updateData.metode = metode as TahsinMetode;
+      editedFields.metode = now;
     }
     if (buku && typeof buku === 'string' && buku.trim() !== '') {
       updateData.buku = buku.trim();
+      editedFields.buku = now;
     }
     if (halaman !== undefined && halaman !== null) {
       updateData.halaman = Number(halaman);
+      editedFields.halaman = now;
     }
 
     // catatan boleh dikosongkan (null)
@@ -107,21 +114,25 @@ export async function PUT(request: NextRequest) {
       updateData.catatan = typeof catatan === 'string' && catatan.trim() !== ''
         ? catatan.trim()
         : null;
+      editedFields.catatan = now;
     }
     if (makhroj !== undefined) {
       updateData.makhroj = typeof makhroj === 'string' && makhroj.trim() !== ''
         ? makhroj.trim()
         : null;
+      editedFields.makhroj = now;
     }
     if (kelancaran !== undefined) {
       updateData.kelancaran = typeof kelancaran === 'string' && kelancaran.trim() !== ''
         ? kelancaran.trim()
         : null;
+      editedFields.kelancaran = now;
     }
     if (adab !== undefined) {
       updateData.adab = typeof adab === 'string' && adab.trim() !== ''
         ? adab.trim()
         : null;
+      editedFields.adab = now;
     }
 
     if (Object.keys(updateData).length === 0) {
@@ -131,13 +142,15 @@ export async function PUT(request: NextRequest) {
       );
     }
 
+    updateData.edited_fields = editedFields;
+
     // Update tahsin
     const { data, error } = await supabase
       .from('tahsin')
       .update(updateData)
       .eq('id', id.trim())
       .select(
-        `id, student_id, teacher_id, tanggal, metode, buku, halaman, makhroj, kelancaran, adab, catatan, created_at,
+        `id, student_id, teacher_id, tanggal, metode, buku, halaman, makhroj, kelancaran, adab, catatan, created_at, edited_fields,
          santri ( id, nama ),
          users ( id, name )`
       )

@@ -162,8 +162,8 @@ export default function QRScanner({ onScanSuccess, onScanError, scannedList, com
 
       {/* Status kamera — compact badge */}
       {isScanning && (
-        <div className="flex items-center gap-2 text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+        <div className="flex items-center gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+          <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse shrink-0" />
           Kamera aktif — arahkan QR code ke kotak pemindai
         </div>
       )}
@@ -174,7 +174,7 @@ export default function QRScanner({ onScanSuccess, onScanError, scannedList, com
           <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-100 bg-slate-50">
             <Users size={15} className="text-slate-500" />
             <span className="text-sm font-semibold text-slate-700">Hadir Hari Ini</span>
-            <span className="ml-auto text-xs font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
+            <span className="ml-auto text-xs font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">
               {scannedList.length} siswa
             </span>
           </div>
@@ -187,7 +187,7 @@ export default function QRScanner({ onScanSuccess, onScanError, scannedList, com
             <ul className="divide-y divide-slate-100 max-h-64 overflow-y-auto">
               {scannedList.map((item, idx) => (
                 <li key={idx} className="flex items-center gap-3 px-4 py-2.5">
-                  <CheckCircle size={14} className="text-emerald-500 shrink-0" />
+                  <CheckCircle size={14} className="text-amber-500 shrink-0" />
                   <span className="flex-1 text-sm font-medium text-slate-800">{item.nama}</span>
                   <span className="text-xs text-slate-400">{item.scanned_at}</span>
                 </li>

@@ -41,9 +41,9 @@ function formatTanggal(d: string) {
 }
 
 const TARGET_COLORS: Record<string, string> = {
-  Semua: 'bg-cyan-100 text-cyan-900 border-cyan-200',
-  Santri: 'bg-emerald-100 text-emerald-900 border-emerald-200',
-  'Orang Tua': 'bg-sky-100 text-sky-900 border-sky-200',
+  Semua: 'bg-amber-100 text-amber-900 border-amber-200',
+  Santri: 'bg-amber-100 text-amber-900 border-amber-200',
+  'Orang Tua': 'bg-amber-100 text-amber-900 border-amber-200',
   Guru: 'bg-violet-100 text-violet-900 border-violet-200',
 };
 
@@ -51,40 +51,40 @@ export default async function PengumumanPage() {
   const list = await getPengumuman();
 
   return (
-    <div className="bg-slate-950 min-h-screen text-slate-100">
-      <div className="bg-gradient-to-br from-slate-900 via-sky-950 to-slate-950 py-20 px-6 text-center">
-        <span className="inline-block px-4 py-1 rounded-full border text-cyan-200 text-sm font-semibold mb-4 border-cyan-500/20 bg-cyan-500/10">
+    <div className="bg-amber-50 min-h-screen text-slate-800">
+      <div className="bg-gradient-to-br from-amber-50 via-amber-100 to-white py-20 px-6 text-center">
+        <span className="inline-block px-4 py-1 rounded-full border text-amber-600 text-sm font-semibold mb-4 border-amber-500/20 bg-amber-500/10">
           Info Terkini
         </span>
-        <h1 className="text-4xl font-bold text-white mb-4">Pengumuman</h1>
-        <p className="text-cyan-100/75 text-lg max-w-xl mx-auto">
+        <h1 className="text-4xl font-bold text-slate-900 mb-4">Pengumuman</h1>
+        <p className="text-slate-700 text-lg max-w-xl mx-auto">
           Informasi dan pengumuman terbaru dari Tim Qur&apos;an.
         </p>
       </div>
 
       <div className="max-w-4xl mx-auto px-6 py-16">
         {list.length === 0 ? (
-          <div className="text-center py-24 bg-slate-900 rounded-3xl border border-slate-800">
-            <Megaphone size={48} className="text-cyan-300 mx-auto mb-4" />
-            <p className="text-lg font-semibold text-slate-100">Belum ada pengumuman</p>
-            <p className="text-sm text-slate-400 mt-1">Pengumuman akan ditampilkan di sini.</p>
+          <div className="text-center py-24 bg-white rounded-3xl border border-amber-100">
+            <Megaphone size={48} className="text-amber-600 mx-auto mb-4" />
+            <p className="text-lg font-semibold text-slate-800">Belum ada pengumuman</p>
+            <p className="text-sm text-slate-500 mt-1">Pengumuman akan ditampilkan di sini.</p>
           </div>
         ) : (
           <div className="space-y-5">
             {list.map((p) => {
-              const colorClass = TARGET_COLORS[p.target] ?? 'bg-slate-800 text-slate-100 border-slate-700';
+              const colorClass = TARGET_COLORS[p.target] ?? 'bg-amber-100 text-slate-800 border-amber-100';
               return (
-                <details key={p.id} className="group bg-slate-900 rounded-3xl border border-slate-800 transition-all hover:border-cyan-400 hover:shadow-xl">
+                <details key={p.id} className="group bg-white rounded-3xl border border-amber-100 transition-all hover:border-amber-400 hover:shadow-xl">
                   <summary className="flex items-center justify-between gap-4 px-7 py-6 cursor-pointer">
                     <div>
-                      <h2 className="font-bold text-white text-lg leading-snug">{p.judul}</h2>
-                      <p className="text-slate-400 text-sm mt-1">Klik untuk melihat detail pengumuman</p>
+                      <h2 className="font-bold text-slate-900 text-lg leading-snug">{p.judul}</h2>
+                      <p className="text-slate-500 text-sm mt-1">Klik untuk melihat detail pengumuman</p>
                     </div>
                     <span className={`shrink-0 text-xs px-3 py-1 rounded-full border font-medium ${colorClass}`}>
                       {p.target}
                     </span>
                   </summary>
-                  <div className="px-7 pb-7 border-t border-slate-800 text-slate-300 space-y-4">
+                  <div className="px-7 pb-7 border-t border-amber-100 text-slate-600 space-y-4">
                     <p className="text-sm leading-relaxed whitespace-pre-line">{p.isi}</p>
                     <p className="text-xs text-slate-500">{formatTanggal(p.created_at)}</p>
                   </div>

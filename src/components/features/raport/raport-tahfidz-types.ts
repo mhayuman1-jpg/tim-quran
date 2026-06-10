@@ -15,6 +15,7 @@ export interface RaportTahfidzData {
   tahun_ajaran: string;
   juz?: number | null;
   catatan?: string | null;
+  catatan_ai?: string | null;
   nama_guru_kelas?: string | null;
   niy_guru_kelas?: string | null;
   nama_kabid?: string | null;

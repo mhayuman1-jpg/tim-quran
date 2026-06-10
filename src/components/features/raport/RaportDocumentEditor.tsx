@@ -36,7 +36,7 @@ function Btn({
     <button type="button" title={title} disabled={disabled} onClick={onClick}
       className={[
         'p-1.5 rounded text-sm transition-all flex items-center justify-center min-w-[28px]',
-        active ? 'bg-emerald-100 text-emerald-700 ring-1 ring-emerald-300' : 'text-slate-600 hover:bg-slate-200',
+        active ? 'bg-amber-100 text-amber-700 ring-1 ring-amber-300' : 'text-slate-600 hover:bg-slate-200',
         disabled ? 'opacity-30 cursor-not-allowed' : 'cursor-pointer',
       ].join(' ')}>
       {children}
@@ -92,8 +92,8 @@ export default function RaportDocumentEditor({ value, onChange, disabled = false
   if (!editor) return null;
 
   return (
-    <div className={`rounded-xl border-2 border-emerald-200 overflow-hidden bg-white shadow-sm ${disabled ? 'opacity-60 pointer-events-none' : ''}`}>
-      <div className="flex flex-wrap items-center gap-0.5 px-2 py-2 border-b border-emerald-100 bg-emerald-50/80 sticky top-0 z-20">
+    <div className={`rounded-xl border-2 border-amber-200 overflow-hidden bg-white shadow-sm ${disabled ? 'opacity-60 pointer-events-none' : ''}`}>
+      <div className="flex flex-wrap items-center gap-0.5 px-2 py-2 border-b border-amber-100 bg-amber-50/80 sticky top-0 z-20">
         <Btn onClick={() => editor.chain().focus().undo().run()} disabled={!editor.can().undo()} title="Urungkan">
           <Undo size={14} />
         </Btn>

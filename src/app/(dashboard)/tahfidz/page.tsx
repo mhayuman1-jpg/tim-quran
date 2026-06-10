@@ -111,7 +111,7 @@ export default function TahfidzPage() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
-            <BookOpenCheck size={24} className="text-emerald-600" />
+            <BookOpenCheck size={24} className="text-amber-600" />
             Jurnal Tahfidz
           </h1>
           <p className="text-slate-500 text-sm mt-1">
@@ -124,11 +124,11 @@ export default function TahfidzPage() {
       </div>
 
       {submitSuccess && (
-        <div className="rounded-lg bg-emerald-50 border border-emerald-200 px-4 py-3 text-sm text-emerald-700 flex justify-between items-center">
+        <div className="rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-700 flex justify-between items-center">
           <span>{submitSuccess}</span>
           <button
             onClick={() => setSubmitSuccess(null)}
-            className="ml-4 text-emerald-500 hover:text-emerald-700 font-medium"
+            className="ml-4 text-amber-500 hover:text-amber-700 font-medium"
           >
             ✕
           </button>

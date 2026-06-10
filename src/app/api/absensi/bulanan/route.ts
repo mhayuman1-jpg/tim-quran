@@ -11,6 +11,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
 import { normalizeAttendanceRows } from '@/lib/attendance';
+import { shouldFilterByTeacher, getTeacherFilterId } from '@/lib/rbac';
 
 export async function GET(request: NextRequest) {
   // Verifikasi sesi
@@ -65,8 +66,9 @@ export async function GET(request: NextRequest) {
       .eq('status', 'Aktif')
       .order('nama', { ascending: true });
 
-    if (session.user.role === 'Tim_Quran') {
-      santriQuery = santriQuery.eq('assigned_teacher_id', session.user.id);
+    if (shouldFilterByTeacher(session.user.role, request)) {
+      const teacherId = getTeacherFilterId(session.user.role, request, session.user.id);
+      santriQuery = santriQuery.eq('assigned_teacher_id', teacherId);
     }
 
     if (classId) {

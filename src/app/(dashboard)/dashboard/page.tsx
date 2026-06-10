@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import { Users, CheckCircle, UserCheck, BookOpen, Activity, FileImage, FileText, CreditCard, Repeat, TrendingUp, Megaphone, Newspaper, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import StaffIDCard from "@/components/shared/StaffIDCard";
 import MonthlyRekapTemplate from "@/components/features/dashboard/MonthlyRekapTemplate";
 import { useToast } from "@/lib/toast";
+import { useViewMode } from "@/hooks/useViewMode";
 
 interface JuzSummary { juz: number; count: number; }
 interface DashboardStats {
@@ -148,6 +149,15 @@ function JuzChart({ data, loading }: { data: JuzSummary[]; loading: boolean }) {
 
 export default function DashboardPage() {
   const { data: session } = useSession();
+  const { getEffectiveRole, viewAsRole, viewAsTeacherId } = useViewMode();
+  const viewHeaders = useMemo(() => {
+    const h: Record<string, string> = {};
+    if (viewAsRole === 'Tim_Quran') {
+      h['x-view-mode'] = 'teaching';
+      if (viewAsTeacherId) h['x-view-as-teacher-id'] = viewAsTeacherId;
+    }
+    return h;
+  }, [viewAsRole, viewAsTeacherId]);
   const cardRef = useRef<HTMLDivElement>(null);
   const [downloading, setDownloading] = useState<'png' | 'pdf' | null>(null);
   const [profilData, setProfilData] = useState<{ nama_lembaga?: string; logo_url?: string; nama_sekolah?: string; logo_sekolah_url?: string } | null>(null);
@@ -191,15 +201,18 @@ export default function DashboardPage() {
     async function fetchStats() {
       setLoading(true);
       try {
-        const res = await fetch("/api/dashboard/stats");
+        const effectiveRole = getEffectiveRole(session?.user?.role as any);
+        const isGuru = effectiveRole === 'Tim_Quran';
+        const endpoint = isGuru ? '/api/dashboard/stats-guru' : '/api/dashboard/stats';
+        const res = await fetch(endpoint, { headers: viewHeaders });
         const json = await res.json();
         if (!res.ok) setErrorMessage(json.message || "Gagal mengambil data dashboard.");
         else setStats(json);
       } catch { setErrorMessage("Terjadi kesalahan saat memuat data."); }
       finally { setLoading(false); }
     }
-    fetchStats();
-  }, []);
+    if (session?.user) fetchStats();
+  }, [session?.user, getEffectiveRole, viewHeaders]);
 
   const today = new Date().toLocaleDateString("id-ID", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
   const hour = new Date().getHours();
@@ -280,14 +293,14 @@ export default function DashboardPage() {
     <div className="space-y-6 max-w-5xl">
       {/* Header greeting */}
       <div className="rounded-2xl p-6 relative overflow-hidden"
-        style={{background: 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 60%, #312e81 100%)', boxShadow: '0 8px 32px rgba(99,102,241,0.2)'}}>
+        style={{background: 'linear-gradient(135deg, #fffbeb 0%, #fef3c7 60%, #fff7ed 100%)', boxShadow: '0 8px 32px rgba(245,158,11,0.15)'}}>
         <div className="absolute right-6 top-0 bottom-0 flex items-center select-none pointer-events-none">
-          <span className="text-white/[0.04] font-serif leading-none" style={{fontSize: '8rem'}}>ﷲ</span>
+          <span className="text-amber-400/[0.06] font-serif leading-none" style={{fontSize: '8rem'}}>ﷲ</span>
         </div>
         <div className="relative z-10">
-          <p className="text-indigo-300/70 text-sm mb-1">{today}</p>
-          <h1 className="text-2xl font-bold text-white mb-0.5">{greeting} 👋</h1>
-          <p className="text-indigo-200/60 text-sm">Selamat datang di Panel Manajemen Tim Qur&apos;an</p>
+          <p className="text-slate-500 text-sm mb-1">{today}</p>
+          <h1 className="text-2xl font-bold text-slate-900 mb-0.5">{greeting} 👋</h1>
+          <p className="text-slate-600 text-sm">Selamat datang di Panel Manajemen Tim Qur&apos;an</p>
         </div>
       </div>
 
@@ -337,8 +350,8 @@ export default function DashboardPage() {
       {/* Juz chart */}
       <JuzChart data={stats?.ringkasanJuz ?? []} loading={loading} />
 
-      {/* Monthly Recap Template */}
-      <MonthlyRekapTemplate />
+      {/* Monthly Recap Template — Kabid only */}
+      {session?.user?.role !== 'Tim_Quran' && <MonthlyRekapTemplate />}
 
       {/* ID Card Section — Kabid & Tim_Quran */}
       {session?.user && (session.user.role === 'Tim_Quran' || session.user.role === 'Kabid') && (
@@ -401,7 +414,7 @@ export default function DashboardPage() {
         <div className="rounded-2xl p-6" style={{background: 'white', border: '1px solid #f1f5f9', boxShadow: '0 2px 16px rgba(0,0,0,0.04)'}}>
           <div className="flex items-center justify-between mb-4">
             <p className="text-sm font-semibold text-slate-700">Akses Cepat</p>
-            <span className="flex items-center gap-1 text-xs text-emerald-600 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-full">
+            <span className="flex items-center gap-1 text-xs text-amber-600 bg-amber-50 border border-amber-100 px-2 py-0.5 rounded-full">
               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
               Dalam pantauan Kabid
             </span>

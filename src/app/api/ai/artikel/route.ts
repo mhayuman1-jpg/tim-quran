@@ -108,49 +108,62 @@ function buildUserPrompt(action: string, text: string): string {
 
 // ─── Groq ─────────────────────────────────────────────────────────────────────
 
+const GROQ_MODELS = ['llama-3.1-8b-instant', 'gemma2-9b-it', 'llama3-8b-8192'];
+
 async function callGroq(
   systemPrompt: string,
   userPrompt: string,
   apiKey: string
 ): Promise<string> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 25000); // 25s timeout
+  for (let attempt = 0; attempt < GROQ_MODELS.length; attempt++) {
+    const model = GROQ_MODELS[attempt];
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 25000);
 
-  try {
-    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: 'llama-3.1-8b-instant',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user',   content: userPrompt },
-        ],
-        max_tokens: 2048,
-        temperature: 0.7,
-      }),
-      signal: controller.signal,
-    });
+    try {
+      const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user',   content: userPrompt },
+          ],
+          max_tokens: 2048,
+          temperature: 0.7,
+        }),
+        signal: controller.signal,
+      });
 
-    clearTimeout(timeout);
+      clearTimeout(timeout);
 
-    if (!res.ok) {
-      const errBody = await res.text().catch(() => '');
-      console.error('[callGroq] HTTP', res.status, errBody.slice(0, 300));
-      throw new Error(`Groq API error ${res.status}: ${errBody.slice(0, 100)}`);
+      if (res.status === 429) {
+        const waitMs = (attempt + 1) * 3000;
+        await new Promise(r => setTimeout(r, waitMs));
+        continue;
+      }
+
+      if (!res.ok) {
+        const errBody = await res.text().catch(() => '');
+        console.error('[callGroq] HTTP', res.status, errBody.slice(0, 300));
+        throw new Error(`Groq API error ${res.status}: ${errBody.slice(0, 100)}`);
+      }
+
+      const data = await res.json();
+      const content = data?.choices?.[0]?.message?.content;
+      if (!content) throw new Error('Groq tidak menghasilkan konten.');
+      return content.trim();
+
+    } finally {
+      clearTimeout(timeout);
     }
-
-    const data = await res.json();
-    const content = data?.choices?.[0]?.message?.content;
-    if (!content) throw new Error('Groq tidak menghasilkan konten.');
-    return content.trim();
-
-  } finally {
-    clearTimeout(timeout);
   }
+
+  throw new Error('Semua model Groq mencapai rate limit. Coba lagi dalam beberapa saat.');
 }
 
 // ─── OpenAI ───────────────────────────────────────────────────────────────────

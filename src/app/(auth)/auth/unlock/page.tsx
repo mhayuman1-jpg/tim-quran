@@ -45,21 +45,21 @@ export default function UnlockPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-amber-50 via-amber-100 to-white flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         {/* Card */}
-        <div className="rounded-3xl border border-slate-700/50 bg-slate-900/50 backdrop-blur-xl p-8 shadow-2xl">
+        <div className="rounded-3xl border border-amber-200 bg-white backdrop-blur-xl p-8 shadow-2xl">
           {/* Logo & Title */}
           <div className="flex justify-center mb-6">
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center shadow-lg">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-400 to-blue-500 flex items-center justify-center shadow-lg">
               <Lock size={28} className="text-white" />
             </div>
           </div>
 
-          <h1 className="text-2xl font-bold text-white text-center mb-2">
+          <h1 className="text-2xl font-bold text-slate-900 text-center mb-2">
             Akses Terbatas
           </h1>
-          <p className="text-slate-400 text-center text-sm mb-8">
+          <p className="text-slate-500 text-center text-sm mb-8">
             Masukkan kode akses untuk melanjutkan ke halaman login Tim Qur'an.
           </p>
 
@@ -74,7 +74,7 @@ export default function UnlockPage() {
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
+              <label className="block text-sm font-medium text-slate-600 mb-2">
                 Kode Akses
               </label>
               <input
@@ -82,7 +82,7 @@ export default function UnlockPage() {
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
                 placeholder="Masukkan kode..."
-                className="w-full px-4 py-3 rounded-xl border border-slate-600 bg-slate-800/50 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:border-transparent transition"
+                className="w-full px-4 py-3 rounded-xl border border-amber-200 bg-white text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition"
                 disabled={loading}
               />
             </div>
@@ -90,7 +90,7 @@ export default function UnlockPage() {
             <button
               type="submit"
               disabled={loading || !code.trim()}
-              className="w-full py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-semibold flex items-center justify-center gap-2 hover:shadow-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full py-3 rounded-xl bg-gradient-to-r from-amber-500 to-blue-500 text-white font-semibold flex items-center justify-center gap-2 hover:shadow-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? (
                 <>
@@ -107,7 +107,7 @@ export default function UnlockPage() {
           </form>
 
           {/* Footer Info */}
-          <p className="text-xs text-slate-500 text-center mt-6">
+          <p className="text-xs text-slate-400 text-center mt-6">
             Hubungi administrator jika Anda lupa kode akses.
           </p>
         </div>

@@ -90,7 +90,7 @@ export function useToast(): ToastContextValue {
 
 const VARIANT_STYLES: Record<ToastVariant, { container: string; icon: string; iconPath: string }> = {
   success: {
-    container: 'bg-emerald-600 text-white',
+    container: 'bg-amber-600 text-white',
     icon: 'text-white',
     iconPath:
       'M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
