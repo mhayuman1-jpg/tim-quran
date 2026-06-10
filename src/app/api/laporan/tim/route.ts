@@ -119,13 +119,11 @@ export async function GET(request: NextRequest) {
       tahsinCountMap[sid] = (tahsinCountMap[sid] ?? 0) + 1;
     }
 
-    // 4. Hitung total hari aktif (distinct date dari semua absensi di database)
-    // Karena kita ingin persentase kehadiran, kita perlu total hari aktif
-    // Asumsi: total hari aktif = jumlah distinct date dari semua absensi
+    // 4. Hitung total hari aktif (distinct date) — ambil hanya kolom date, bukan select('*')
+    // Gunakan Set untuk menghitung distinct dates tanpa fetch semua kolom
     const { data: allDates, error: datesError } = await supabase
       .from('attendances')
-      .select('date')
-      .order('date', { ascending: true });
+      .select('date');
 
     if (datesError) {
       console.error('Fetch dates error (laporan tim):', datesError);
@@ -135,7 +133,6 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Hitung distinct dates
     const distinctDates = new Set<string>();
     for (const record of allDates ?? []) {
       distinctDates.add(record.date as string);

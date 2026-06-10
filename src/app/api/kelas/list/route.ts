@@ -88,31 +88,34 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Ambil jumlah siswa aktif per kelas (filter per guru jika mode mengajar)
-    const classesWithCount = await Promise.all(
-      (kelasData || []).map(async (kelas) => {
-        let countQuery = supabase
-          .from('santri')
-          .select('id', { count: 'exact', head: true })
-          .eq('class_id', kelas.id)
-          .eq('status', 'Aktif');
+    // Ambil jumlah siswa aktif per kelas dengan 1 query GROUP BY (menghindari N+1)
+    let countQuery = supabase
+      .from('santri')
+      .select('class_id')
+      .eq('status', 'Aktif');
 
-        if (filterByTeacher) {
-          countQuery = countQuery.eq('assigned_teacher_id', teacherId);
-        }
+    if (filterByTeacher) {
+      countQuery = countQuery.eq('assigned_teacher_id', teacherId);
+    }
 
-        const { count, error: countError } = await countQuery;
+    const { data: santriCounts, error: countError } = await countQuery;
 
-        if (countError) {
-          console.error(`Error counting students for class ${kelas.id}:`, countError);
-        }
+    if (countError) {
+      console.error('Error counting students:', countError);
+    }
 
-        return {
-          ...kelas,
-          jumlah_siswa: count ?? 0,
-        };
-      })
-    );
+    // Hitung jumlah per class_id di JS (1 query vs N query)
+    const countMap: Record<string, number> = {};
+    for (const s of santriCounts ?? []) {
+      if (s.class_id) {
+        countMap[s.class_id] = (countMap[s.class_id] ?? 0) + 1;
+      }
+    }
+
+    const classesWithCount = (kelasData || []).map((kelas) => ({
+      ...kelas,
+      jumlah_siswa: countMap[kelas.id] ?? 0,
+    }));
 
     // Kumpulkan teacher IDs
     const teacherIds = new Set<string>();

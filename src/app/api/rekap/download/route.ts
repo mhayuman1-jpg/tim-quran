@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
     // Fetch optional rekap metadata dari database
     const { data: rekapData, error: rekapError } = await supabase
       .from('rekap_bulanan')
-      .select('*')
+      .select('id, periode, file_url, created_at')
       .eq('periode', periode)
       .maybeSingle();
 

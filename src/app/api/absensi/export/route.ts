@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
     const santriIds = santriList.map((s: any) => s.id);
     const { data: attendances } = await supabase
       .from('attendances')
-      .select('*')
+      .select('id, santri_id, student_id, date, status')
       .gte('date', startDate)
       .lte('date', endDate)
       .order('date');

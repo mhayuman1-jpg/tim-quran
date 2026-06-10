@@ -74,11 +74,27 @@ export async function POST(request: NextRequest) {
     let berhasil = 0;
     let gagal = 0;
 
+    // Cache class lookups: prefetch semua kelas untuk menghindari N+1 query
+    const classCache: Record<string, string> = {};
+    const uniqueKelasNames = new Set(
+      rows.map((row) => String(row['Kelas'] ?? '').trim()).filter(Boolean)
+    );
+    if (uniqueKelasNames.size > 0) {
+      const { data: allClasses } = await supabase
+        .from('classes')
+        .select('id, name');
+      for (const cls of allClasses ?? []) {
+        if (cls.name) classCache[cls.name.toLowerCase()] = cls.id;
+      }
+    }
+
+    // Validasi semua baris dulu, lalu batch insert
+    const validInserts: Array<{ rowNum: number; nisn: string; nama: string; data: Record<string, unknown> }> = [];
+
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
-      const rowNum = i + 2; // baris 1 = header, data mulai baris 2
+      const rowNum = i + 2;
 
-      // Normalisasi kolom (support header lengkap dan alias pendek)
       const nisn = String(row['NISN'] ?? '').trim();
       const nama = String(row['Nama Lengkap'] ?? row['Nama'] ?? '').trim();
       const genderRaw = String(row['Jenis Kelamin'] ?? row['Gender'] ?? '').trim();
@@ -86,7 +102,6 @@ export async function POST(request: NextRequest) {
       const kelasRaw = String(row['Kelas'] ?? '').trim();
       const juzRaw = row['Juz Saat Ini'] ?? row['Juz'];
 
-      // === Validasi per baris ===
       if (!nisn) {
         results.push({ row: rowNum, status: 'gagal', alasan: 'NISN wajib diisi' });
         gagal++;
@@ -98,7 +113,6 @@ export async function POST(request: NextRequest) {
         continue;
       }
 
-      // Normalisasi gender
       let gender: string;
       if (genderRaw === 'L' || genderRaw.toLowerCase() === 'laki-laki' || genderRaw.toLowerCase() === 'laki') {
         gender = 'Laki-laki';
@@ -110,7 +124,6 @@ export async function POST(request: NextRequest) {
         continue;
       }
 
-      // Validasi juz
       const juzNum = Number(juzRaw);
       if (!juzRaw || isNaN(juzNum) || juzNum < 1 || juzNum > 30) {
         results.push({ row: rowNum, nisn, nama, status: 'gagal', alasan: 'Juz Saat Ini harus berupa angka antara 1 dan 30' });
@@ -118,7 +131,6 @@ export async function POST(request: NextRequest) {
         continue;
       }
 
-      // Format tanggal lahir
       let tanggal_lahir: string | null = null;
       if (tanggalLahirRaw) {
         if (tanggalLahirRaw instanceof Date) {
@@ -131,21 +143,14 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // Cari class_id berdasarkan nama kelas jika ada
+      // Gunakan cache untuk class lookup (tanpa query DB)
       let class_id: string | null = null;
       if (kelasRaw) {
-        const { data: kelasData } = await supabase
-          .from('classes')
-          .select('id')
-          .ilike('name', kelasRaw)
-          .single();
-        if (kelasData) class_id = kelasData.id;
+        class_id = classCache[kelasRaw.toLowerCase()] ?? null;
       }
 
-      // Generate QR code unik
       const qr_code = crypto.randomUUID();
 
-      // Siapkan data insert
       const insertData: Record<string, unknown> = {
         nisn,
         nama,
@@ -160,19 +165,34 @@ export async function POST(request: NextRequest) {
         insertData.assigned_teacher_id = session.user.id;
       }
 
-      // Insert baris ini
-      const { error } = await supabase.from('santri').insert([insertData]);
+      validInserts.push({ rowNum, nisn, nama, data: insertData });
+    }
+
+    // Batch insert (1 query untuk semua data valid)
+    if (validInserts.length > 0) {
+      const batchData = validInserts.map((v) => v.data);
+      const { error } = await supabase.from('santri').insert(batchData);
 
       if (error) {
-        let alasan = 'Gagal menyimpan ke database';
-        if (error.code === '23505') {
-          alasan = 'NISN sudah terdaftar';
+        // Jika batch gagal, fallback ke individual insert
+        for (const item of validInserts) {
+          const { error: singleError } = await supabase.from('santri').insert([item.data]);
+          if (singleError) {
+            let alasan = 'Gagal menyimpan ke database';
+            if (singleError.code === '23505') alasan = 'NISN sudah terdaftar';
+            results.push({ row: item.rowNum, nisn: item.nisn, nama: item.nama, status: 'gagal', alasan });
+            gagal++;
+          } else {
+            results.push({ row: item.rowNum, nisn: item.nisn, nama: item.nama, status: 'berhasil' });
+            berhasil++;
+          }
         }
-        results.push({ row: rowNum, nisn, nama, status: 'gagal', alasan });
-        gagal++;
       } else {
-        results.push({ row: rowNum, nisn, nama, status: 'berhasil' });
-        berhasil++;
+        // Semua berhasil
+        for (const item of validInserts) {
+          results.push({ row: item.rowNum, nisn: item.nisn, nama: item.nama, status: 'berhasil' });
+          berhasil++;
+        }
       }
     }
 

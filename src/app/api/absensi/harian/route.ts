@@ -73,7 +73,7 @@ export async function GET(request: NextRequest) {
 
     const { data: attendances, error: attendError } = await supabase
       .from('attendances')
-      .select('*')
+      .select('id, santri_id, student_id, date, status')
       .eq('date', date);
 
     if (attendError) {

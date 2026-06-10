@@ -25,6 +25,8 @@ export async function GET(request: NextRequest) {
     const supabase = createServerClient();
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search')?.trim() ?? '';
+    const limit = Math.min(parseInt(searchParams.get('limit') ?? '100'), 500);
+    const offset = parseInt(searchParams.get('offset') ?? '0');
 
     // Mulai query dengan join ke tabel classes
     let query = supabase
@@ -32,9 +34,11 @@ export async function GET(request: NextRequest) {
       .select(
         `id, nisn, nama, gender, tanggal_lahir, class_id, juz_terakhir,
          qr_code, photo_url, assigned_teacher_id, status, created_at, updated_at,
-         classes ( id, name )`
+         classes ( id, name )`,
+        { count: 'exact' }
       )
-      .order('nama', { ascending: true });
+      .order('nama', { ascending: true })
+      .range(offset, offset + limit - 1);
 
     // Data isolation: Tim_Quran hanya melihat siswa yang menjadi tanggung jawabnya
     // Juga berlaku untuk Kabid/Sekretaris dalam Mode Mengajar
@@ -48,7 +52,7 @@ export async function GET(request: NextRequest) {
       query = query.ilike('nama', `%${search}%`);
     }
 
-    const { data, error } = await query;
+    const { data, error, count } = await query;
 
     if (error) {
       console.error('Supabase fetch santri error:', error);
@@ -58,7 +62,15 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    return NextResponse.json({ data });
+    return NextResponse.json({
+      data,
+      pagination: {
+        total: count ?? data?.length ?? 0,
+        limit,
+        offset,
+        hasMore: (count ?? 0) > offset + limit,
+      },
+    });
   } catch (error) {
     console.error('Route error /api/siswa/list:', error);
     return NextResponse.json(

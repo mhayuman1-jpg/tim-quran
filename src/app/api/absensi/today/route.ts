@@ -23,7 +23,7 @@ export async function GET(_request: NextRequest) {
 
     const { data: attData, error } = await supabase
       .from('attendances')
-      .select('*')
+      .select('id, santri_id, student_id, date, status, scanned_by, created_at')
       .eq('date', today)
       .eq('status', 'Hadir')
       .order('created_at', { ascending: false });

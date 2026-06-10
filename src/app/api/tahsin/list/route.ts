@@ -29,6 +29,14 @@ export async function GET(request: NextRequest) {
     const dateTo = searchParams.get('date_to')?.trim();
 
     const supabase = createServerClient();
+    const limit = Math.min(parseInt(searchParams.get('limit') ?? '100'), 500);
+    const offset = parseInt(searchParams.get('offset') ?? '0');
+
+    // Filter teacher di DB level (bukan JS post-filter)
+    let teacherFilterId: string | null = null;
+    if (shouldFilterByTeacher(session.user.role, request)) {
+      teacherFilterId = getTeacherFilterId(session.user.role, request, session.user.id);
+    }
 
     // Query tahsin dengan join ke santri dan users (teacher)
     let query = supabase
@@ -36,10 +44,12 @@ export async function GET(request: NextRequest) {
       .select(
         `id, student_id, teacher_id, tanggal, metode, makhroj, kelancaran, adab, buku, halaman, catatan, created_at, edited_fields,
          santri ( id, nama, assigned_teacher_id ),
-         users ( id, name )`
+         users ( id, name )`,
+        { count: 'exact' }
       )
       .order('tanggal', { ascending: false })
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
 
     // Filter by student_id jika diberikan
     if (studentId) {
@@ -54,7 +64,7 @@ export async function GET(request: NextRequest) {
       query = query.lte('tanggal', dateTo);
     }
 
-    const { data, error } = await query;
+    const { data, error, count } = await query;
 
     if (error) {
       console.error('Supabase fetch tahsin error:', error);
@@ -65,16 +75,22 @@ export async function GET(request: NextRequest) {
     }
 
     // Data isolation: Tim_Quran hanya bisa lihat tahsin siswa yang menjadi tanggung jawabnya
-    // Juga berlaku untuk Kabid/Sekretaris dalam Mode Mengajar
     let filteredData = data ?? [];
-    if (shouldFilterByTeacher(session.user.role, request)) {
-      const teacherId = getTeacherFilterId(session.user.role, request, session.user.id);
+    if (teacherFilterId) {
       filteredData = filteredData.filter((item: any) => {
-        return item.santri?.assigned_teacher_id === teacherId;
+        return item.santri?.assigned_teacher_id === teacherFilterId;
       });
     }
 
-    return NextResponse.json({ data: filteredData }, { status: 200 });
+    return NextResponse.json({
+      data: filteredData,
+      pagination: {
+        total: count ?? filteredData.length,
+        limit,
+        offset,
+        hasMore: (count ?? 0) > offset + limit,
+      },
+    }, { status: 200 });
   } catch (error) {
     console.error('Route error /api/tahsin/list:', error);
     return NextResponse.json(
