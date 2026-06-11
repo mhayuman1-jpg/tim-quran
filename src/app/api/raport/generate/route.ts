@@ -222,6 +222,26 @@ export async function GET(request: NextRequest) {
     const totalTahsin  = tahsinData?.length  ?? 0;
     const surahHafal   = detailSurah.length;
 
+    // ── 9. Ambil info guru kelas dari class ────────────────────────────────
+    let namaGuruKelas = '';
+    let niyGuruKelas = '';
+    const { data: santri } = await supabase
+      .from('santri')
+      .select('class_id')
+      .eq('id', studentId)
+      .single();
+    if (santri?.class_id) {
+      const { data: kelas } = await supabase
+        .from('classes')
+        .select('nama_guru_kelas, niy_guru_kelas')
+        .eq('id', santri.class_id)
+        .single();
+      if (kelas) {
+        namaGuruKelas = kelas.nama_guru_kelas ?? '';
+        niyGuruKelas = kelas.niy_guru_kelas ?? '';
+      }
+    }
+
     return NextResponse.json({
       data: {
         detail_surah: detailSurah,
@@ -229,6 +249,8 @@ export async function GET(request: NextRequest) {
         tahsin_summary: tahsinSummary,
         juz: detectedJuz,
         kehadiran_summary: attendanceSummary,
+        nama_guru_kelas: namaGuruKelas,
+        niy_guru_kelas: niyGuruKelas,
         stats: {
           total_hafalan: totalHafalan,
           total_tahsin: totalTahsin,

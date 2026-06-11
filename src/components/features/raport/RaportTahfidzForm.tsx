@@ -226,7 +226,7 @@ export default function RaportTahfidzForm({
       const json = await res.json();
       if (!res.ok) { setAutoMsg(`Gagal: ${json.message}`); return; }
 
-      const { detail_surah, catatan_terbaru, tahsin_summary, stats, juz, kehadiran_summary } = json.data;
+      const { detail_surah, catatan_terbaru, tahsin_summary, stats, juz, kehadiran_summary, nama_guru_kelas, niy_guru_kelas } = json.data;
 
       if (detail_surah?.length > 0 || tahsin_summary?.length > 0 || kehadiran_summary) {
         setForm(p => ({
@@ -241,6 +241,9 @@ export default function RaportTahfidzForm({
             wafa_halaman: d.wafa_halaman || '',
           })) : p.detail,
           catatan: `${kehadiran_summary || ''}${catatan_terbaru || ''}`.trim() || p.catatan,
+          // Isi guru kelas dari data kelas
+          nama_guru_kelas: (nama_guru_kelas as string) || p.nama_guru_kelas,
+          niy_guru_kelas: (niy_guru_kelas as string) || p.niy_guru_kelas,
           // Isi tahsin dari data terbaru
           tahsin_metode: tahsin_summary?.[0]?.metode || p.tahsin_metode,
           tahsin_buku: tahsin_summary?.[0]?.buku || p.tahsin_buku,

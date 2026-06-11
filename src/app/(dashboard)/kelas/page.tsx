@@ -9,7 +9,7 @@
 // - Assign guru per kelas (manual & auto)
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { Plus, Pencil, Trash2, Check, X, UserCheck, Wand2, Users } from 'lucide-react';
+import { Plus, Pencil, Trash2, Check, X, UserCheck, Wand2, Users, Download } from 'lucide-react';
 
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -32,8 +32,12 @@ interface Kelas {
   created_at: string;
   teacher1_id?: string | null;
   teacher2_id?: string | null;
+  teacher3_id?: string | null;
   teacher1?: Teacher | null;
   teacher2?: Teacher | null;
+  teacher3?: Teacher | null;
+  nama_guru_kelas?: string | null;
+  niy_guru_kelas?: string | null;
 }
 
 interface Student {
@@ -74,7 +78,14 @@ export default function KelasPage() {
   const [assignTarget, setAssignTarget] = useState<Kelas | null>(null);
   const [assignT1, setAssignT1] = useState('');
   const [assignT2, setAssignT2] = useState('');
+  const [assignT3, setAssignT3] = useState('');
   const [assignLoading, setAssignLoading] = useState(false);
+
+  // ── Class teacher info modal
+  const [teacherInfoTarget, setTeacherInfoTarget] = useState<Kelas | null>(null);
+  const [teacherInfoNama, setTeacherInfoNama] = useState('');
+  const [teacherInfoNiy, setTeacherInfoNiy] = useState('');
+  const [teacherInfoLoading, setTeacherInfoLoading] = useState(false);
 
   // ── Auto assign
   const [autoLoading, setAutoLoading] = useState(false);
@@ -88,6 +99,9 @@ export default function KelasPage() {
   const [studentSearch, setStudentSearch] = useState('');
   // ── Split students loading state (class id)
   const [splitLoadingId, setSplitLoadingId] = useState<string | null>(null);
+
+  // ── Download arsip pembagian tugas
+  const [downloadingArsip, setDownloadingArsip] = useState(false);
 
   // ── Fetch kelas
   const fetchKelas = useCallback(async () => {
@@ -251,6 +265,7 @@ export default function KelasPage() {
     setAssignTarget(kelas);
     setAssignT1(kelas.teacher1_id ?? '');
     setAssignT2(kelas.teacher2_id ?? '');
+    setAssignT3(kelas.teacher3_id ?? '');
   };
 
   const handleSaveAssign = async () => {
@@ -264,6 +279,7 @@ export default function KelasPage() {
           class_id: assignTarget.id,
           teacher1_id: assignT1 || null,
           teacher2_id: assignT2 || null,
+          teacher3_id: assignT3 || null,
         }),
       });
       const json = await res.json();
@@ -278,6 +294,41 @@ export default function KelasPage() {
       toast.error('Terjadi kesalahan saat menetapkan guru.');
     } finally {
       setAssignLoading(false);
+    }
+  };
+
+  // ── Open class teacher info modal
+  const handleOpenTeacherInfo = (kelas: Kelas) => {
+    setTeacherInfoTarget(kelas);
+    setTeacherInfoNama(kelas.nama_guru_kelas ?? '');
+    setTeacherInfoNiy(kelas.niy_guru_kelas ?? '');
+  };
+
+  const handleSaveTeacherInfo = async () => {
+    if (!teacherInfoTarget) return;
+    setTeacherInfoLoading(true);
+    try {
+      const res = await fetch('/api/kelas/update-teacher-info', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          class_id: teacherInfoTarget.id,
+          nama_guru_kelas: teacherInfoNama.trim() || null,
+          niy_guru_kelas: teacherInfoNiy.trim() || null,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        toast.error(json.message ?? 'Gagal menyimpan info guru kelas.');
+        return;
+      }
+      toast.success(json.message ?? 'Info guru kelas berhasil disimpan.');
+      setTeacherInfoTarget(null);
+      fetchKelas();
+    } catch {
+      toast.error('Terjadi kesalahan saat menyimpan info guru kelas.');
+    } finally {
+      setTeacherInfoLoading(false);
     }
   };
 
@@ -324,15 +375,16 @@ export default function KelasPage() {
     }
   };
 
-  // ── Split students between teacher1 and teacher2 for a class
+  // ── Split students between teachers for a class
   const handleSplitStudents = async (kelas: Kelas) => {
     if (!kelas) return;
-    if (!kelas.teacher1_id || !kelas.teacher2_id) {
-      toast.error('Pastikan Guru 1 dan Guru 2 sudah ditetapkan untuk kelas ini.');
+    const activeTeachers = [kelas.teacher1_id, kelas.teacher2_id, kelas.teacher3_id].filter(Boolean);
+    if (activeTeachers.length < 2) {
+      toast.error('Pastikan minimal 2 guru sudah ditetapkan untuk kelas ini.');
       return;
     }
 
-    const ok = window.confirm(`Bagikan siswa di kelas "${kelas.name}" secara merata ke Guru 1 dan Guru 2?`);
+    const ok = window.confirm(`Bagikan siswa di kelas "${kelas.name}" secara merata ke ${activeTeachers.length} guru?`);
     if (!ok) return;
 
     setSplitLoadingId(kelas.id);
@@ -347,13 +399,186 @@ export default function KelasPage() {
         toast.error(json.message ?? 'Gagal membagi siswa.');
         return;
       }
-      const counts = json.counts ?? {};
-      toast.success(json.message ?? `Dibagi: ${counts.teacher1 ?? 0} / ${counts.teacher2 ?? 0}`);
+      toast.success(json.message ?? 'Siswa berhasil dibagi.');
       fetchKelas();
     } catch (err) {
       toast.error('Terjadi kesalahan saat membagi siswa.');
     } finally {
       setSplitLoadingId(null);
+    }
+  };
+
+  // ── Download arsip pembagian tugas (PDF)
+  const handleDownloadArsipPembagianTugas = async () => {
+    setDownloadingArsip(true);
+    try {
+      const { default: jsPDF } = await import('jspdf');
+      const { default: autoTable } = await import('jspdf-autotable');
+
+      // Fetch class data
+      const kelasRes = await fetch('/api/kelas/list', { credentials: 'same-origin' });
+      const kelasJson = await kelasRes.json();
+      if (!kelasRes.ok) throw new Error('Gagal memuat data kelas');
+      const kelasList: Kelas[] = kelasJson.data ?? [];
+
+      // Fetch student data (with high limit)
+      const siswaRes = await fetch('/api/siswa/list?limit=500', { credentials: 'same-origin' });
+      const siswaJson = await siswaRes.json();
+      if (!siswaRes.ok) throw new Error('Gagal memuat data siswa');
+      const siswaList: (Student & { assigned_teacher_id?: string | null; class_id?: string | null })[] = siswaJson.data ?? [];
+
+      // Group students by class
+      const studentsByClass: Record<string, typeof siswaList> = {};
+      for (const s of siswaList) {
+        if (s.class_id) {
+          if (!studentsByClass[s.class_id]) studentsByClass[s.class_id] = [];
+          studentsByClass[s.class_id].push(s);
+        }
+      }
+
+      // Build PDF
+      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      const pageW = doc.internal.pageSize.getWidth();
+      const pageH = doc.internal.pageSize.getHeight();
+      const margin = 15;
+      const contentW = pageW - margin * 2;
+
+      // Title
+      doc.setFontSize(14);
+      doc.setFont('helvetica', 'bold');
+      doc.text('ARSIP PEMBAGIAN TUGAS', pageW / 2, margin + 2, { align: 'center' });
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'normal');
+      doc.text("Tim Qur'an", pageW / 2, margin + 9, { align: 'center' });
+
+      // Date
+      const now = new Date();
+      const dateStr = now.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+      doc.setFontSize(9);
+      doc.text(`Dicetak: ${dateStr}`, pageW / 2, margin + 15, { align: 'center' });
+
+      let y = margin + 25;
+
+      for (const kelas of kelasList) {
+        // Check if enough space for class header + at least one row
+        if (y > pageH - 40) {
+          doc.addPage();
+          y = margin;
+        }
+
+        // Class header
+        doc.setFillColor(30, 58, 95);
+        doc.rect(margin, y, contentW, 8, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'bold');
+        doc.text(`${kelas.name}`, margin + 3, y + 5.5);
+        y += 10;
+
+        // Teachers info
+        const teachers: string[] = [];
+        if (kelas.teacher1) teachers.push(`Guru 1: ${kelas.teacher1.name}`);
+        if (kelas.teacher2) teachers.push(`Guru 2: ${kelas.teacher2.name}`);
+        if (kelas.teacher3) teachers.push(`Guru 3: ${kelas.teacher3.name}`);
+
+        doc.setTextColor(0, 0, 0);
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'normal');
+        if (teachers.length > 0) {
+          doc.text(teachers.join('  |  '), margin, y + 4);
+        } else {
+          doc.text('Belum ada guru ditetapkan', margin, y + 4);
+        }
+        y += 7;
+
+        // Students assigned to teachers
+        const classStudents = studentsByClass[kelas.id] ?? [];
+
+        if (classStudents.length === 0) {
+          doc.setFontSize(8);
+          doc.setFont('helvetica', 'italic');
+          doc.setTextColor(128, 128, 128);
+          doc.text('Belum ada siswa', margin, y + 4);
+          y += 8;
+        } else {
+          // Group by teacher
+          const byTeacher: Record<string, typeof classStudents> = {};
+          const unassigned: typeof classStudents = [];
+          for (const s of classStudents) {
+            if (s.assigned_teacher_id) {
+              if (!byTeacher[s.assigned_teacher_id]) byTeacher[s.assigned_teacher_id] = [];
+              byTeacher[s.assigned_teacher_id].push(s);
+            } else {
+              unassigned.push(s);
+            }
+          }
+
+          // Build table rows
+          const rows: string[][] = [];
+          let no = 1;
+
+          // Students by teacher
+          const teacherEntries = Object.entries(byTeacher);
+          for (const [teacherId, tSiswa] of teacherEntries) {
+            const teacherName = kelas.teacher1?.id === teacherId ? kelas.teacher1?.name
+              : kelas.teacher2?.id === teacherId ? kelas.teacher2?.name
+              : kelas.teacher3?.id === teacherId ? kelas.teacher3?.name
+              : 'Unknown';
+            for (const s of tSiswa) {
+              rows.push([String(no++), s.nama, s.nisn, teacherName ?? '-']);
+            }
+          }
+
+          // Unassigned students
+          for (const s of unassigned) {
+            rows.push([String(no++), s.nama, s.nisn, '-']);
+          }
+
+          if (rows.length > 0) {
+            autoTable(doc, {
+              startY: y,
+              margin: { left: margin, right: margin },
+              head: [['No', 'Nama Siswa', 'NISN', 'Guru Pembimbing']],
+              body: rows,
+              theme: 'grid',
+              styles: { fontSize: 7, cellPadding: 1.5 },
+              headStyles: { fillColor: [37, 99, 235], textColor: 255, fontStyle: 'bold', fontSize: 7 },
+              alternateRowStyles: { fillColor: [248, 250, 252] },
+              columnStyles: {
+                0: { cellWidth: 10, halign: 'center' },
+                3: { cellWidth: 40 },
+              },
+            });
+            y = (doc as any).lastAutoTable.finalY + 6;
+          } else {
+            y += 6;
+          }
+        }
+
+        y += 4;
+      }
+
+      // Footer on last page
+      const lastPageH = doc.internal.pageSize.getHeight();
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'italic');
+      doc.setTextColor(128, 128, 128);
+      doc.text(
+        `Dicetak pada ${dateStr} — Arsip Pembagian Tugas Tim Qur'an`,
+        pageW / 2,
+        lastPageH - 10,
+        { align: 'center' }
+      );
+
+      // Save
+      const filename = `arsip-pembagian-tugas-${now.toISOString().slice(0, 10)}.pdf`;
+      doc.save(filename);
+      toast.success('PDF arsip pembagian tugas berhasil diunduh.');
+    } catch (err) {
+      console.error('Gagal generate PDF arsip:', err);
+      toast.error('Gagal mengunduh arsip pembagian tugas.');
+    } finally {
+      setDownloadingArsip(false);
     }
   };
 
@@ -394,7 +619,7 @@ export default function KelasPage() {
       if (errors.length > 0) {
         toast.error(`${errors.length} siswa gagal diassign.`);
       } else {
-        if (assignStudentTarget.teacher1_id || assignStudentTarget.teacher2_id) {
+        if (assignStudentTarget.teacher1_id || assignStudentTarget.teacher2_id || assignStudentTarget.teacher3_id) {
           const splitRes = await fetch('/api/kelas/split-students', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -434,6 +659,15 @@ export default function KelasPage() {
         <div className="flex items-center gap-2 flex-wrap">
           <Button
             variant="ghost"
+            leftIcon={<Download size={15} />}
+            onClick={handleDownloadArsipPembagianTugas}
+            loading={downloadingArsip}
+            title="Unduh arsip pembagian tugas sebagai PDF"
+          >
+            Unduh Arsip
+          </Button>
+          <Button
+            variant="ghost"
             leftIcon={<Wand2 size={15} />}
             onClick={handleAutoAssign}
             loading={autoLoading}
@@ -469,6 +703,12 @@ export default function KelasPage() {
                 <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
                   Guru 2
                 </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                  Guru 3
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                  Guru Kelas
+                </th>
                 <th className="px-4 py-3 text-right text-xs font-semibold text-slate-700 uppercase tracking-wider">
                   Aksi
                 </th>
@@ -492,14 +732,20 @@ export default function KelasPage() {
                       <div className="h-5 bg-slate-200 rounded animate-pulse w-24"></div>
                     </td>
                     <td className="px-4 py-3">
-                      <div className="h-8 bg-slate-200 rounded animate-pulse w-32 ml-auto"></div>
+                      <div className="h-5 bg-slate-200 rounded animate-pulse w-24"></div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="h-5 bg-slate-200 rounded animate-pulse w-24"></div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="h-8 bg-slate-200 rounded animate-pulse w-48 ml-auto"></div>
                     </td>
                   </tr>
                 ))
               ) : data.length === 0 ? (
                 // Empty state
                 <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-sm text-slate-500">
+                  <td colSpan={7} className="px-4 py-8 text-center text-sm text-slate-500">
                     Belum ada kelas yang terdaftar.
                   </td>
                 </tr>
@@ -567,6 +813,25 @@ export default function KelasPage() {
                       )}
                     </td>
                     <td className="px-4 py-3">
+                      {kelas.teacher3 ? (
+                        <span className="text-sm text-slate-700">{kelas.teacher3.name}</span>
+                      ) : (
+                        <span className="text-sm text-slate-400 italic">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      {kelas.nama_guru_kelas ? (
+                        <div>
+                          <span className="text-sm text-slate-700">{kelas.nama_guru_kelas}</span>
+                          {kelas.niy_guru_kelas && (
+                            <span className="text-xs text-slate-400 block">{kelas.niy_guru_kelas}</span>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-sm text-slate-400 italic">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
                       {editingId !== kelas.id && (
                         <div className="flex items-center justify-end gap-2">
                           <Button
@@ -605,6 +870,15 @@ export default function KelasPage() {
                             title="Edit kelas"
                           >
                             Edit
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            leftIcon={<UserCheck size={14} />}
+                            onClick={() => handleOpenTeacherInfo(kelas)}
+                            title="Atur guru kelas"
+                          >
+                            Wali Kelas
                           </Button>
                           <Button
                             variant="ghost"
@@ -716,7 +990,24 @@ export default function KelasPage() {
             >
               <option value="">— Tidak ada —</option>
               {timList
-                .filter((t) => !assignT1 || t.id !== assignT1)
+                .filter((t) => t.id !== assignT1 && t.id !== assignT3)
+                .map((t) => (
+                  <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Guru 3 <span className="text-slate-400 font-normal">(opsional)</span></label>
+            <select
+              value={assignT3}
+              onChange={(e) => setAssignT3(e.target.value)}
+              disabled={assignLoading}
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white"
+            >
+              <option value="">— Tidak ada —</option>
+              {timList
+                .filter((t) => t.id !== assignT1 && t.id !== assignT2)
                 .map((t) => (
                   <option key={t.id} value={t.id}>{t.name}</option>
                 ))}
@@ -737,6 +1028,61 @@ export default function KelasPage() {
               variant="primary"
               loading={assignLoading}
               onClick={handleSaveAssign}
+            >
+              Simpan
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* ── Guru Kelas Info Modal */}
+      <Modal
+        open={Boolean(teacherInfoTarget)}
+        onClose={() => { if (!teacherInfoLoading) setTeacherInfoTarget(null); }}
+        title={`Guru Kelas — ${teacherInfoTarget?.name ?? ''}`}
+        size="sm"
+        closeOnBackdrop={!teacherInfoLoading}
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-slate-500">
+            Tim Quran adalah guru tahsin/tahfidz. Isi nama guru kelas untuk keperluan raport.
+          </p>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Nama Guru Kelas</label>
+            <input
+              type="text"
+              value={teacherInfoNama}
+              onChange={(e) => setTeacherInfoNama(e.target.value)}
+              disabled={teacherInfoLoading}
+              placeholder="Fitri Nurhandayani, S. Pd., Gr."
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">NIY Guru Kelas <span className="text-slate-400 font-normal">(opsional)</span></label>
+            <input
+              type="text"
+              value={teacherInfoNiy}
+              onChange={(e) => setTeacherInfoNiy(e.target.value)}
+              disabled={teacherInfoLoading}
+              placeholder="NIY.NIY.GTTY.0842020"
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+            />
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setTeacherInfoTarget(null)}
+              disabled={teacherInfoLoading}
+            >
+              Batal
+            </Button>
+            <Button
+              type="button"
+              variant="primary"
+              loading={teacherInfoLoading}
+              onClick={handleSaveTeacherInfo}
             >
               Simpan
             </Button>

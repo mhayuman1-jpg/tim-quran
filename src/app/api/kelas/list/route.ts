@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
     // Ambil semua kelas (filter hanya kelas yang punya siswa diampu jika mode guru)
     let query = supabase
       .from('classes')
-      .select('id, name, created_at, teacher1_id, teacher2_id')
+      .select('id, name, created_at, teacher1_id, teacher2_id, teacher3_id, nama_guru_kelas, niy_guru_kelas')
       .order('name', { ascending: true });
 
     if (allowedClassIds !== null) {
@@ -57,6 +57,9 @@ export async function GET(request: NextRequest) {
       created_at: any;
       teacher1_id?: any;
       teacher2_id?: any;
+      teacher3_id?: any;
+      nama_guru_kelas?: any;
+      niy_guru_kelas?: any;
     }> = classes ?? [];
 
     if (classesError) {
@@ -122,6 +125,7 @@ export async function GET(request: NextRequest) {
     classesWithCount.forEach(k => {
       if ((k as any).teacher1_id) teacherIds.add((k as any).teacher1_id);
       if ((k as any).teacher2_id) teacherIds.add((k as any).teacher2_id);
+      if ((k as any).teacher3_id) teacherIds.add((k as any).teacher3_id);
     });
     let teacherMap: Record<string, { id: string; name: string; email: string }> = {};
     if (teacherIds.size > 0) {
@@ -132,6 +136,7 @@ export async function GET(request: NextRequest) {
       ...k,
       teacher1: (k as any).teacher1_id ? (teacherMap[(k as any).teacher1_id] ?? null) : null,
       teacher2: (k as any).teacher2_id ? (teacherMap[(k as any).teacher2_id] ?? null) : null,
+      teacher3: (k as any).teacher3_id ? (teacherMap[(k as any).teacher3_id] ?? null) : null,
     }));
     return NextResponse.json({ data: result }, { status: 200 });
   } catch (error) {

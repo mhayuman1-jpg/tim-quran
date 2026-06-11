@@ -12,7 +12,7 @@ export async function POST(_req: NextRequest) {
     const supabase = createServerClient();
     const { data: teachers } = await supabase.from('users').select('id, name').eq('role', 'Tim_Quran').eq('status', 'Aktif');
     if (!teachers || teachers.length === 0) return NextResponse.json({ message: "Tidak ada anggota Tim Qur'an aktif." }, { status: 400 });
-    const { data: classes, error: classesError } = await supabase.from('classes').select('id, name, teacher1_id, teacher2_id');
+    const { data: classes, error: classesError } = await supabase.from('classes').select('id, name, teacher1_id, teacher2_id, teacher3_id');
     if (classesError) {
       console.error('[auto-assign] Supabase classes query error:', classesError);
       const message = String(classesError.message || '').toLowerCase();

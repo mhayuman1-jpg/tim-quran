@@ -17,10 +17,10 @@ export async function POST(request: NextRequest) {
 
     const supabase = createServerClient();
 
-    // Ambil kelas dan pastikan teacher1 & teacher2 ada
+    // Ambil kelas dan teacher IDs
     const { data: kelas, error: kelasError } = await supabase
       .from('classes')
-      .select('id, name, teacher1_id, teacher2_id')
+      .select('id, name, teacher1_id, teacher2_id, teacher3_id')
       .eq('id', classId)
       .single();
 
@@ -28,7 +28,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: 'Kelas tidak ditemukan.' }, { status: 404 });
     }
 
-    if (!kelas.teacher1_id && !kelas.teacher2_id) {
+    const teachers = [kelas.teacher1_id, kelas.teacher2_id, kelas.teacher3_id].filter(Boolean);
+    if (teachers.length === 0) {
       return NextResponse.json({ message: 'Pastikan minimal satu guru sudah ditetapkan untuk kelas ini.' }, { status: 400 });
     }
 
@@ -50,49 +51,30 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: 'Tidak ada siswa di kelas ini.' }, { status: 200 });
     }
 
-    const hasBothTeachers = Boolean(kelas.teacher1_id && kelas.teacher2_id);
-    const teacher1 = kelas.teacher1_id;
-    const teacher2 = kelas.teacher2_id;
-
-    let results: { teacher1: number; teacher2: number } = { teacher1: 0, teacher2: 0 };
-
-    if (hasBothTeachers) {
-      const half = Math.ceil(ids.length / 2);
-      const first = ids.slice(0, half);
-      const second = ids.slice(half);
-
-      const p1 = first.length > 0
-        ? supabase.from('santri').update({ assigned_teacher_id: teacher1 }).in('id', first)
+    // Bagi siswa merata ke semua guru
+    const numTeachers = teachers.length;
+    const chunkSize = Math.ceil(ids.length / numTeachers);
+    const updates = teachers.map((teacherId, i) => {
+      const chunk = ids.slice(i * chunkSize, (i + 1) * chunkSize);
+      return chunk.length > 0
+        ? supabase.from('santri').update({ assigned_teacher_id: teacherId }).in('id', chunk)
         : Promise.resolve({ data: null, error: null });
+    });
 
-      const p2 = second.length > 0
-        ? supabase.from('santri').update({ assigned_teacher_id: teacher2 }).in('id', second)
-        : Promise.resolve({ data: null, error: null });
-
-      const [r1, r2] = await Promise.all([p1, p2]);
-
-      if ((r1 && (r1 as any).error) || (r2 && (r2 as any).error)) {
-        console.error('[split-students] update errors:', (r1 as any).error, (r2 as any).error);
-        return NextResponse.json({ message: 'Gagal membagi siswa ke guru.' }, { status: 500 });
-      }
-
-      results = { teacher1: first.length, teacher2: second.length };
-    } else {
-      const assignedTeacher = teacher1 || teacher2;
-      const { error: updateError } = await supabase
-        .from('santri')
-        .update({ assigned_teacher_id: assignedTeacher })
-        .in('id', ids);
-
-      if (updateError) {
-        console.error('[split-students] update error:', updateError);
-        return NextResponse.json({ message: 'Gagal menetapkan guru untuk siswa.' }, { status: 500 });
-      }
-
-      results = { teacher1: ids.length, teacher2: 0 };
+    const results = await Promise.all(updates);
+    const errors = results.filter(r => r && (r as any).error);
+    if (errors.length > 0) {
+      console.error('[split-students] update errors:', errors);
+      return NextResponse.json({ message: 'Gagal membagi siswa ke guru.' }, { status: 500 });
     }
 
-    return NextResponse.json({ message: 'Siswa berhasil dibagi ke guru.', counts: results }, { status: 200 });
+    const counts: Record<string, number> = {};
+    teachers.forEach((t, i) => {
+      const chunk = ids.slice(i * chunkSize, (i + 1) * chunkSize);
+      if (t) counts[t] = chunk.length;
+    });
+
+    return NextResponse.json({ message: 'Siswa berhasil dibagi ke guru.', counts }, { status: 200 });
   } catch (error) {
     console.error('split-students route error:', error);
     return NextResponse.json({ message: 'Terjadi kesalahan pada server.' }, { status: 500 });

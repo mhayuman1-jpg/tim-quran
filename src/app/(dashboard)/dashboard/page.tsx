@@ -386,8 +386,8 @@ export default function DashboardPage() {
       {/* Juz chart */}
       <JuzChart data={stats?.ringkasanJuz ?? []} loading={loading} />
 
-      {/* ID Card Section — Kabid & Tim_Quran */}
-      {session?.user && (session.user.role === 'Tim_Quran' || session.user.role === 'Kabid') && (
+      {/* ID Card Section — semua role kecuali Wali_Murid */}
+      {session?.user && session.user.role !== 'Wali_Murid' && (
         <div className="rounded-2xl p-6" style={{background: 'white', border: '1px solid #f1f5f9', boxShadow: '0 2px 16px rgba(0,0,0,0.04)'}}>
           <div className="flex items-center gap-3 mb-6">
             <div className="w-9 h-9 rounded-xl flex items-center justify-center"
@@ -405,7 +405,7 @@ export default function DashboardPage() {
             <div ref={cardRef} className="shrink-0">
               <StaffIDCard
                 name={session.user.name}
-                role={session.user.role as 'Kabid' | 'Tim_Quran'}
+                role={session.user.role as 'Kabid' | 'Tim_Quran' | 'Sekretaris' | 'Bendahara'}
                 photoUrl={session.user.photo_url}
                 namaLembaga={profilData?.nama_lembaga ?? "Tim Qur'an"}
                 logoUrl={profilData?.logo_url}

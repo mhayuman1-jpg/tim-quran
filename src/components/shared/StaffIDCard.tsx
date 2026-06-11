@@ -6,7 +6,7 @@ import { toImageUrl } from '@/lib/storage/urls';
 
 export interface StaffIDCardProps {
   name: string;
-  role: 'Kabid' | 'Tim_Quran';
+  role: 'Kabid' | 'Tim_Quran' | 'Sekretaris' | 'Bendahara';
   photoUrl?: string | null;
   namaLembaga?: string;
   logoUrl?: string | null;
@@ -24,11 +24,25 @@ const roleConfig = {
     accent: '#1d4ed8',
   },
   Tim_Quran: {
-    label: "Guru Tim Qur'an",
+    label: "Tim Qur'an",
     gradient: 'linear-gradient(180deg, #065f46 0%, #10b981 100%)',
     accentLight: '#d1fae5',
     accentMid: '#10b981',
     accent: '#065f46',
+  },
+  Sekretaris: {
+    label: 'Sekretaris',
+    gradient: 'linear-gradient(180deg, #7c2d12 0%, #f97316 100%)',
+    accentLight: '#ffedd5',
+    accentMid: '#f97316',
+    accent: '#c2410c',
+  },
+  Bendahara: {
+    label: 'Bendahara',
+    gradient: 'linear-gradient(180deg, #581c87 0%, #a855f7 100%)',
+    accentLight: '#f3e8ff',
+    accentMid: '#a855f7',
+    accent: '#7e22ce',
   },
 };
 

@@ -9,15 +9,19 @@ export async function PUT(request: NextRequest) {
   if (!session?.user) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
   if (session.user.role !== 'Kabid') return NextResponse.json({ message: 'Akses tidak diizinkan' }, { status: 403 });
   try {
-    const { class_id, teacher1_id, teacher2_id } = await request.json();
+    const { class_id, teacher1_id, teacher2_id, teacher3_id } = await request.json();
     if (!class_id) return NextResponse.json({ message: 'class_id wajib diisi' }, { status: 400 });
-    if (teacher1_id && teacher2_id && teacher1_id === teacher2_id) {
-      return NextResponse.json({ message: 'Guru 1 dan Guru 2 tidak boleh sama.' }, { status: 400 });
+    const allTeachers = [teacher1_id, teacher2_id, teacher3_id].filter(
+      (id): id is string => typeof id === 'string' && id.trim() !== ''
+    );
+    const uniqueTeachers = new Set(allTeachers);
+    if (uniqueTeachers.size !== allTeachers.length) {
+      return NextResponse.json({ message: 'Guru tidak boleh ada yang sama.' }, { status: 400 });
     }
 
     const supabase = createServerClient();
 
-    const teacherIds = [teacher1_id, teacher2_id].filter(
+    const teacherIds = [teacher1_id, teacher2_id, teacher3_id].filter(
       (id): id is string => typeof id === 'string' && id.trim() !== ''
     );
 
@@ -52,7 +56,11 @@ export async function PUT(request: NextRequest) {
     }
 
     const { data, error } = await supabase.from('classes')
-      .update({ teacher1_id: teacher1_id || null, teacher2_id: teacher2_id || null })
+      .update({
+        teacher1_id: teacher1_id || null,
+        teacher2_id: teacher2_id || null,
+        teacher3_id: teacher3_id || null,
+      })
       .eq('id', class_id)
       .select('id, name')
       .single();
@@ -60,9 +68,9 @@ export async function PUT(request: NextRequest) {
     if (error) {
       console.error('[assign-teachers] Supabase update error:', error);
       const message = String(error.message || '').toLowerCase();
-      if (message.includes('teacher1_id') || message.includes('teacher2_id')) {
+      if (message.includes('teacher1_id') || message.includes('teacher2_id') || message.includes('teacher3_id')) {
         return NextResponse.json({
-          message: 'Kolom teacher1_id atau teacher2_id tidak ditemukan di tabel classes. Jalankan migrasi schema untuk menambahkan kolom ini.',
+          message: 'Kolom teacher1_id, teacher2_id, atau teacher3_id tidak ditemukan di tabel classes. Jalankan migrasi schema untuk menambahkan kolom ini.',
           detail: error.details ?? null,
         }, { status: 500 });
       }
@@ -71,8 +79,10 @@ export async function PUT(request: NextRequest) {
 
     const t1 = teacher1_id || null;
     const t2 = teacher2_id || null;
+    const t3 = teacher3_id || null;
+    const activeTeachers = [t1, t2, t3].filter(Boolean);
 
-    if (t1 || t2) {
+    if (activeTeachers.length > 0) {
       const { data: siswaList } = await supabase
         .from('santri')
         .select('id')
@@ -80,24 +90,21 @@ export async function PUT(request: NextRequest) {
         .eq('status', 'Aktif');
 
       if (siswaList && siswaList.length > 0) {
-        const assignedTeacher = t1 || t2;
+        const ids = siswaList.map((s: any) => s.id);
+        const active = [t1, t2, t3].filter(Boolean);
+        const numTeachers = active.length;
 
-        if (t1 && t2) {
-          const ids = siswaList.map((s: any) => s.id);
-          const half = Math.ceil(ids.length / 2);
-          const first = ids.slice(0, half);
-          const second = ids.slice(half);
-
-          await Promise.all([
-            first.length > 0
-              ? supabase.from('santri').update({ assigned_teacher_id: t1 }).in('id', first)
-              : Promise.resolve({ data: null, error: null }),
-            second.length > 0
-              ? supabase.from('santri').update({ assigned_teacher_id: t2 }).in('id', second)
-              : Promise.resolve({ data: null, error: null }),
-          ]);
+        if (numTeachers >= 2) {
+          const chunkSize = Math.ceil(ids.length / numTeachers);
+          const updates = active.map((teacherId, i) => {
+            const chunk = ids.slice(i * chunkSize, (i + 1) * chunkSize);
+            return chunk.length > 0
+              ? supabase.from('santri').update({ assigned_teacher_id: teacherId }).in('id', chunk)
+              : Promise.resolve({ data: null, error: null });
+          });
+          await Promise.all(updates);
         } else {
-          const ids = siswaList.map((s: any) => s.id);
+          const assignedTeacher = active[0];
           await supabase
             .from('santri')
             .update({ assigned_teacher_id: assignedTeacher })

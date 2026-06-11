@@ -367,7 +367,7 @@ export default function DashboardGuruPage() {
             <div id="guru-id-card" className="shrink-0">
               <StaffIDCard
                 name={session.user.name}
-                role={session.user.role as 'Kabid' | 'Tim_Quran'}
+                role={session.user.role as 'Kabid' | 'Tim_Quran' | 'Sekretaris' | 'Bendahara'}
                 photoUrl={session.user.photo_url}
                 namaLembaga={profilData?.nama_lembaga ?? "Tim Qur'an"}
                 logoUrl={profilData?.logo_url}
