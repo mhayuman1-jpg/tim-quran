@@ -98,9 +98,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 5. Berhasil â€” kembalikan nama siswa
+    // 5. Berhasil — kembalikan nama siswa dan ID
     return NextResponse.json(
-      { message: 'Absen berhasil!', siswa: siswa.nama },
+      { message: 'Absen berhasil!', siswa: { nama: siswa.nama, id: siswa.id } },
       { status: 200 }
     );
   } catch (error) {

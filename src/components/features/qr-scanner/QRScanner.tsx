@@ -4,10 +4,10 @@ import { useEffect, useRef, useState } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { CheckCircle, Clock, Users } from 'lucide-react';
 
-interface ScannedStudent { nama: string; scanned_at: string; }
+interface ScannedStudent { nama: string; scanned_at: string; id?: string; }
 
 interface QRScannerProps {
-  onScanSuccess: (namaSiswa: string) => void;
+  onScanSuccess: (siswa: { nama: string; id: string }) => void;
   onScanError: (pesan: string) => void;
   scannedList: ScannedStudent[];
   /** Jika true: hanya tampilkan kamera tanpa daftar hadir (daftar di-render di parent) */

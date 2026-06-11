@@ -2,8 +2,9 @@
 
 import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useState } from 'react';
-import { CheckCircle, XCircle, AlertCircle, RefreshCw } from 'lucide-react';
+import { CheckCircle, XCircle, AlertCircle, RefreshCw, BookOpen } from 'lucide-react';
 import Button from '@/components/ui/Button';
+import Modal from '@/components/ui/Modal';
 
 const QRScanner = dynamic(
   () => import('@/components/features/qr-scanner/QRScanner'),
@@ -15,6 +16,21 @@ const QRScanner = dynamic(
         <div className="flex flex-col items-center gap-2 text-slate-400">
           <div className="w-6 h-6 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" />
           <span className="text-sm">Memuat scanner…</span>
+        </div>
+      </div>
+    ),
+  }
+);
+
+const JurnalHafalanTahsinForm = dynamic(
+  () => import('@/components/features/tahsin/JurnalHafalanTahsinForm'),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex items-center justify-center h-64">
+        <div className="flex flex-col items-center gap-2 text-slate-400">
+          <div className="w-6 h-6 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" />
+          <span className="text-sm">Memuat form jurnal…</span>
         </div>
       </div>
     ),
@@ -58,9 +74,9 @@ function playErrorBeep() {
   setTimeout(() => playBeep(300, 0.12, 0.2), 120);
 }
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// ─── Types ────────────────────────────────────────────────────────────────
 
-interface ScannedStudent { nama: string; scanned_at: string; }
+interface ScannedStudent { nama: string; scanned_at: string; id?: string; }
 type FeedbackType = 'success' | 'error' | 'warning' | null;
 interface Feedback { type: FeedbackType; message: string; }
 
@@ -69,6 +85,8 @@ export default function ScanPage() {
   const [scannedList, setScannedList] = useState<ScannedStudent[]>([]);
   const [loadingList, setLoadingList] = useState(true);
   const [pageError, setPageError] = useState<string | null>(null);
+  const [journalStudent, setJournalStudent] = useState<{ id: string; nama: string } | null>(null);
+  const [journalSubmitting, setJournalSubmitting] = useState(false);
 
   const fetchTodayList = useCallback(async () => {
     setLoadingList(true);
@@ -98,11 +116,11 @@ export default function ScanPage() {
 
 
 
-  const handleScanSuccess = useCallback((namaSiswa: string) => {
+  const handleScanSuccess = useCallback((siswa: { nama: string; id: string }) => {
     playSuccessBeep();
-    setFeedback({ type: 'success', message: `${namaSiswa} — Absen berhasil!` });
+    setFeedback({ type: 'success', message: `${siswa.nama} — Absen berhasil!` });
     const jam = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
-    setScannedList(prev => [{ nama: namaSiswa, scanned_at: jam }, ...prev]);
+    setScannedList(prev => [{ nama: siswa.nama, scanned_at: jam, id: siswa.id }, ...prev]);
     fetchTodayList();
   }, [fetchTodayList]);
 
@@ -111,6 +129,35 @@ export default function ScanPage() {
     if (isWarning) playWarningBeep(); else playErrorBeep();
     setFeedback({ type: isWarning ? 'warning' : 'error', message: pesan });
   }, []);
+
+  // ─── Journal Modal Handlers ────────────────────────────────────────────────────
+
+  const openJournalModal = useCallback((student: { id: string; nama: string }) => {
+    setJournalStudent(student);
+  }, []);
+
+  const closeJournalModal = useCallback(() => {
+    setJournalStudent(null);
+  }, []);
+
+  const handleJournalSubmit = useCallback(async (data: any) => {
+    setJournalSubmitting(true);
+    try {
+      const res = await fetch('/api/jurnal-hafalan-tahsin/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.message ?? 'Gagal menyimpan jurnal');
+      setFeedback({ type: 'success', message: 'Jurnal berhasil disimpan!' });
+      closeJournalModal();
+    } catch (err) {
+      setFeedback({ type: 'error', message: err instanceof Error ? err.message : 'Gagal menyimpan jurnal' });
+    } finally {
+      setJournalSubmitting(false);
+    }
+  }, [closeJournalModal]);
 
   // Error page if server/network error
   if (pageError) {
@@ -135,12 +182,13 @@ export default function ScanPage() {
   }
 
   return (
+    <>
     <div className="space-y-4">
       {/* Header compact */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-slate-900">Scan Absensi QR</h1>
-          <p className="text-xs text-slate-500 mt-0.5">Arahkan kamera ke QR code ID card siswa</p>
+          <p className="text-xs text-slate-500 mt-0.5">Arahkan kamera ke QR code ID card siswa — absen dulu, lalu isi jurnal</p>
         </div>
         <Button variant="secondary" size="sm" leftIcon={<RefreshCw size={13} />}
           onClick={fetchTodayList} loading={loadingList}>
@@ -191,6 +239,19 @@ export default function ScanPage() {
                   </div>
                   <span className="flex-1 text-xs font-medium text-slate-800 truncate">{item.nama}</span>
                   <span className="text-[10px] text-slate-400 shrink-0">{item.scanned_at}</span>
+                  {item.id && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      leftIcon={<BookOpen size={12} />}
+                      onClick={() => item.id && openJournalModal({ id: item.id, nama: item.nama })}
+                      disabled={journalSubmitting}
+                      className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50"
+                      title="Buka jurnal hafalan & tahsin"
+                    >
+                      Jurnal
+                    </Button>
+                  )}
                 </li>
               ))}
             </ul>
@@ -198,6 +259,43 @@ export default function ScanPage() {
         </div>
       </div>
     </div>
+    <JournalModal
+      student={journalStudent}
+      open={!!journalStudent}
+      onClose={closeJournalModal}
+      onSubmit={handleJournalSubmit}
+      submitting={journalSubmitting}
+    />
+    </>
+  );
+}
+
+// ─── Journal Modal ──────────────────────────────────────────────────────────────
+
+function JournalModal({ student, open, onClose, onSubmit, submitting }: {
+  student: { id: string; nama: string } | null;
+  open: boolean;
+  onClose: () => void;
+  onSubmit: (data: any) => void;
+  submitting: boolean;
+}) {
+  if (!open || !student) return null;
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={`Jurnal Hafalan & Tahsin — ${student.nama}`}
+      size="xl"
+      closeOnBackdrop={!submitting}
+    >
+      <JurnalHafalanTahsinForm
+        mode="both"
+        selectedStudentId={student.id}
+        onSubmit={onSubmit}
+        onCancel={onClose}
+        loading={submitting}
+      />
+    </Modal>
   );
 }
 
