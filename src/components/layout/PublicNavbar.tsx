@@ -235,7 +235,7 @@ export default function PublicNavbar({
           </Link>
 
           {/* ── Desktop nav ──────────────────────────────────── */}
-          <nav className="hidden lg:flex items-center gap-2">
+          <nav className="hidden lg:flex items-center gap-2 ml-8">
             {navLinks.map((link, idx) => {
               const active = isActive(link.href);
               const isExternal = /^https?:\/\//.test(link.href);
