@@ -64,6 +64,7 @@ const ROLE_LABELS: Record<UserRole, string> = {
   Tim_Quran:  "Tim Qur'an",
   Sekretaris: 'Sekretaris',
   Bendahara:  'Bendahara',
+  Wali_Murid: 'Wali Murid',
 };
 
 const ROLE_COLORS: Record<UserRole, string> = {
@@ -71,6 +72,7 @@ const ROLE_COLORS: Record<UserRole, string> = {
   Tim_Quran:  '#93c5fd',
   Sekretaris: '#6ee7b7',
   Bendahara:  '#fcd34d',
+  Wali_Murid: '#34d399',
 };
 
 export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {

@@ -27,7 +27,7 @@ export interface JurnalDetailRow {
 export interface JurnalHafalanTahsinFormData {
   student_id: string;
   tanggal: string;
-  tahsin_metode: TahsinMetode;
+  tahsin_metode: TahsinMetode | '';
   tahsin_buku: string;
   tahsin_halaman: string;
   tahsin_makhroj: NilaiTahfidz;
@@ -37,8 +37,12 @@ export interface JurnalHafalanTahsinFormData {
   detail: JurnalDetailRow[];
 }
 
+export type JurnalFormMode = 'both' | 'hafalan' | 'tahsin';
+
 interface Props {
   loading?: boolean;
+  mode?: JurnalFormMode;
+  selectedStudentId?: string | null;
   onSubmit: (data: JurnalHafalanTahsinFormData) => void;
   onCancel: () => void;
 }
@@ -128,7 +132,7 @@ const emptyRow = (): JurnalDetailRow => ({
 const EMPTY_FORM: JurnalHafalanTahsinFormData = {
   student_id: '',
   tanggal: new Date().toISOString().split('T')[0],
-  tahsin_metode: 'Wafa',
+  tahsin_metode: '',
   tahsin_buku: '',
   tahsin_halaman: '',
   tahsin_makhroj: '',
@@ -138,7 +142,7 @@ const EMPTY_FORM: JurnalHafalanTahsinFormData = {
   detail: [emptyRow()],
 };
 
-export default function JurnalHafalanTahsinForm({ loading = false, onSubmit, onCancel }: Props) {
+export default function JurnalHafalanTahsinForm({ loading = false, mode = 'both', selectedStudentId, onSubmit, onCancel }: Props) {
   const [form, setForm] = useState<JurnalHafalanTahsinFormData>(EMPTY_FORM);
   const [selectedTemplateJuz, setSelectedTemplateJuz] = useState<number | ''>('');
   const [students, setStudents] = useState<StudentOption[]>([]);
@@ -148,6 +152,13 @@ export default function JurnalHafalanTahsinForm({ loading = false, onSubmit, onC
   // Cek apakah jurnal sudah ada pada tanggal ini untuk siswa terpilih
   const [isCheckingJournal, setIsCheckingJournal] = useState(false);
   const [isEditingExisting, setIsEditingExisting] = useState(false);
+
+  // Auto-set student when mode is 'hafalan' or 'tahsin'
+  useEffect(() => {
+    if ((mode === 'hafalan' || mode === 'tahsin') && selectedStudentId) {
+      setForm((prev) => ({ ...prev, student_id: selectedStudentId }));
+    }
+  }, [mode, selectedStudentId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -176,6 +187,12 @@ export default function JurnalHafalanTahsinForm({ loading = false, onSubmit, onC
   }, []);
 
   useEffect(() => {
+    // Skip existing journal detection when adding from specific section (always new entry)
+    if (mode === 'hafalan' || mode === 'tahsin') {
+      setIsEditingExisting(false);
+      return;
+    }
+
     if (!form.student_id || !form.tanggal) {
       setIsEditingExisting(false);
       return;
@@ -215,7 +232,7 @@ export default function JurnalHafalanTahsinForm({ loading = false, onSubmit, onC
           setIsEditingExisting(false);
           setForm((prev) => ({
             ...prev,
-            tahsin_metode: 'Wafa',
+            tahsin_metode: '',
             tahsin_buku: '',
             tahsin_halaman: '',
             tahsin_makhroj: '',
@@ -236,7 +253,7 @@ export default function JurnalHafalanTahsinForm({ loading = false, onSubmit, onC
     return () => {
       cancelled = true;
     };
-  }, [form.student_id, form.tanggal]);
+  }, [form.student_id, form.tanggal, mode]);
 
   const setField = <K extends keyof JurnalHafalanTahsinFormData>(key: K, value: JurnalHafalanTahsinFormData[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -282,17 +299,24 @@ export default function JurnalHafalanTahsinForm({ loading = false, onSubmit, onC
     if (!form.tanggal || !/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(form.tanggal)) {
       nextErrors.tanggal = 'Tanggal wajib diisi.';
     }
-    if (!form.tahsin_metode) nextErrors.tahsin_metode = 'Metode tahsin wajib dipilih.';
-    if (!form.tahsin_buku.trim()) nextErrors.tahsin_buku = 'Buku tahsin wajib diisi.';
 
-    if (form.detail.length === 0) {
-      nextErrors.detail = 'Minimal satu baris hafalan harus diisi.';
-    } else {
-      form.detail.forEach((row) => {
-        if (!row.nama_surah.trim()) {
-          nextErrors.detail = 'Nama surah di setiap baris tidak boleh kosong.';
-        }
-      });
+    // Validate tahsin fields only if mode includes tahsin
+    if (mode === 'both' || mode === 'tahsin') {
+      if (!form.tahsin_metode) nextErrors.tahsin_metode = 'Metode tahsin wajib dipilih.';
+      if (!form.tahsin_buku.trim()) nextErrors.tahsin_buku = 'Buku tahsin wajib diisi.';
+    }
+
+    // Validate hafalan fields only if mode includes hafalan
+    if (mode === 'both' || mode === 'hafalan') {
+      if (form.detail.length === 0) {
+        nextErrors.detail = 'Minimal satu baris hafalan harus diisi.';
+      } else {
+        form.detail.forEach((row) => {
+          if (!row.nama_surah.trim()) {
+            nextErrors.detail = 'Nama surah di setiap baris tidak boleh kosong.';
+          }
+        });
+      }
     }
 
     if (Object.keys(nextErrors).length > 0) {
@@ -350,7 +374,8 @@ export default function JurnalHafalanTahsinForm({ loading = false, onSubmit, onC
         </div>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className={`grid grid-cols-1 gap-4 ${mode === 'both' ? 'sm:grid-cols-2' : 'sm:grid-cols-1'}`}>
+        {mode === 'both' && (
         <div className="flex flex-col gap-1">
           <label className="text-sm font-medium text-slate-700">Siswa <span className="text-red-500">*</span></label>
           {studentsLoading ? (
@@ -372,6 +397,7 @@ export default function JurnalHafalanTahsinForm({ loading = false, onSubmit, onC
           )}
           {errors.student_id && <p className="text-xs text-red-600">{errors.student_id}</p>}
         </div>
+        )}
         <Input
           label="Tanggal"
           type="date"
@@ -382,6 +408,7 @@ export default function JurnalHafalanTahsinForm({ loading = false, onSubmit, onC
         />
       </div>
 
+      {(mode === 'both' || mode === 'hafalan') && (
       <div className="rounded-xl border border-amber-200 overflow-hidden">
         <div className="bg-amber-700 px-4 py-3 text-white font-semibold">Penilaian Hafalan</div>
         <div className="p-4 space-y-4">
@@ -495,7 +522,9 @@ export default function JurnalHafalanTahsinForm({ loading = false, onSubmit, onC
           </button>
         </div>
       </div>
+      )}
 
+      {(mode === 'both' || mode === 'tahsin') && (
       <div className="rounded-xl border border-indigo-200 overflow-hidden">
         <div className="bg-indigo-700 px-4 py-3 text-white font-semibold">Penilaian Tahsin</div>
         <div className="p-4 space-y-4">
@@ -508,6 +537,7 @@ export default function JurnalHafalanTahsinForm({ loading = false, onSubmit, onC
                 disabled={loading}
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-100"
               >
+                <option value="">— Pilih Metode —</option>
                 <option value="Wafa">Wafa</option>
                 <option value="IWR">IWR</option>
                 <option value="Al-Quran">Al-Quran</option>
@@ -588,6 +618,7 @@ export default function JurnalHafalanTahsinForm({ loading = false, onSubmit, onC
           </div>
         </div>
       </div>
+      )}
 
       <div className="flex justify-end gap-3 pt-2">
         <Button type="button" variant="secondary" onClick={onCancel} disabled={loading}>

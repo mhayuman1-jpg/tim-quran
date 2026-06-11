@@ -14,10 +14,19 @@ const KABID_ONLY_ROUTES = ['/kelas', '/semester', '/tim', '/dashboard/kelola-art
 // Rute yang boleh diakses oleh Kabid dan Sekretaris
 const MANAJEMEN_ROUTES = ['/laporan-masuk', '/rekap'];
 
+// Rute wali yang tidak perlu autentikasi
+const PUBLIC_WALI_ROUTES = ['/wali/login'];
+
 export default withAuth(
   function middleware(req: NextRequestWithAuth) {
     const { pathname } = req.nextUrl;
     const token = req.nextauth.token;
+
+    // Lewati rute publik wali
+    const isPublicWali = PUBLIC_WALI_ROUTES.some((route) =>
+      pathname === route
+    );
+    if (isPublicWali) return NextResponse.next();
 
     // Cek apakah rute ini termasuk KABID_ONLY_ROUTES
     const isKabidOnly = KABID_ONLY_ROUTES.some((route) =>
@@ -48,8 +57,12 @@ export default withAuth(
   },
   {
     callbacks: {
-      // Hanya izinkan request yang memiliki token valid
-      authorized: ({ token }) => !!token,
+      authorized: ({ req, token }) => {
+        const { pathname } = req.nextUrl;
+        // Izinkan akses ke halaman login wali tanpa token
+        if (PUBLIC_WALI_ROUTES.some((route) => pathname === route)) return true;
+        return !!token;
+      },
     },
   }
 );
@@ -81,5 +94,6 @@ export const config = {
     '/dashboard/kelola-artikel/:path*',
     '/website/:path*',
     '/dashboard/website/:path*',
+    '/wali/:path*',
   ],
 };

@@ -29,6 +29,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/website': 'Kelola Website',
   '/dashboard/website': 'Kelola Website',
   '/pengaturan': 'Pengaturan Akun',
+  '/wali/dashboard': 'Dashboard Wali Murid',
 };
 
 function getPageTitle(pathname: string): string {

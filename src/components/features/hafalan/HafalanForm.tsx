@@ -6,11 +6,13 @@
 // - Isi surah/juz, halaman, catatan
 // - Opsi update juz terakhir siswa
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import Input from '@/components/ui/Input';
 import Button from '@/components/ui/Button';
 import type { Hafalan } from '@/types';
 import { useSiswaList } from '@/hooks/useSWRFetcher';
+import type { NilaiTahfidz } from '@/lib/surahData';
+import { NILAI_TANPA_HAFAL, NILAI_LANCAR } from '@/lib/surahData';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -26,6 +28,9 @@ export interface HafalanFormData {
   surah_juz: string;
   ayat: string;
   catatan: string;
+  makhroj: NilaiTahfidz;
+  tajwid: NilaiTahfidz;
+  lancar: NilaiTahfidz;
   update_juz_terakhir: boolean;
   juz_baru: number;
 }
@@ -91,6 +96,9 @@ export default function HafalanForm({
     surah_juz: '',
     ayat: '',
     catatan: '',
+    makhroj: '',
+    tajwid: '',
+    lancar: '',
     update_juz_terakhir: false,
     juz_baru: 1,
   });
@@ -100,11 +108,11 @@ export default function HafalanForm({
 
   // Fetch daftar siswa via SWR (cached & deduplicated)
   const { siswa: allSiswa, isLoading: studentsLoading } = useSiswaList();
-  const students: StudentOption[] = allSiswa.map((s: any) => ({
+  const students: StudentOption[] = useMemo(() => allSiswa.map((s: any) => ({
     id: s.id,
     nama: s.nama,
     juz_terakhir: s.juz_terakhir ?? 1,
-  }));
+  })), [allSiswa]);
 
   // Sync juz_baru dengan siswa yang dipilih
   useEffect(() => {
@@ -124,6 +132,9 @@ export default function HafalanForm({
         surah_juz: initialData.surah_juz,
         ayat: String(initialData.halaman ?? ''),
         catatan: initialData.catatan ?? '',
+        makhroj: (initialData.makhroj as NilaiTahfidz) ?? '',
+        tajwid: (initialData.tajwid as NilaiTahfidz) ?? '',
+        lancar: (initialData.lancar as NilaiTahfidz) ?? '',
         update_juz_terakhir: false,
         juz_baru: 1,
       });
@@ -134,6 +145,9 @@ export default function HafalanForm({
         surah_juz: '',
         ayat: '',
         catatan: '',
+        makhroj: '',
+        tajwid: '',
+        lancar: '',
         update_juz_terakhir: false,
         juz_baru: 1,
       });
@@ -243,6 +257,52 @@ export default function HafalanForm({
           placeholder="Contoh: Perhatikan mad thobi'i..."
           className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 disabled:bg-slate-100 disabled:cursor-not-allowed resize-none"
         />
+      </div>
+
+      {/* Penilaian */}
+      <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 space-y-3">
+        <label className="text-sm font-medium text-slate-700">Penilaian</label>
+        <div className="grid grid-cols-3 gap-3">
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-slate-600">Makhroj</label>
+            <select
+              value={form.makhroj}
+              onChange={(e) => set('makhroj', e.target.value as NilaiTahfidz)}
+              disabled={loading}
+              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:bg-slate-100"
+            >
+              {NILAI_TANPA_HAFAL.map((opt) => (
+                <option key={opt.v} value={opt.v}>{opt.label}</option>
+              ))}
+            </select>
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-slate-600">Tajwid</label>
+            <select
+              value={form.tajwid}
+              onChange={(e) => set('tajwid', e.target.value as NilaiTahfidz)}
+              disabled={loading}
+              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:bg-slate-100"
+            >
+              {NILAI_TANPA_HAFAL.map((opt) => (
+                <option key={opt.v} value={opt.v}>{opt.label}</option>
+              ))}
+            </select>
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-slate-600">Lancar</label>
+            <select
+              value={form.lancar}
+              onChange={(e) => set('lancar', e.target.value as NilaiTahfidz)}
+              disabled={loading}
+              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:bg-slate-100"
+            >
+              {NILAI_LANCAR.map((opt) => (
+                <option key={opt.v} value={opt.v}>{opt.label}</option>
+              ))}
+            </select>
+          </div>
+        </div>
       </div>
 
       {/* Update Juz Terakhir */}

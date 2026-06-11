@@ -4,12 +4,12 @@
 // Halaman jurnal hafalan & tahsin gabungan dengan ringkasan riwayat.
 
 import React, { useState, useCallback, useMemo } from 'react';
-import { Plus, BookOpenCheck, Users, XCircle } from 'lucide-react';
+import { Plus, BookOpenCheck, Users, XCircle, BookText, BookOpen } from 'lucide-react';
 import Modal from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
 import SearchInput from '@/components/shared/SearchInput';
 import { toImageUrl } from '@/lib/storage/urls';
-import JurnalHafalanTahsinForm from '@/components/features/tahsin/JurnalHafalanTahsinForm';
+import JurnalHafalanTahsinForm, { type JurnalFormMode } from '@/components/features/tahsin/JurnalHafalanTahsinForm';
 import TahsinHistory from '@/components/features/tahsin/TahsinHistory';
 import HafalanHistory from '@/components/features/hafalan/HafalanHistory';
 import HafalanForm, { type HafalanFormData } from '@/components/features/hafalan/HafalanForm';
@@ -40,6 +40,7 @@ export default function TahsinPage() {
     return h;
   }, [viewAsRole, viewAsTeacherId]);
   const [modalOpen, setModalOpen] = useState(false);
+  const [formMode, setFormMode] = useState<JurnalFormMode>('both');
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitSuccess, setSubmitSuccess] = useState<string | null>(null);
@@ -57,6 +58,7 @@ export default function TahsinPage() {
   const [editingHafalan, setEditingHafalan] = useState<any>(null);
   const [hafalanSubmitting, setHafalanSubmitting] = useState(false);
   const [hafalanError, setHafalanError] = useState<string | null>(null);
+  const [hafalanCount, setHafalanCount] = useState(0);
 
   // Edit tahsin state
   const [editTahsinOpen, setEditTahsinOpen] = useState(false);
@@ -64,7 +66,8 @@ export default function TahsinPage() {
   const [tahsinSubmitting, setTahsinSubmitting] = useState(false);
   const [tahsinError, setTahsinError] = useState<string | null>(null);
 
-  const handleOpenAdd = () => {
+  const handleOpenAdd = (mode: JurnalFormMode = 'both') => {
+    setFormMode(mode);
     setSubmitError(null);
     setSubmitSuccess(null);
     setModalOpen(true);
@@ -96,9 +99,9 @@ export default function TahsinPage() {
           surah_juz: formData.surah_juz,
           halaman: formData.ayat,
           catatan: formData.catatan || null,
-          makhroj: (formData as any).makhroj || null,
-          tajwid: (formData as any).tajwid || null,
-          lancar: (formData as any).lancar || null,
+          makhroj: formData.makhroj || null,
+          tajwid: formData.tajwid || null,
+          lancar: formData.lancar || null,
         }),
       });
       const json = await res.json();
@@ -208,6 +211,7 @@ export default function TahsinPage() {
     setStudentOptions([]);
     setSearchQuery('');
     setStudentError(null);
+    setHafalanCount(0);
   };
 
   React.useEffect(() => {
@@ -228,7 +232,7 @@ export default function TahsinPage() {
             Pilih satu siswa untuk melihat detail hafalan dan tahsin secara terfokus.
           </p>
         </div>
-        <Button variant="primary" leftIcon={<Plus size={16} />} onClick={handleOpenAdd}>
+        <Button variant="primary" leftIcon={<Plus size={16} />} onClick={() => handleOpenAdd('both')}>
           Tambah Jurnal
         </Button>
       </div>
@@ -321,16 +325,35 @@ export default function TahsinPage() {
           {selectedStudent ? (
             <>
               <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-                <h2 className="text-base font-semibold text-slate-800 mb-4">Riwayat Hafalan</h2>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-base font-semibold text-slate-800 flex items-center gap-2">
+                    <BookText size={16} className="text-indigo-500" />
+                    Riwayat Hafalan
+                  </h2>
+                  {hafalanCount === 0 && (
+                    <Button variant="primary" size="sm" leftIcon={<Plus size={14} />} onClick={() => handleOpenAdd('hafalan')}>
+                      Tambah Jurnal
+                    </Button>
+                  )}
+                </div>
                 <HafalanHistory
                   studentId={selectedStudent.id}
                   refreshKey={refreshKey}
                   onSelectStudent={setSelectedStudent}
                   onEdit={handleOpenEditHafalan}
+                  onDataLoaded={setHafalanCount}
                 />
               </div>
               <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-                <h2 className="text-base font-semibold text-slate-800 mb-4">Riwayat Tahsin</h2>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-base font-semibold text-slate-800 flex items-center gap-2">
+                    <BookOpen size={16} className="text-emerald-500" />
+                    Riwayat Tahsin
+                  </h2>
+                  <Button variant="primary" size="sm" leftIcon={<Plus size={14} />} onClick={() => handleOpenAdd('tahsin')}>
+                    Tambah Jurnal
+                  </Button>
+                </div>
                 <TahsinHistory
                   studentId={selectedStudent.id}
                   refreshKey={refreshKey}
@@ -407,7 +430,7 @@ export default function TahsinPage() {
       <Modal
         open={modalOpen}
         onClose={handleCloseModal}
-        title="Tambah Jurnal Hafalan & Tahsin"
+        title={formMode === 'hafalan' ? 'Tambah Jurnal Hafalan' : formMode === 'tahsin' ? 'Tambah Jurnal Tahsin' : 'Tambah Jurnal Hafalan & Tahsin'}
         size="xl"
         closeOnBackdrop={!submitting}
       >
@@ -419,6 +442,8 @@ export default function TahsinPage() {
 
         <JurnalHafalanTahsinForm
           loading={submitting}
+          mode={formMode}
+          selectedStudentId={selectedStudent?.id}
           onSubmit={async (data) => {
             setSubmitting(true);
             setSubmitError(null);

@@ -76,13 +76,7 @@ function formatEditTimestamp(isoStr: string): string {
 }
 
 function EditIndicator({ editedFields, field }: { editedFields?: Record<string, string> | null; field: string }) {
-  const ts = editedFields?.[field];
-  if (!ts) return null;
-  return (
-    <span className="block text-[10px] text-amber-500 mt-0.5" title={`Terakhir diedit: ${formatEditTimestamp(ts)}`}>
-      edit: {formatDate(ts.split('T')[0])}
-    </span>
-  );
+  return null;
 }
 
 /** Warna badge per metode */

@@ -1,7 +1,7 @@
 // src/types/index.ts
 // Semua TypeScript types untuk Tim Qur'an Website
 
-export type UserRole = 'Kabid' | 'Tim_Quran' | 'Sekretaris' | 'Bendahara';
+export type UserRole = 'Kabid' | 'Tim_Quran' | 'Sekretaris' | 'Bendahara' | 'Wali_Murid';
 export type UserStatus = 'Aktif' | 'Nonaktif';
 export type Gender = 'Laki-laki' | 'Perempuan';
 export type AttendanceStatus = 'Hadir' | 'Tidak Hadir';
@@ -132,6 +132,15 @@ export interface Pengumuman {
   target: AnnouncementTarget;
   created_at: string;
   updated_at?: string;
+}
+
+export interface WaliMurid {
+  id: string;
+  nis: string;
+  nama_wali: string;
+  kontak?: string;
+  santri_id: string;
+  created_at?: string;
 }
 
 export interface Artikel {

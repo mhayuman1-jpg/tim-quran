@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import { Users, CheckCircle, UserCheck, BookOpen, Activity, FileImage, FileText, CreditCard, Repeat, TrendingUp, Megaphone, Newspaper, ArrowRight } from "lucide-react";
 import Link from "next/link";
@@ -162,6 +162,31 @@ export default function DashboardPage() {
   const cardRef = useRef<HTMLDivElement>(null);
   const [downloading, setDownloading] = useState<'png' | 'pdf' | null>(null);
   const { toast } = useToast();
+  const [greetingPlayed, setGreetingPlayed] = useState(false);
+  const [audioBlocked, setAudioBlocked] = useState(false);
+
+  const audioRef = useMemo(() => {
+    if (typeof window === "undefined") return null;
+    const a = new Audio("/audio/dashboard-login.mp3");
+    a.volume = 1;
+    a.preload = "auto";
+    return a;
+  }, []);
+
+  useEffect(() => {
+    if (!session?.user || !audioRef || greetingPlayed) return;
+    const tryAutoplay = () => {
+      audioRef.muted = true;
+      audioRef.play().then(() => {
+        audioRef.muted = false;
+        audioRef.currentTime = 0;
+        audioRef.play().then(() => setGreetingPlayed(true)).catch(() => {});
+      }).catch(() => {
+        setAudioBlocked(true);
+      });
+    };
+    tryAutoplay();
+  }, [session?.user, audioRef, greetingPlayed]);
 
   // SWR hooks untuk data sharing
   const { profil: profilData } = useProfil();
@@ -285,6 +310,35 @@ export default function DashboardPage() {
           <p className="text-slate-600 text-sm">Selamat datang di Panel Manajemen Tim Qur&apos;an</p>
         </div>
       </div>
+
+      {/* Audio element */}
+      {!greetingPlayed && audioRef && (
+        <audio
+          ref={(el) => { if (el && audioRef) { el.src = audioRef.src; } }}
+          autoPlay
+          onPlay={() => setGreetingPlayed(true)}
+          className="hidden"
+        />
+      )}
+
+      {/* Audio Play Banner */}
+      {!greetingPlayed && audioBlocked && (
+        <button
+          onClick={() => {
+            if (audioRef) {
+              audioRef.muted = false;
+              audioRef.currentTime = 0;
+              audioRef.play().then(() => setGreetingPlayed(true)).catch(() => {});
+            }
+          }}
+          className="w-full bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl p-4 flex items-center justify-center gap-3 hover:from-amber-600 hover:to-orange-600 transition-all shadow-lg cursor-pointer animate-pulse"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
+            <path fillRule="evenodd" d="M4.5 5.653c0-1.427 1.529-2.33 2.779-1.643l11.54 6.347c1.295.712 1.295 2.573 0 3.286L7.28 19.99c-1.25.687-2.779-.217-2.779-1.643V5.653Z" clipRule="evenodd" />
+          </svg>
+          <span className="text-lg font-semibold">Klik untuk mendengarkan sapaan</span>
+        </button>
+      )}
 
       {/* Error */}
       {errorMessage && (

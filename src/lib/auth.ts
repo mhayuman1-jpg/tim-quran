@@ -68,16 +68,57 @@ export const authOptions: NextAuthOptions = {
         };
       },
     }),
+    // Provider untuk Wali Murid — login menggunakan NISN siswa tanpa password
+    CredentialsProvider({
+      id: 'wali-credentials',
+      name: 'Wali Murid',
+      credentials: {
+        nis: { label: 'NIS', type: 'text' },
+      },
+      async authorize(credentials) {
+        if (!credentials?.nis?.trim()) return null;
+
+        const supabase = createServerClient();
+
+        // Cari santri berdasarkan NISN
+        const { data: santri, error } = await supabase
+          .from('santri')
+          .select('id, nisn, nama')
+          .eq('nisn', credentials.nis.trim())
+          .eq('status', 'Aktif')
+          .single();
+
+        if (error || !santri) return null;
+
+        return {
+          id: santri.id,
+          email: '',
+          name: `Wali ${santri.nama}`,
+          role: 'Wali_Murid' as UserRole,
+          photo_url: null,
+          santri_id: santri.id,
+          wali_nis: santri.nisn,
+        };
+      },
+    }),
   ],
   callbacks: {
     async jwt({ token, user }) {
-      // Saat login pertama, user object tersedia — simpan id dan role ke token
       if (user) {
+        // Saat login pertama, user object tersedia
         token.id = user.id;
         token.role = user.role as UserRole;
         token.photo_url = user.photo_url;
         token.name = user.name;
-      } else if (token.id) {
+        // Untuk Wali_Murid, simpan data tambahan
+        if (user.role === 'Wali_Murid') {
+          token.santri_id = user.santri_id;
+          token.wali_nis = user.wali_nis;
+          return token;
+        }
+      }
+      // Untuk role selain Wali_Murid, refresh data dari DB
+      if (token.id && token.role !== 'Wali_Murid') {
         const supabase = createServerClient();
         const { data, error } = await supabase
           .from('users')
@@ -94,12 +135,16 @@ export const authOptions: NextAuthOptions = {
       return token;
     },
     async session({ session, token }) {
-      // Salin id, role, nama, dan photo_url dari token ke session.user
       if (session.user) {
         session.user.id = token.id;
         session.user.role = token.role;
         session.user.photo_url = token.photo_url;
         session.user.name = token.name ?? session.user.name;
+        // Sertakan data wali murid jika ada
+        if (token.role === 'Wali_Murid') {
+          session.user.santri_id = token.santri_id;
+          session.user.wali_nis = token.wali_nis;
+        }
       }
       return session;
     },

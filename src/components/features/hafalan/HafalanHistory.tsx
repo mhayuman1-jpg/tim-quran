@@ -25,6 +25,7 @@ interface HafalanRow {
   catatan?: string | null;
   buku?: string | null;
   created_at?: string;
+  sort_order?: number;
   edited_fields?: Record<string, string> | null;
   santri?: { id: string; nama: string } | null;
   users?: { id: string; name: string } | null;
@@ -41,6 +42,8 @@ interface HafalanHistoryProps {
   refreshKey?: number;
   /** Callback saat reset dilakukan */
   onReset?: () => void;
+  /** Callback saat data dimuat, memberikan jumlah record */
+  onDataLoaded?: (count: number) => void;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -74,13 +77,7 @@ function formatEditTimestamp(isoStr: string): string {
 }
 
 function EditIndicator({ editedFields, field }: { editedFields?: Record<string, string> | null; field: string }) {
-  const ts = editedFields?.[field];
-  if (!ts) return null;
-  return (
-    <span className="block text-[10px] text-amber-500 mt-0.5" title={`Terakhir diedit: ${formatEditTimestamp(ts)}`}>
-      edit: {formatDate(ts.split('T')[0])}
-    </span>
-  );
+  return null;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -91,6 +88,7 @@ export default function HafalanHistory({
   onSelectStudent,
   refreshKey = 0,
   onReset,
+  onDataLoaded,
 }: HafalanHistoryProps) {
   const [data, setData] = useState<HafalanRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -117,16 +115,20 @@ export default function HafalanHistory({
       if (!res.ok) {
         setError(json.message ?? 'Gagal mengambil data hafalan.');
         setData([]);
+        onDataLoaded?.(0);
       } else {
-        setData(json.data ?? []);
+        const fetchedData = json.data ?? [];
+        setData(fetchedData);
+        onDataLoaded?.(fetchedData.length);
       }
     } catch {
       setError('Terjadi kesalahan saat memuat data.');
       setData([]);
+      onDataLoaded?.(0);
     } finally {
       setLoading(false);
     }
-  }, [studentId, dateFrom, dateTo, refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [studentId, dateFrom, dateTo, refreshKey, onDataLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     fetchHafalan();

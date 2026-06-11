@@ -2,7 +2,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
-import { BookOpen, Menu, X, LogIn, ChevronDown } from 'lucide-react';
+import { BookOpen, Menu, X, LogIn, ChevronDown, User } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 
 interface PublicNavbarProps {
@@ -55,6 +55,7 @@ export default function PublicNavbar({
     { label: 'Pengumuman', href: '/pengumuman' },
     { label: 'Artikel',    href: '/artikel' },
     { label: 'Agenda',     href: '/agenda' },
+    { label: 'Wali Murid', href: '/wali/login' },
     { label: 'Daftar Tasmi', href: 'https://tasmi-alquran-app.firebaseapp.com/' },
   ];
 
@@ -307,7 +308,14 @@ export default function PublicNavbar({
           </nav>
 
           {/* ── CTA + Mobile toggle ──────────────────────────── */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
+            <Link
+              href="/wali/login"
+              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-semibold text-emerald-700 bg-emerald-50 ring-1 ring-emerald-200 hover:bg-emerald-100 hover:ring-emerald-300 active:scale-95 transition-all duration-300 will-change-transform group"
+            >
+              <User size={14} className="transition-transform duration-300 group-hover:scale-110" />
+              <span className="hidden md:inline">Wali Murid</span>
+            </Link>
             <Link
               href="/auth/login"
               className="hidden sm:inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold text-white bg-gradient-to-r from-amber-500 to-amber-400 shadow-md shadow-amber-500/30 hover:shadow-lg hover:shadow-amber-500/50 active:scale-95 transition-all duration-300 will-change-transform group"
@@ -422,7 +430,15 @@ export default function PublicNavbar({
             );
           })}
 
-          <div className="pt-3 border-t border-amber-200 mt-2" style={{animation: menuOpen ? 'slideUp 0.4s ease-out 0.15s backwards' : 'none'}}>
+          <div className="pt-3 border-t border-amber-200 mt-2 space-y-2" style={{animation: menuOpen ? 'slideUp 0.4s ease-out 0.15s backwards' : 'none'}}>
+            <Link
+              href="/wali/login"
+              onClick={() => setMenuOpen(false)}
+              className="flex items-center justify-center gap-2 w-full px-4 py-3 rounded-full text-sm font-semibold text-emerald-700 bg-emerald-50 ring-1 ring-emerald-200 hover:bg-emerald-100 hover:ring-emerald-300 active:scale-95 transition-all duration-300 will-change-transform"
+            >
+              <User size={15} />
+              Wali Murid
+            </Link>
             <Link
               href="/auth/login"
               onClick={() => setMenuOpen(false)}

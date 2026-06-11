@@ -20,6 +20,8 @@ export function useRole(): UseRoleReturn {
   const isKabid = (): boolean => userRole === 'Kabid';
   const isTimQuran = (): boolean => userRole === 'Tim_Quran';
   const isSekretaris = (): boolean => userRole === 'Sekretaris';
+  const isBendahara = (): boolean => userRole === 'Bendahara';
+  const isWaliMurid = (): boolean => userRole === 'Wali_Murid';
   const isManajemen = (): boolean => userRole === 'Kabid' || userRole === 'Sekretaris';
 
   return {

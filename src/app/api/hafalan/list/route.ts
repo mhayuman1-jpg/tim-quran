@@ -39,16 +39,17 @@ export async function GET(request: NextRequest) {
     }
 
     // Query hafalan dengan join ke santri dan users (teacher)
+    // Urutkan berdasarkan sort_order agar urutan surah tetap sesuai template
     let query = supabase
       .from('hafalan')
       .select(
-        `id, student_id, teacher_id, tanggal, surah_juz, halaman, makhroj, tajwid, lancar, catatan, buku, created_at, edited_fields,
+        `id, student_id, teacher_id, tanggal, surah_juz, halaman, makhroj, tajwid, lancar, catatan, buku, created_at, edited_fields, sort_order,
          santri ( id, nama, assigned_teacher_id ),
          users ( id, name )`,
         { count: 'exact' }
       )
-      .order('tanggal', { ascending: false })
-      .order('created_at', { ascending: false })
+      .order('sort_order', { ascending: true })
+      .order('created_at', { ascending: true })
       .range(offset, offset + limit - 1);
 
     // Filter by student_id jika diberikan
