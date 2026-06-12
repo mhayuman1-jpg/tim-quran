@@ -8,7 +8,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { createServerClient, withRetry } from '@/lib/supabase/server';
-import { shouldFilterByTeacher, getTeacherFilterId } from '@/lib/rbac';
+import { shouldFilterByTeacher, getTeacherFilterId, getTeacherClassIds, applyTeacherSantriFilter } from '@/lib/rbac';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,6 +30,7 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const studentId = searchParams.get('student_id')?.trim();
+    const classId = searchParams.get('class_id')?.trim();
     const periode = searchParams.get('periode')?.trim();
     const id = searchParams.get('id')?.trim(); // fetch single dengan detail
     const supabase = createServerClient();
@@ -57,13 +58,22 @@ export async function GET(request: NextRequest) {
     if (studentId) query = query.eq('student_id', studentId);
     if (periode) query = query.ilike('periode', `%${periode}%`);
 
+    // Filter by class_id: get student IDs in the class, then filter
+    if (classId) {
+      const { data: classStudents } = await supabase
+        .from('santri').select('id').eq('class_id', classId).eq('status', 'Aktif');
+      const classStudentIds = (classStudents ?? []).map((s: any) => s.id);
+      if (classStudentIds.length === 0) return NextResponse.json({ data: [] }, { status: 200 });
+      query = query.in('student_id', classStudentIds);
+    }
+
     // Tim_Quran hanya lihat siswa tanggung jawabnya (berlaku juga untuk Kabid/Sekretaris dalam Mode Mengajar)
     if (shouldFilterByTeacher(session.user.role, request)) {
       const teacherId = getTeacherFilterId(session.user.role, request, session.user.id);
-      const { data: myStudents } = await withRetry(() => supabase
-        .from('santri')
-        .select('id')
-        .eq('assigned_teacher_id', teacherId) as any);
+      const classIds = await getTeacherClassIds(supabase, teacherId);
+      let santriQ = supabase.from('santri').select('id').eq('status', 'Aktif');
+      santriQ = applyTeacherSantriFilter(santriQ, teacherId, classIds, classId);
+      const { data: myStudents } = await withRetry(() => santriQ as any);
       const ids = ((myStudents as any) ?? []).map((s: any) => s.id);
       if (ids.length === 0) return NextResponse.json({ data: [] }, { status: 200 });
       query = query.in('student_id', ids);

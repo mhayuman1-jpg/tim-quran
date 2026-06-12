@@ -5,7 +5,7 @@
 // Kolom: Tanggal, Nama Siswa, Metode, Buku, Halaman, Catatan, (tombol edit)
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { CalendarDays, Pencil, RotateCcw } from 'lucide-react';
+import { CalendarDays, Pencil, RotateCcw, Trash2 } from 'lucide-react';
 import DataTable, { type ColumnDef } from '@/components/shared/DataTable';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -37,6 +37,8 @@ interface TahsinHistoryProps {
   studentId?: string;
   /** Callback saat tombol edit diklik */
   onEdit?: (tahsin: TahsinRow) => void;
+  /** Callback saat tombol hapus diklik */
+  onDelete?: (tahsin: TahsinRow) => void;
   /** Callback saat nama siswa diklik */
   onSelectStudent?: (student: { id: string; nama: string }) => void;
   /** Key untuk trigger refetch dari parent */
@@ -91,6 +93,7 @@ function metodeVariant(metode: TahsinMetode): 'green' | 'blue' | 'red' {
 export default function TahsinHistory({
   studentId,
   onEdit,
+  onDelete,
   onSelectStudent,
   refreshKey = 0,
   onReset,
@@ -229,21 +232,21 @@ export default function TahsinHistory({
       ),
     },
     {
+      key: 'adab',
+      header: 'Tajwid',
+      align: 'center',
+      width: '90px',
+      render: (row) => (
+        <span className="text-slate-600">{row.adab || '—'}<EditIndicator editedFields={row.edited_fields} field="adab" /></span>
+      ),
+    },
+    {
       key: 'kelancaran',
       header: 'Kelancaran',
       align: 'center',
       width: '90px',
       render: (row) => (
         <span className="text-slate-600">{row.kelancaran || '—'}<EditIndicator editedFields={row.edited_fields} field="kelancaran" /></span>
-      ),
-    },
-    {
-      key: 'adab',
-      header: 'Adab',
-      align: 'center',
-      width: '90px',
-      render: (row) => (
-        <span className="text-slate-600">{row.adab || '—'}<EditIndicator editedFields={row.edited_fields} field="adab" /></span>
       ),
     },
     {
@@ -277,26 +280,45 @@ export default function TahsinHistory({
     },
   );
 
-  // Tambahkan kolom aksi jika ada callback edit
-  if (onEdit) {
+  // Tambahkan kolom aksi jika ada callback edit atau delete
+  if (onEdit || onDelete) {
     columns.push({
       key: 'aksi',
       header: 'Aksi',
       align: 'center',
-      width: '80px',
+      width: '100px',
       render: (row) => (
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={(e) => {
-            e.stopPropagation();
-            onEdit(row);
-          }}
-          leftIcon={<Pencil size={14} />}
-          aria-label={`Edit tahsin ${row.buku}`}
-        >
-          Edit
-        </Button>
+        <div className="flex items-center justify-center gap-1">
+          {onEdit && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit(row);
+              }}
+              leftIcon={<Pencil size={14} />}
+              aria-label={`Edit tahsin ${row.buku}`}
+            >
+              Edit
+            </Button>
+          )}
+          {onDelete && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete(row);
+              }}
+              leftIcon={<Trash2 size={14} />}
+              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+              aria-label={`Hapus tahsin ${row.buku}`}
+            >
+              Hapus
+            </Button>
+          )}
+        </div>
       ),
     });
   }

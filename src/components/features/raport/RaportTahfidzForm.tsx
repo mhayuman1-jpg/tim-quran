@@ -51,6 +51,10 @@ interface Props {
   loading?: boolean;
   onSubmit: (data: RaportTahfidzFormData, id?: string) => void;
   onCancel: () => void;
+  /** Filter siswa berdasarkan class_id (untuk Tim_Quran) */
+  classId?: string;
+  /** Header tambahan untuk request (x-view-mode, dll) */
+  viewHeaders?: Record<string, string>;
 }
 
 interface StudentOption {
@@ -107,7 +111,7 @@ function NilaiSelect({
                 onClick={() => { onChange(opt.v); setOpen(false); }}
                 className={`w-full text-left px-3 py-1.5 text-xs font-semibold hover:bg-slate-50 transition-colors rounded`}>
                 <span className={`inline-block w-6 h-6 rounded text-center leading-6 mr-2 ${opt.cls}`}>{opt.label}</span>
-                {opt.v === '' ? 'Kosong' : opt.v === 'L' ? 'Lancar' : opt.v === 'TL' ? 'Tidak Lancar' : opt.v === 'A' ? 'Sangat Baik' : opt.v === 'B' ? 'Baik' : opt.v === 'C' ? 'Cukup' : 'Kurang'}
+                {opt.v === '' ? 'Kosong' : opt.v === 'L' ? 'Lancar' : opt.v === 'KL' ? 'Kurang Lancar' : opt.v === 'TL' ? 'Tidak Lancar' : opt.v === 'A' ? 'Sangat Baik' : opt.v === 'B' ? 'Baik' : opt.v === 'C' ? 'Cukup' : 'Kurang'}
               </button>
             ))}
           </div>
@@ -134,7 +138,7 @@ const EMPTY_FORM: RaportTahfidzFormData = {
 // ─── Main Form ────────────────────────────────────────────────────────────────
 
 export default function RaportTahfidzForm({
-  editingId, initialData, loading = false, onSubmit, onCancel,
+  editingId, initialData, loading = false, onSubmit, onCancel, classId, viewHeaders,
 }: Props) {
   const isEdit = Boolean(editingId);
 
@@ -145,17 +149,18 @@ export default function RaportTahfidzForm({
   const [autoLoading, setAutoLoading] = useState(false);
   const [autoMsg, setAutoMsg] = useState('');
 
-  // Fetch siswa
+  // Fetch siswa (filter by class_id + teaching mode header)
   useEffect(() => {
     setStudentsLoading(true);
-    fetch('/api/siswa/list')
+    const url = classId ? `/api/siswa/list?class_id=${classId}` : '/api/siswa/list';
+    fetch(url, { headers: viewHeaders ?? {} })
       .then(r => r.ok ? r.json() : { data: [] })
       .then(j => setStudents((j.data ?? []).map((s: any) => ({
         id: s.id, nama: s.nama, nisn: s.nisn, gender: s.gender, classes: s.classes,
       }))))
       .catch(() => setStudents([]))
       .finally(() => setStudentsLoading(false));
-  }, []);
+  }, [classId, viewHeaders]);
 
   // Ambil gender siswa dari data yang sudah di-load
   const selectedStudentGender = form.student_id
@@ -465,10 +470,10 @@ export default function RaportTahfidzForm({
                 <option value="Iqra">Iqra</option>
               </select>
             </div>
-            <Input label="Buku / Jilid" value={form.tahsin_buku}
+            <Input label="Jilid / Surah" value={form.tahsin_buku}
               onChange={e => set('tahsin_buku', e.target.value)}
               placeholder="Contoh: Wafa 3" disabled={loading} />
-            <Input label="Halaman / Level" value={form.tahsin_halaman}
+            <Input label="Halaman / Ayat" value={form.tahsin_halaman}
               onChange={e => set('tahsin_halaman', e.target.value)}
               placeholder="Contoh: 45" disabled={loading} />
           </div>
@@ -487,7 +492,7 @@ export default function RaportTahfidzForm({
                 {[
                   { field: 'tahsin_makhroj' as const, label: 'Makhroj', desc: 'Ketepatan tempat keluarnya huruf', opts: NILAI_MAKHROJ_TAJWID },
                   { field: 'tahsin_kelancaran' as const, label: 'Kelancaran', desc: 'Kelancaran membaca tanpa terhenti', opts: NILAI_LANCAR_OPTS },
-                  { field: 'tahsin_adab' as const, label: 'Adab & Tajwid', desc: 'Adab membaca dan penerapan tajwid', opts: NILAI_MAKHROJ_TAJWID },
+                  { field: 'tahsin_adab' as const, label: 'Tajwid', desc: 'Penerapan tajwid saat membaca', opts: NILAI_MAKHROJ_TAJWID },
                 ].map(({ field, label, desc, opts }) => (
                   <tr key={field} className="hover:bg-slate-50">
                     <td className="px-4 py-3">
@@ -505,6 +510,7 @@ export default function RaportTahfidzForm({
                          form[field] === 'C' ? 'Cukup' :
                          form[field] === 'D' ? 'Kurang' :
                          form[field] === 'L' ? 'Lancar' :
+                         form[field] === 'KL' ? 'Kurang Lancar' :
                          form[field] === 'TL' ? 'Tidak Lancar' :
                          '—'}
                       </span>

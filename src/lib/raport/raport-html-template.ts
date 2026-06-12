@@ -162,11 +162,14 @@ export function buildRaportHtmlTemplate(
       <div style="min-height:60px;padding:6px 8px;border:1px solid #000;background:#f9fafb;line-height:1.4;">${raport.catatan ? `"${esc(raport.catatan)}"` : '—'}</div>
     </div>
     <div style="font-size:9px;">
-      <p style="font-weight:700;margin:0 0 4px;">Keterangan :</p>
+      <p style="font-weight:700;margin:0 0 4px;">Keterangan Penilaian :</p>
       <p style="margin:2px 0;"><strong>A</strong> = Sangat Baik</p>
       <p style="margin:2px 0;"><strong>B</strong> = Baik</p>
-      <p style="margin:2px 0;"><strong>C</strong> = Cukup Baik</p>
-      <p style="margin:2px 0;"><strong>D</strong> = Kurang Baik</p>
+      <p style="margin:2px 0;"><strong>C</strong> = Cukup</p>
+      <p style="margin:2px 0;"><strong>D</strong> = Kurang</p>
+      <p style="margin:2px 0;"><strong>L</strong> = Lancar</p>
+      <p style="margin:2px 0;"><strong>KL</strong> = Kurang Lancar</p>
+      <p style="margin:2px 0;"><strong>TL</strong> = Tidak Lancar</p>
     </div>
   </div>
 

@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
+import { requireActiveSemester } from '@/lib/semester';
 
 export const dynamic = 'force-dynamic';
 
@@ -53,6 +54,10 @@ export async function PUT(request: NextRequest) {
     }
 
     const supabase = createServerClient();
+
+    // Cek semester aktif
+    const semesterCheck = await requireActiveSemester(supabase);
+    if (semesterCheck.error) return semesterCheck.error;
 
     // Ambil data hafalan yang ada untuk validasi akses
     const { data: existingHafalan, error: fetchError } = await supabase

@@ -8,7 +8,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
-import { shouldFilterByTeacher, getTeacherFilterId } from '@/lib/rbac';
+import { shouldFilterByTeacher, getTeacherFilterId, getTeacherClassIds, applyTeacherSantriFilter } from '@/lib/rbac';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,6 +25,7 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const studentId = searchParams.get('student_id')?.trim();
+    const classId = searchParams.get('class_id')?.trim();
     const dateFrom = searchParams.get('date_from')?.trim();
     const dateTo = searchParams.get('date_to')?.trim();
 
@@ -36,6 +37,37 @@ export async function GET(request: NextRequest) {
     let teacherFilterId: string | null = null;
     if (shouldFilterByTeacher(session.user.role, request)) {
       teacherFilterId = getTeacherFilterId(session.user.role, request, session.user.id);
+
+      // Lazy auto-distribute: jika ada siswa unassigned di kelas yang punya guru, distribusikan otomatis
+      const { data: teacherClasses } = await supabase
+        .from('classes')
+        .select('id, teacher1_id, teacher2_id, teacher3_id')
+        .or(`teacher1_id.eq.${teacherFilterId},teacher2_id.eq.${teacherFilterId},teacher3_id.eq.${teacherFilterId}`);
+
+      for (const kelas of teacherClasses ?? []) {
+        const { data: unassigned } = await supabase
+          .from('santri')
+          .select('id')
+          .eq('class_id', kelas.id)
+          .eq('status', 'Aktif')
+          .is('assigned_teacher_id', null);
+
+        if (unassigned && unassigned.length > 0) {
+          const activeTeachers = [kelas.teacher1_id, kelas.teacher2_id, kelas.teacher3_id].filter(Boolean);
+          if (activeTeachers.length > 0) {
+            const ids = unassigned.map((s: any) => s.id);
+            const chunkSize = Math.ceil(ids.length / activeTeachers.length);
+            await Promise.all(
+              activeTeachers.map((tid: string, i: number) => {
+                const chunk = ids.slice(i * chunkSize, (i + 1) * chunkSize);
+                return chunk.length > 0
+                  ? supabase.from('santri').update({ assigned_teacher_id: tid }).in('id', chunk)
+                  : Promise.resolve({ data: null, error: null });
+              })
+            );
+          }
+        }
+      }
     }
 
     // Query hafalan dengan join ke santri dan users (teacher)
@@ -55,6 +87,20 @@ export async function GET(request: NextRequest) {
     // Filter by student_id jika diberikan
     if (studentId) {
       query = query.eq('student_id', studentId);
+    }
+
+    // Filter by class_id: get student IDs in the class, then filter
+    if (classId) {
+      const { data: classStudents } = await supabase
+        .from('santri')
+        .select('id')
+        .eq('class_id', classId)
+        .eq('is_active', true);
+      const studentIds = (classStudents ?? []).map(s => s.id);
+      if (studentIds.length === 0) {
+        return NextResponse.json({ data: [], pagination: { total: 0, limit, offset, hasMore: false } }, { status: 200 });
+      }
+      query = query.in('student_id', studentIds);
     }
 
     // Filter date range

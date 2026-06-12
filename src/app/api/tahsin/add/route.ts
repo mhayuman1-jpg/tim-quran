@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
+import { requireActiveSemester } from '@/lib/semester';
 import type { TahsinMetode } from '@/types';
 
 export const dynamic = 'force-dynamic';
@@ -69,6 +70,10 @@ export async function POST(request: NextRequest) {
 
     const supabase = createServerClient();
     const teacherId = session.user.id;
+
+    // Cek semester aktif
+    const semesterCheck = await requireActiveSemester(supabase);
+    if (semesterCheck.error) return semesterCheck.error;
 
     if (!teacherId) {
       return NextResponse.json(

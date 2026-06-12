@@ -24,16 +24,25 @@ export async function GET(request: NextRequest) {
     const filterByTeacher = shouldFilterByTeacher(session.user.role, request);
     const teacherId = getTeacherFilterId(session.user.role, request, session.user.id);
 
-    // Jika mode guru, ambil dulu ID kelas yang punya siswa assigned ke guru ini
+    // Jika mode guru, ambil kelas yang diampu guru ini
     let allowedClassIds: string[] | null = null;
     if (filterByTeacher) {
+      // Ambil kelas yang diampu via teacher1/2/3_id
+      const { data: teacherClasses } = await supabase
+        .from('classes')
+        .select('id')
+        .or(`teacher1_id.eq.${teacherId},teacher2_id.eq.${teacherId},teacher3_id.eq.${teacherId}`);
+      const classIdsFromTeacher = (teacherClasses ?? []).map((c: any) => c.id);
+
+      // Juga ambil dari assigned_teacher_id di santri
       const { data: assignedStudents } = await supabase
         .from('santri')
         .select('class_id')
         .eq('assigned_teacher_id', teacherId)
         .eq('status', 'Aktif');
+      const classIdsFromSantri = (assignedStudents ?? []).map((s: any) => s.class_id).filter(Boolean);
 
-      allowedClassIds = Array.from(new Set((assignedStudents ?? []).map((s: any) => s.class_id).filter(Boolean)));
+      allowedClassIds = Array.from(new Set([...classIdsFromTeacher, ...classIdsFromSantri]));
     }
 
     // Ambil semua kelas (filter hanya kelas yang punya siswa diampu jika mode guru)
@@ -88,6 +97,35 @@ export async function GET(request: NextRequest) {
           { message: 'Gagal mengambil data kelas.', error: classesError.message },
           { status: 500 }
         );
+      }
+    }
+
+    // Lazy auto-distribute: jika ada siswa dengan assigned_teacher_id = null di kelas yang punya guru,
+    // distribusikan otomatis agar data langsung muncul
+    if (filterByTeacher && kelasData.length > 0) {
+      for (const kelas of kelasData) {
+        const activeTeachers = [(kelas as any).teacher1_id, (kelas as any).teacher2_id, (kelas as any).teacher3_id].filter(Boolean);
+        if (activeTeachers.length === 0) continue;
+
+        const { data: unassigned } = await supabase
+          .from('santri')
+          .select('id')
+          .eq('class_id', kelas.id)
+          .eq('status', 'Aktif')
+          .is('assigned_teacher_id', null);
+
+        if (unassigned && unassigned.length > 0) {
+          const ids = unassigned.map((s: any) => s.id);
+          const chunkSize = Math.ceil(ids.length / activeTeachers.length);
+          await Promise.all(
+            activeTeachers.map((tid: string, i: number) => {
+              const chunk = ids.slice(i * chunkSize, (i + 1) * chunkSize);
+              return chunk.length > 0
+                ? supabase.from('santri').update({ assigned_teacher_id: tid }).in('id', chunk)
+                : Promise.resolve({ data: null, error: null });
+            })
+          );
+        }
       }
     }
 

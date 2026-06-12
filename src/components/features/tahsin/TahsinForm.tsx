@@ -9,7 +9,10 @@
 import React, { useEffect, useState } from 'react';
 import Input from '@/components/ui/Input';
 import Button from '@/components/ui/Button';
+import { ChevronDown } from 'lucide-react';
 import type { Tahsin, TahsinMetode } from '@/types';
+import type { NilaiTahfidz } from '@/lib/surahData';
+import { NILAI_TANPA_HAFAL, NILAI_LANCAR } from '@/lib/surahData';
 import { useSiswaList } from '@/hooks/useSWRFetcher';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -44,6 +47,76 @@ interface TahsinFormProps {
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const METODE_OPTIONS: TahsinMetode[] = ['Wafa', 'IWR', 'Al-Quran'];
+
+const NILAI_MAKHROJ_TAJWID = NILAI_TANPA_HAFAL;
+
+function NilaiSelect({ value, onChange, disabled, options }: {
+  value: NilaiTahfidz;
+  onChange: (v: NilaiTahfidz) => void;
+  disabled?: boolean;
+  options?: { v: NilaiTahfidz; label: string; cls: string }[];
+}) {
+  const opts = options || NILAI_MAKHROJ_TAJWID;
+  const current = opts.find((o) => o.v === value) ?? opts[0];
+  const [open, setOpen] = useState(false);
+  const btnRef = React.useRef<HTMLButtonElement>(null);
+  const [pos, setPos] = useState({ top: 0, left: 0 });
+
+  const handleOpen = () => {
+    if (!btnRef.current) return;
+    const rect = btnRef.current.getBoundingClientRect();
+    setPos({ top: rect.bottom + window.scrollY + 4, left: rect.left });
+    setOpen((prev) => !prev);
+  };
+
+  return (
+    <div className="relative inline-block">
+      <button
+        ref={btnRef}
+        type="button"
+        disabled={disabled}
+        onClick={handleOpen}
+        className={`min-w-[44px] h-8 px-2 rounded-lg border text-xs font-bold flex items-center justify-center gap-1 transition-all ${current.cls} ${disabled ? 'opacity-50 cursor-not-allowed' : 'hover:shadow-sm cursor-pointer'}`}
+      >
+        {current.label}
+        <ChevronDown size={10} />
+      </button>
+      {open && !disabled && (
+        <>
+          <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} />
+          <div
+            className="fixed z-40 bg-white rounded-xl shadow-xl border border-slate-100 py-1 min-w-[90px]"
+            style={{ top: pos.top, left: pos.left }}
+          >
+            {opts.map((opt) => (
+              <button
+                key={opt.v}
+                type="button"
+                onClick={() => {
+                  onChange(opt.v);
+                  setOpen(false);
+                }}
+                className="w-full text-left px-3 py-1.5 text-xs font-semibold hover:bg-slate-50 transition-colors rounded"
+              >
+                <span className={`inline-block w-6 h-6 rounded text-center leading-6 mr-2 ${opt.cls}`}>
+                  {opt.label}
+                </span>
+                {opt.v === '' ? 'Kosong'
+                  : opt.v === 'L' ? 'Lancar'
+                    : opt.v === 'KL' ? 'Kurang Lancar'
+                      : opt.v === 'TL' ? 'Tidak Lancar'
+                        : opt.v === 'A' ? 'Sangat Baik'
+                          : opt.v === 'B' ? 'Baik'
+                            : opt.v === 'C' ? 'Cukup'
+                              : 'Kurang'}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 
 // ─── Validation ──────────────────────────────────────────────────────────────
 
@@ -220,7 +293,7 @@ export default function TahsinForm({
 
       {/* Buku */}
       <Input
-        label="Buku"
+        label="Jilid / Surah"
         required
         value={form.buku}
         onChange={(e) => set('buku', e.target.value)}
@@ -231,12 +304,12 @@ export default function TahsinForm({
 
       {/* Halaman */}
       <Input
-        label="Halaman"
+        label="Halaman / Ayat"
         required
         value={String(form.halaman)}
         onChange={(e) => set('halaman', parseInt(e.target.value) || 1)}
         error={errors.halaman}
-        helperText="Halaman buku yang dipelajari"
+        helperText="Halaman atau ayat yang dipelajari"
         disabled={loading}
       />
 
@@ -258,27 +331,31 @@ export default function TahsinForm({
       {/* Extra fields - hanya tampil saat edit */}
       {isEdit && (
         <div className="grid grid-cols-3 gap-3">
-          <Input
-            label="Makhroj"
-            value={form.makhroj ?? ''}
-            onChange={(e) => set('makhroj', e.target.value)}
-            placeholder="Makhroj"
-            disabled={loading}
-          />
-          <Input
-            label="Kelancaran"
-            value={form.kelancaran ?? ''}
-            onChange={(e) => set('kelancaran', e.target.value)}
-            placeholder="Kelancaran"
-            disabled={loading}
-          />
-          <Input
-            label="Adab"
-            value={form.adab ?? ''}
-            onChange={(e) => set('adab', e.target.value)}
-            placeholder="Adab"
-            disabled={loading}
-          />
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium text-slate-700">Makhroj</label>
+            <NilaiSelect
+              value={form.makhroj as NilaiTahfidz ?? ''}
+              onChange={(v) => set('makhroj', v)}
+              disabled={loading}
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium text-slate-700">Kelancaran</label>
+            <NilaiSelect
+              value={form.kelancaran as NilaiTahfidz ?? ''}
+              onChange={(v) => set('kelancaran', v)}
+              disabled={loading}
+              options={NILAI_LANCAR}
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium text-slate-700">Tajwid</label>
+            <NilaiSelect
+              value={form.adab as NilaiTahfidz ?? ''}
+              onChange={(v) => set('adab', v)}
+              disabled={loading}
+            />
+          </div>
         </div>
       )}
 

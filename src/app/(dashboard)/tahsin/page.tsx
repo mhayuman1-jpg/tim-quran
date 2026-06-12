@@ -2,9 +2,11 @@
 
 // src/app/(dashboard)/tahsin/page.tsx
 // Halaman jurnal hafalan & tahsin gabungan dengan ringkasan riwayat.
+// Flow: Scan QR absen → pilih siswa → isi jurnal
 
-import React, { useState, useCallback, useMemo } from 'react';
-import { Plus, BookOpenCheck, Users, XCircle, BookText, BookOpen } from 'lucide-react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import dynamic from 'next/dynamic';
+import { Plus, BookOpenCheck, Users, XCircle, BookText, BookOpen, ScanLine, CheckCircle, AlertCircle, RefreshCw, ArrowLeft, Filter } from 'lucide-react';
 import Modal from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
 import SearchInput from '@/components/shared/SearchInput';
@@ -15,7 +17,60 @@ import HafalanHistory from '@/components/features/hafalan/HafalanHistory';
 import HafalanForm, { type HafalanFormData } from '@/components/features/hafalan/HafalanForm';
 import TahsinForm, { type TahsinFormData } from '@/components/features/tahsin/TahsinForm';
 import { useViewMode } from '@/hooks/useViewMode';
+import { useRole } from '@/hooks/useRole';
 import type { Hafalan, Tahsin } from '@/types';
+
+const QRScanner = dynamic(
+  () => import('@/components/features/qr-scanner/QRScanner'),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex items-center justify-center h-48 rounded-2xl bg-slate-100">
+        <div className="flex flex-col items-center gap-2 text-slate-400">
+          <div className="w-5 h-5 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
+          <span className="text-xs">Memuat scanner…</span>
+        </div>
+      </div>
+    ),
+  }
+);
+
+// ─── Audio ────────────────────────────────────────────────────────────────────
+
+function playBeep(freq: number, duration: number, volume = 0.3, type: OscillatorType = 'sine') {
+  try {
+    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, ctx.currentTime);
+    gain.gain.setValueAtTime(volume, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + duration);
+  } catch { /* silent fail */ }
+}
+
+function playSuccessBeep() {
+  try {
+    const audio = new Audio('/audio/absensi-siswa.mp3');
+    audio.volume = 0.8;
+    audio.play().catch(() => {});
+  } catch { /* silent fail */ }
+}
+
+function playWarningBeep() {
+  playBeep(600, 0.12, 0.25);
+}
+
+function playErrorBeep() {
+  playBeep(400, 0.1, 0.25);
+  setTimeout(() => playBeep(300, 0.12, 0.2), 120);
+}
 
 interface StudentOption {
   id: string;
@@ -31,6 +86,8 @@ interface StudentOption {
 
 export default function TahsinPage() {
   const { viewAsRole, viewAsTeacherId } = useViewMode();
+  const { role } = useRole();
+  const isTeacherMode = role === 'Tim_Quran' || viewAsRole === 'Tim_Quran';
   const viewHeaders = useMemo(() => {
     const h: Record<string, string> = {};
     if (viewAsRole === 'Tim_Quran') {
@@ -65,6 +122,59 @@ export default function TahsinPage() {
   const [editingTahsin, setEditingTahsin] = useState<any>(null);
   const [tahsinSubmitting, setTahsinSubmitting] = useState(false);
   const [tahsinError, setTahsinError] = useState<string | null>(null);
+
+  // Scan QR state
+  const [scanFeedback, setScanFeedback] = useState<{ type: 'success' | 'error' | 'warning'; message: string } | null>(null);
+  const [scannedList, setScannedList] = useState<{ nama: string; scanned_at: string; id?: string }[]>([]);
+  const [scannerOpen, setScannerOpen] = useState(false);
+
+  // ── Class-based view for Tim_Quran
+  const [classes, setClasses] = useState<{ id: string; name: string; jumlah_siswa?: number }[]>([]);
+  const [selectedClassId, setSelectedClassId] = useState('');
+  const [selectedClassName, setSelectedClassName] = useState('');
+  const [classesLoading, setClassesLoading] = useState(false);
+
+  useEffect(() => {
+    if (!isTeacherMode) return;
+    setClassesLoading(true);
+    fetch('/api/kelas/list', { headers: viewHeaders })
+      .then(r => r.json())
+      .then(json => setClasses(json.data ?? []))
+      .catch(() => {})
+      .finally(() => setClassesLoading(false));
+  }, [isTeacherMode, viewHeaders]);
+
+  useEffect(() => {
+    if (!scanFeedback) return;
+    const t = setTimeout(() => setScanFeedback(null), 3500);
+    return () => clearTimeout(t);
+  }, [scanFeedback]);
+
+  const fetchTodayList = useCallback(async () => {
+    try {
+      const res = await fetch('/api/absensi/today');
+      const json = await res.json();
+      if (json.data) setScannedList(json.data);
+    } catch { /* silent */ }
+  }, []);
+
+  useEffect(() => { fetchTodayList(); }, [fetchTodayList]);
+
+  const handleScanSuccess = useCallback((siswa: { nama: string; id: string }) => {
+    playSuccessBeep();
+    setScanFeedback({ type: 'success', message: `${siswa.nama} — Absen berhasil!` });
+    const jam = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+    setScannedList(prev => [{ nama: siswa.nama, scanned_at: jam, id: siswa.id }, ...prev]);
+    fetchTodayList();
+    // Auto-select student
+    setSelectedStudent({ id: siswa.id, nama: siswa.nama });
+  }, [fetchTodayList]);
+
+  const handleScanError = useCallback((pesan: string) => {
+    const isWarning = pesan.toLowerCase().includes('sudah absen');
+    if (isWarning) playWarningBeep(); else playErrorBeep();
+    setScanFeedback({ type: isWarning ? 'warning' : 'error', message: pesan });
+  }, []);
 
   const handleOpenAdd = (mode: JurnalFormMode = 'both') => {
     setFormMode(mode);
@@ -162,14 +272,47 @@ export default function TahsinPage() {
     }
   };
 
-  const fetchStudents = useCallback(async (query = '') => {
+  // Delete handlers
+  const handleDeleteHafalan = async (hafalan: any) => {
+    if (!confirm('Yakin ingin menghapus catatan hafalan ini?')) return;
+    try {
+      const res = await fetch(`/api/hafalan/delete?id=${hafalan.id}`, { method: 'DELETE' });
+      const json = await res.json();
+      if (!res.ok) {
+        alert(json.message ?? 'Gagal menghapus catatan hafalan.');
+        return;
+      }
+      setRefreshKey((k) => k + 1);
+    } catch {
+      alert('Terjadi kesalahan. Silakan coba lagi.');
+    }
+  };
+
+  const handleDeleteTahsin = async (tahsin: any) => {
+    if (!confirm('Yakin ingin menghapus catatan tahsin ini?')) return;
+    try {
+      const res = await fetch(`/api/tahsin/delete?id=${tahsin.id}`, { method: 'DELETE' });
+      const json = await res.json();
+      if (!res.ok) {
+        alert(json.message ?? 'Gagal menghapus catatan tahsin.');
+        return;
+      }
+      setRefreshKey((k) => k + 1);
+    } catch {
+      alert('Terjadi kesalahan. Silakan coba lagi.');
+    }
+  };
+
+  const fetchStudents = useCallback(async (query = '', classId = '') => {
     setStudentError(null);
     setStudentLoading(true);
 
     try {
-      const url = query.trim().length >= 2
-        ? `/api/siswa/list?search=${encodeURIComponent(query.trim())}`
-        : '/api/siswa/list';
+      const params = new URLSearchParams();
+      if (query.trim().length >= 2) params.set('search', query.trim());
+      if (classId) params.set('class_id', classId);
+      const qs = params.toString();
+      const url = qs ? `/api/siswa/list?${qs}` : '/api/siswa/list';
       const res = await fetch(url, { headers: viewHeaders });
       const json = await res.json();
 
@@ -193,6 +336,21 @@ export default function TahsinPage() {
       setStudentLoading(false);
     }
   }, [viewHeaders]);
+
+  const handleSelectClass = (classId: string, className: string) => {
+    setSelectedClassId(classId);
+    setSelectedClassName(className);
+    setSelectedStudent(null);
+    fetchStudents('', classId);
+  };
+
+  const handleBackToClasses = () => {
+    setSelectedClassId('');
+    setSelectedClassName('');
+    setSelectedStudent(null);
+    setStudentList([]);
+    setStudentOptions([]);
+  };
 
   const handleSearchStudents = useCallback(async (value: string) => {
     setSearchQuery(value);
@@ -229,13 +387,82 @@ export default function TahsinPage() {
             Jurnal Hafalan & Tahsin
           </h1>
           <p className="text-slate-500 text-sm mt-1">
-            Pilih satu siswa untuk melihat detail hafalan dan tahsin secara terfokus.
+            Absen dulu lewat QR, lalu isi jurnal hafalan dan tahsin.
           </p>
         </div>
-        <Button variant="primary" leftIcon={<Plus size={16} />} onClick={() => handleOpenAdd('both')}>
-          Tambah Jurnal
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant={scannerOpen ? 'secondary' : 'primary'}
+            leftIcon={<ScanLine size={16} />}
+            onClick={() => setScannerOpen(!scannerOpen)}
+          >
+            {scannerOpen ? 'Tutup Scanner' : 'Scan QR Absen'}
+          </Button>
+          <Button variant="primary" leftIcon={<Plus size={16} />} onClick={() => handleOpenAdd('both')}>
+            Tambah Jurnal
+          </Button>
+        </div>
       </div>
+
+      {/* Scan feedback */}
+      {scanFeedback && (
+        <div className={`flex items-center gap-2.5 rounded-xl border px-4 py-2.5 ${
+          scanFeedback.type === 'success' ? 'bg-amber-50 border-amber-300 text-amber-800' :
+          scanFeedback.type === 'warning' ? 'bg-amber-50 border-amber-300 text-amber-800' :
+          'bg-red-50 border-red-300 text-red-800'
+        }`}>
+          {scanFeedback.type === 'success' ? <CheckCircle size={16} className="shrink-0" /> :
+           scanFeedback.type === 'warning' ? <AlertCircle size={16} className="shrink-0" /> :
+           <XCircle size={16} className="shrink-0" />}
+          <p className="flex-1 text-sm font-medium">{scanFeedback.message}</p>
+          <button onClick={() => setScanFeedback(null)} className="opacity-60 hover:opacity-100 text-lg leading-none">×</button>
+        </div>
+      )}
+
+      {/* QR Scanner Section */}
+      {scannerOpen && (
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-base font-semibold text-slate-800 flex items-center gap-2">
+              <ScanLine size={16} className="text-amber-500" />
+              Scan QR ID Card Siswa
+            </h2>
+            <Button variant="secondary" size="sm" leftIcon={<RefreshCw size={13} />} onClick={fetchTodayList}>
+              Refresh
+            </Button>
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-4">
+            <QRScanner
+              onScanSuccess={handleScanSuccess}
+              onScanError={handleScanError}
+              scannedList={scannedList}
+              compact
+            />
+            <div className="bg-slate-50 rounded-2xl border border-slate-200 overflow-hidden flex flex-col" style={{ maxHeight: '400px' }}>
+              <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 bg-white shrink-0">
+                <span className="text-sm font-semibold text-slate-700">Hadir Hari Ini</span>
+                <span className="text-xs font-bold text-indigo-700 bg-indigo-100 px-2 py-0.5 rounded-full">{scannedList.length}</span>
+              </div>
+              {scannedList.length === 0 ? (
+                <div className="flex flex-col items-center justify-center flex-1 py-8 text-slate-400 gap-2">
+                  <Users size={24} />
+                  <p className="text-xs text-center px-4">Belum ada siswa yang scan hari ini</p>
+                </div>
+              ) : (
+                <ul className="divide-y divide-slate-100 overflow-y-auto flex-1">
+                  {scannedList.map((item, idx) => (
+                    <li key={idx} className="flex items-center gap-2 px-3 py-2">
+                      <CheckCircle size={12} className="text-amber-500 shrink-0" />
+                      <span className="flex-1 text-xs font-medium text-slate-700 truncate">{item.nama}</span>
+                      <span className="text-[10px] text-slate-400 shrink-0">{item.scanned_at}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {submitSuccess && (
         <div className="rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-700 flex justify-between items-center">
@@ -248,77 +475,136 @@ export default function TahsinPage() {
 
       <div className="grid gap-6 xl:grid-cols-[minmax(280px,360px)_1fr]">
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-5">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <h2 className="text-base font-semibold text-slate-800">Cari Nama Siswa</h2>
-              <p className="text-slate-500 text-sm">Cari nama siswa untuk melihat riwayat detail.</p>
-            </div>
-            {selectedStudent && (
-              <button
-                type="button"
-                onClick={clearSelectedStudent}
-                className="inline-flex items-center gap-2 text-slate-500 hover:text-amber-600"
-              >
-                <XCircle size={16} />
-                Reset
-              </button>
-            )}
-          </div>
-
-          <SearchInput
-            defaultValue={searchQuery}
-            onSearch={handleSearchStudents}
-            placeholder="Cari nama siswa..."
-            disabled={studentLoading}
-          />
-
-          {studentError && (
-            <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-600">
-              {studentError}
-            </div>
+          {/* ── Class-first view for Tim_Quran ── */}
+          {isTeacherMode && !selectedClassId && (
+            <>
+              <div>
+                <h2 className="text-base font-semibold text-slate-800">Pilih Kelas</h2>
+                <p className="text-slate-500 text-sm">Pilih kelas untuk melihat daftar siswa.</p>
+              </div>
+              {classesLoading ? (
+                <div className="space-y-2">
+                  {[...Array(3)].map((_, i) => (
+                    <div key={i} className="h-16 rounded-xl bg-slate-100 animate-pulse" />
+                  ))}
+                </div>
+              ) : classes.length === 0 ? (
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-6 text-center">
+                  <Users size={32} className="text-slate-300 mx-auto mb-2" />
+                  <p className="text-sm text-slate-500">Belum ada kelas yang ditugaskan.</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {classes.map(c => (
+                    <button
+                      key={c.id}
+                      onClick={() => handleSelectClass(c.id, c.name)}
+                      className="w-full text-left rounded-xl border border-slate-200 p-3 hover:border-amber-400 hover:bg-amber-50 transition-all"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-400 to-orange-400 flex items-center justify-center shrink-0">
+                            <BookOpen size={14} className="text-white" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-semibold text-slate-800">{c.name}</p>
+                            <p className="text-[11px] text-slate-400">{c.jumlah_siswa ?? 0} siswa</p>
+                          </div>
+                        </div>
+                        <span className="text-xs text-amber-600 font-medium">Buka →</span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </>
           )}
 
-          <div className="space-y-3">
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
-              Cari siswa dengan mengetik nama, atau pilih langsung dari daftar di bawah.
-              Klik nama siswa untuk membuka detail popup.
-            </div>
-
-            {studentLoading ? (
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
-                Memuat daftar siswa...
-              </div>
-            ) : displayedStudents.length > 0 ? (
-              <div className="space-y-2">
-                {displayedStudents.map((student) => (
+          {/* ── Student list when a class is selected (Tim_Quran) or flat view (Kabid) ── */}
+          {(!isTeacherMode || selectedClassId) && (
+            <>
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  {isTeacherMode && selectedClassId && (
+                    <button onClick={handleBackToClasses} className="flex items-center gap-1 text-xs text-amber-600 hover:text-amber-700 mb-1.5 font-medium">
+                      <ArrowLeft size={12} /> Semua Kelas
+                    </button>
+                  )}
+                  <h2 className="text-base font-semibold text-slate-800">
+                    {selectedClassName ? `Siswa — ${selectedClassName}` : 'Cari Nama Siswa'}
+                  </h2>
+                  <p className="text-slate-500 text-sm">Pilih siswa untuk melihat riwayat detail.</p>
+                </div>
+                {selectedStudent && (
                   <button
-                    key={student.id}
                     type="button"
-                    onClick={() => openStudentDetail(student)}
-                    className={[
-                      'w-full text-left rounded-2xl border px-4 py-3 text-slate-800 transition',
-                      selectedStudent?.id === student.id
-                        ? 'border-amber-400 bg-amber-50'
-                        : 'border-slate-200 hover:border-amber-300 hover:bg-amber-50',
-                    ].join(' ')}
+                    onClick={clearSelectedStudent}
+                    className="inline-flex items-center gap-2 text-slate-500 hover:text-amber-600"
                   >
-                    <div className="flex items-center justify-between gap-3">
-                      <span>{student.nama}</span>
-                      <span className="text-xs text-slate-500">{student.nisn ?? ''}</span>
-                    </div>
+                    <XCircle size={16} />
+                    Reset
                   </button>
-                ))}
+                )}
               </div>
-            ) : searchQuery.trim().length >= 2 ? (
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
-                Tidak ditemukan siswa dengan nama tersebut.
+
+              <SearchInput
+                defaultValue={searchQuery}
+                onSearch={handleSearchStudents}
+                placeholder="Cari nama siswa..."
+                disabled={studentLoading}
+              />
+
+              {studentError && (
+                <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-600">
+                  {studentError}
+                </div>
+              )}
+
+              <div className="space-y-3">
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+                  {selectedClassName
+                    ? `Siswa di kelas ${selectedClassName}. Klik nama untuk melihat detail.`
+                    : 'Cari siswa dengan mengetik nama, atau pilih langsung dari daftar di bawah.'
+                  }
+                </div>
+
+                {studentLoading ? (
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
+                    Memuat daftar siswa...
+                  </div>
+                ) : displayedStudents.length > 0 ? (
+                  <div className="space-y-2">
+                    {displayedStudents.map((student) => (
+                      <button
+                        key={student.id}
+                        type="button"
+                        onClick={() => openStudentDetail(student)}
+                        className={[
+                          'w-full text-left rounded-2xl border px-4 py-3 text-slate-800 transition',
+                          selectedStudent?.id === student.id
+                            ? 'border-amber-400 bg-amber-50'
+                            : 'border-slate-200 hover:border-amber-300 hover:bg-amber-50',
+                        ].join(' ')}
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <span>{student.nama}</span>
+                          <span className="text-xs text-slate-500">{student.nisn ?? ''}</span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                ) : searchQuery.trim().length >= 2 ? (
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
+                    Tidak ditemukan siswa dengan nama tersebut.
+                  </div>
+                ) : (
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
+                    {isTeacherMode && !selectedClassId ? 'Pilih kelas terlebih dahulu.' : 'Belum ada siswa yang tersedia.'}
+                  </div>
+                )}
               </div>
-            ) : (
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
-                Belum ada siswa yang tersedia.
-              </div>
-            )}
-          </div>
+            </>
+          )}
         </div>
 
         <div className="space-y-6">
@@ -341,6 +627,7 @@ export default function TahsinPage() {
                   refreshKey={refreshKey}
                   onSelectStudent={setSelectedStudent}
                   onEdit={handleOpenEditHafalan}
+                  onDelete={handleDeleteHafalan}
                   onDataLoaded={setHafalanCount}
                 />
               </div>
@@ -359,6 +646,7 @@ export default function TahsinPage() {
                   refreshKey={refreshKey}
                   onSelectStudent={setSelectedStudent}
                   onEdit={handleOpenEditTahsin}
+                  onDelete={handleDeleteTahsin}
                 />
               </div>
             </>

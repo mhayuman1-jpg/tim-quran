@@ -1,7 +1,7 @@
 // src/lib/surahData.ts
 // Data daftar surah per juz untuk template raport tahfidz
 
-export type NilaiTahfidz = '✓' | 'A' | 'B' | 'C' | 'D' | 'L' | 'TL' | '';
+export type NilaiTahfidz = '✓' | 'A' | 'B' | 'C' | 'D' | 'L' | 'KL' | 'TL' | '';
 
 export const NILAI_OPTIONS: { value: NilaiTahfidz; label: string; color: string }[] = [
   { value: '✓', label: '✓ (Hafal)',       color: 'text-amber-700 bg-amber-50' },
@@ -23,6 +23,7 @@ export const NILAI_TANPA_HAFAL: { v: NilaiTahfidz; label: string; cls: string }[
 export const NILAI_LANCAR: { v: NilaiTahfidz; label: string; cls: string }[] = [
   { v: '', label: '—', cls: 'bg-slate-50 text-slate-400 border-slate-200' },
   { v: 'L', label: 'L', cls: 'bg-amber-50 text-amber-700 border-amber-200' },
+  { v: 'KL', label: 'KL', cls: 'bg-orange-50 text-orange-700 border-orange-200' },
   { v: 'TL', label: 'TL', cls: 'bg-red-50 text-red-700 border-red-200' },
 ];
 
@@ -34,6 +35,7 @@ export function getNilaiColor(nilai: string | null | undefined): string {
   if (nilai === 'C') return 'text-amber-600 font-bold';
   if (nilai === 'D') return 'text-red-600 font-bold';
   if (nilai === 'L') return 'text-amber-600 font-bold';
+  if (nilai === 'KL') return 'text-orange-600 font-bold';
   if (nilai === 'TL') return 'text-red-600 font-bold';
   return 'text-slate-600';
 }

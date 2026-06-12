@@ -3,6 +3,7 @@
 // Digunakan di API routes untuk data isolation
 
 import type { NextRequest } from 'next/server';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 /**
  * Cek apakah request berasal dari mode mengajar.
@@ -48,4 +49,42 @@ export function getTeacherFilterId(
     }
   }
   return sessionUserId;
+}
+
+/**
+ * Ambil ID kelas yang diampu oleh guru tertentu.
+ * Mencari di kolom teacher1_id, teacher2_id, teacher3_id pada tabel classes.
+ */
+export async function getTeacherClassIds(
+  supabase: SupabaseClient,
+  teacherId: string
+): Promise<string[]> {
+  const { data } = await supabase
+    .from('classes')
+    .select('id')
+    .or(`teacher1_id.eq.${teacherId},teacher2_id.eq.${teacherId},teacher3_id.eq.${teacherId}`);
+  return (data ?? []).map((c: any) => c.id);
+}
+
+/**
+ * Terapkan filter data isolation pada query santri.
+ * - Tanpa classId: assigned_teacher_id = teacherId ATAU class_id IN kelas yang diampu
+ * - Dengan classId (strict): hanya assigned_teacher_id = teacherId
+ *   (guru hanya melihat siswa yang DIJARINYA di kelas tersebut, bukan semua siswa)
+ */
+export function applyTeacherSantriFilter(
+  query: any,
+  teacherId: string,
+  classIds: string[],
+  classId?: string | null
+) {
+  if (classId) {
+    // Strict: di kelas tertentu, hanya siswa yang assigned ke guru ini
+    return query.eq('assigned_teacher_id', teacherId);
+  }
+  // Umum: siswa yang assigned ATAU berada di kelas yang diampu
+  if (classIds.length > 0) {
+    return query.or(`assigned_teacher_id.eq.${teacherId},class_id.in.(${classIds.join(',')})`);
+  }
+  return query.eq('assigned_teacher_id', teacherId);
 }

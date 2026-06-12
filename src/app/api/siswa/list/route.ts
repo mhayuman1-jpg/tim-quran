@@ -7,7 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
-import { shouldFilterByTeacher, getTeacherFilterId } from '@/lib/rbac';
+import { shouldFilterByTeacher, getTeacherFilterId, getTeacherClassIds, applyTeacherSantriFilter } from '@/lib/rbac';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,8 +25,52 @@ export async function GET(request: NextRequest) {
     const supabase = createServerClient();
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search')?.trim() ?? '';
+    const classId = searchParams.get('class_id')?.trim() ?? '';
     const limit = Math.min(parseInt(searchParams.get('limit') ?? '100'), 500);
     const offset = parseInt(searchParams.get('offset') ?? '0');
+
+    // Lazy auto-distribute: jika guru punya kelas tapi siswa belum di-assign, distribusikan otomatis
+    if (shouldFilterByTeacher(session.user.role, request)) {
+      const teacherId = getTeacherFilterId(session.user.role, request, session.user.id);
+      const classIds = await getTeacherClassIds(supabase, teacherId);
+      const targetClassIds = classId ? [classId] : classIds;
+
+      for (const cid of targetClassIds) {
+        // Cek apakah ada siswa di kelas ini yang belum di-assign ke siapapun
+        const { data: unassigned } = await supabase
+          .from('santri')
+          .select('id')
+          .eq('class_id', cid)
+          .eq('status', 'Aktif')
+          .is('assigned_teacher_id', null);
+
+        if (unassigned && unassigned.length > 0) {
+          // Ambil guru yang mengampu kelas ini
+          const { data: kelas } = await supabase
+            .from('classes')
+            .select('teacher1_id, teacher2_id, teacher3_id')
+            .eq('id', cid)
+            .single();
+
+          const activeTeachers = kelas
+            ? [kelas.teacher1_id, kelas.teacher2_id, kelas.teacher3_id].filter(Boolean)
+            : [];
+
+          if (activeTeachers.length > 0) {
+            const ids = unassigned.map((s: any) => s.id);
+            const chunkSize = Math.ceil(ids.length / activeTeachers.length);
+            await Promise.all(
+              activeTeachers.map((tid: string, i: number) => {
+                const chunk = ids.slice(i * chunkSize, (i + 1) * chunkSize);
+                return chunk.length > 0
+                  ? supabase.from('santri').update({ assigned_teacher_id: tid }).in('id', chunk)
+                  : Promise.resolve({ data: null, error: null });
+              })
+            );
+          }
+        }
+      }
+    }
 
     // Mulai query dengan join ke tabel classes
     let query = supabase
@@ -42,9 +86,17 @@ export async function GET(request: NextRequest) {
 
     // Data isolation: Tim_Quran hanya melihat siswa yang menjadi tanggung jawabnya
     // Juga berlaku untuk Kabid/Sekretaris dalam Mode Mengajar
+    // Filter via assigned_teacher_id ATAU via kelas yang diampu (teacher1/2/3_id)
+    // Jika class_id diberikan, hanya tampilkan siswa yang diassign ke guru ini (strict)
     if (shouldFilterByTeacher(session.user.role, request)) {
       const teacherId = getTeacherFilterId(session.user.role, request, session.user.id);
-      query = query.eq('assigned_teacher_id', teacherId);
+      const classIds = await getTeacherClassIds(supabase, teacherId);
+      query = applyTeacherSantriFilter(query, teacherId, classIds, classId);
+    }
+
+    // Filter berdasarkan class_id jika ada
+    if (classId) {
+      query = query.eq('class_id', classId);
     }
 
     // Filter berdasarkan nama jika ada query `search`

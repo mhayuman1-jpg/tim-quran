@@ -682,6 +682,9 @@ const RaportTahfidzDocument = React.forwardRef<HTMLDivElement, RaportTahfidzDocu
                 <strong>L</strong> = Lancar
               </span>
               <span>
+                <strong>KL</strong> = Kurang Lancar
+              </span>
+              <span>
                 <strong>TL</strong> = Tidak Lancar
               </span>
             </div>

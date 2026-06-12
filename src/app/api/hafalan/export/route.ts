@@ -7,7 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
-import { shouldFilterByTeacher, getTeacherFilterId } from '@/lib/rbac';
+import { shouldFilterByTeacher, getTeacherFilterId, getTeacherClassIds, applyTeacherSantriFilter } from '@/lib/rbac';
 import * as xlsx from 'xlsx';
 
 export async function GET(request: NextRequest) {
@@ -33,10 +33,10 @@ export async function GET(request: NextRequest) {
     // Filter by siswa yang diampu guru (bukan teacher_id yang mencatat)
     if (shouldFilterByTeacher((session.user as any).role, request)) {
       const teacherId = getTeacherFilterId((session.user as any).role, request, (session.user as any).id);
-      const { data: myStudents } = await supabase
-        .from('santri')
-        .select('id')
-        .eq('assigned_teacher_id', teacherId);
+      const classIds = await getTeacherClassIds(supabase, teacherId);
+      let santriQ = supabase.from('santri').select('id').eq('status', 'Aktif');
+      santriQ = applyTeacherSantriFilter(santriQ, teacherId, classIds);
+      const { data: myStudents } = await santriQ;
       const ids = (myStudents ?? []).map((s: any) => s.id);
       if (ids.length === 0) {
         return NextResponse.json({ message: 'Tidak ada data siswa.' }, { status: 404 });

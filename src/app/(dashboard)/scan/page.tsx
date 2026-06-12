@@ -57,10 +57,13 @@ function playBeep(freq: number, duration: number, volume = 0.3, type: Oscillator
   } catch { /* silent fail */ }
 }
 
-// Tit sukses: dua tit naik cepat
+// Tit sukses: putar audio absensi
 function playSuccessBeep() {
-  playBeep(1000, 0.08, 0.3);
-  setTimeout(() => playBeep(1400, 0.1, 0.3), 90);
+  try {
+    const audio = new Audio('/audio/absensi-siswa.mp3');
+    audio.volume = 0.8;
+    audio.play().catch(() => {});
+  } catch { /* silent fail */ }
 }
 
 // Tit warning (sudah absen): satu tit rendah

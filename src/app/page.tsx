@@ -11,6 +11,8 @@ import PublicNavbar from '@/components/layout/PublicNavbar';
 import { IslamicPatternBg, OrnamentalDivider, CornerOrnament } from '@/components/features/IslamicDecorations';
 import { ScrollAnimatedCard, ScrollAnimatedItem, ScrollAnimatedSection } from '@/components/features/AnimatedComponents';
 import { createServerClient } from '@/lib/supabase/server';
+import AiChatbot from '@/components/shared/AiChatbot';
+import TestimonialBubble from '@/components/shared/TestimonialBubble';
 
 const StudentProgressChart = nextDynamic(
   () => import('@/components/features/charts/StudentProgressChart'),
@@ -41,6 +43,26 @@ function getBaseUrl(): string {
     return process.env.NEXTAUTH_URL;
   }
   return 'http://localhost:3000';
+}
+
+interface TestimonialItem {
+  id: string;
+  parent_name: string;
+  child_name: string;
+  batch: string | null;
+  rating: number;
+  message: string;
+}
+
+async function getTestimonials(): Promise<TestimonialItem[]> {
+  try {
+    const baseUrl = getBaseUrl();
+    const res = await fetch(`${baseUrl}/api/testimonials`, { cache: 'no-store' });
+    if (!res.ok) return [];
+    return await res.json();
+  } catch {
+    return [];
+  }
 }
 
 async function getMonthlyProgressData(): Promise<MonthlyProgressPoint[]> {
@@ -97,6 +119,7 @@ async function getPageData() {
     const navigation = Array.isArray(navResult?.data) ? navResult.data : [];
     const totalSantri = santriData.length;
     const monthlyProgress = await getMonthlyProgressData();
+    const testimonials = await getTestimonials();
 
     return {
       profil,
@@ -108,6 +131,7 @@ async function getPageData() {
       totalSantri,
       monthlyProgress,
       navigation,
+      testimonials,
     };
   } catch (error) {
     console.error('[LandingPage] getPageData error:', error);
@@ -120,6 +144,7 @@ async function getPageData() {
       galeris: [],
       totalSantri: 0,
       navigation: [],
+      testimonials: [],
     };
   }
 }
@@ -137,7 +162,7 @@ const formatDate = (value: string | null | undefined): string => {
 };
 
 export default async function LandingPage() {
-  const { profil: pd, programs, agendas, pengumumans, artikels, totalSantri, monthlyProgress, navigation } = await getPageData();
+  const { profil: pd, programs, agendas, pengumumans, artikels, totalSantri, monthlyProgress, navigation, testimonials } = await getPageData();
   const profil = pd ?? {
     nama_lembaga: "Tim Qur'an",
     deskripsi: "Program Tahfidz dan Tahsin Al-Qur'an yang berdedikasi mencetak generasi Qur'ani berakhlak mulia.",
@@ -161,11 +186,6 @@ export default async function LandingPage() {
   const latestArticles = Array.isArray(artikels) ? artikels.slice(0, 3) : [];
   const latestAnnouncements = Array.isArray(pengumumans) ? pengumumans.slice(0, 3) : [];
   const latestAgendas = Array.isArray(agendas) ? agendas.slice(0, 3) : [];
-
-  const testimonials = [
-    { name: 'Ustadz Ahmad', role: 'Pengajar', quote: 'Lingkungan pembelajaran sangat nyaman dan dukungannya luar biasa.' },
-    { name: 'Siti Fatimah', role: 'Orang Tua Santri', quote: 'Anak saya semakin percaya diri dan disiplin sejak belajar di sini.' },
-  ];
 
   return (
     <div className="min-h-dvh bg-amber-50 text-slate-800">
@@ -365,17 +385,30 @@ export default async function LandingPage() {
               <p className="text-sm uppercase tracking-[0.3em] text-amber-600">Testimoni</p>
               <h2 className="mt-3 text-3xl font-bold text-slate-900">Apresiasi dari pengguna dan orang tua</h2>
             </div>
-            <div className="grid gap-6 md:grid-cols-2">
-              {testimonials.map((item) => (
-                <div key={item.name} className="rounded-[32px] border border-amber-100 bg-white p-8 shadow-xl shadow-amber-900/5">
-                  <p className="text-slate-600 leading-relaxed">“{item.quote}”</p>
-                  <div className="mt-6">
-                    <p className="font-semibold text-slate-900">{item.name}</p>
-                    <p className="text-sm text-slate-500">{item.role}</p>
+            {testimonials.length > 0 ? (
+              <div className="grid gap-6 md:grid-cols-2">
+                {testimonials.map((item) => (
+                  <div key={item.id} className="rounded-[32px] border border-amber-100 bg-white p-8 shadow-xl shadow-amber-900/5">
+                    <div className="flex items-center gap-0.5 mb-4">
+                      {Array.from({ length: 5 }, (_, i) => (
+                        <svg key={i} className={`w-4 h-4 ${i < item.rating ? 'text-amber-400 fill-amber-400' : 'text-slate-200 fill-slate-200'}`} viewBox="0 0 24 24">
+                          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                        </svg>
+                      ))}
+                    </div>
+                    <p className="text-slate-600 leading-relaxed">"{item.message}"</p>
+                    <div className="mt-6">
+                      <p className="font-semibold text-slate-900">{item.parent_name}</p>
+                      <p className="text-sm text-slate-500">Orang Tua dari {item.child_name}{item.batch ? ` · Angkatan ${item.batch}` : ''}</p>
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12 bg-white rounded-[32px] border border-amber-100">
+                <p className="text-slate-400">Belum ada testimoni</p>
+              </div>
+            )}
           </div>
         </section>
 
@@ -398,7 +431,7 @@ export default async function LandingPage() {
                       <div className="h-3 w-3 rounded-full bg-amber-400"></div>
                       <p className="text-sm uppercase tracking-widest text-amber-600">Program Tahfidz</p>
                     </div>
-                    <p className="text-slate-500 text-sm leading-relaxed">Penilaian harian mencakup makhroj (pengucapan huruf), tajwid (aturan bacaan), dan kelancaran membaca Al-Qur&apos;an.</p>
+                    <p className="text-slate-500 text-sm leading-relaxed">Penilaian harian mencakup makhroj (pengucapan huruf), tajwid (aturan bacaan), dan kelancaran (L/TL/KL) membaca Al-Qur&apos;an.</p>
                   </div>
                   <div className="relative rounded-3xl bg-amber-50/70 p-6">
                     <CornerOrnament className="absolute top-3 right-3" />
@@ -406,14 +439,26 @@ export default async function LandingPage() {
                       <div className="h-3 w-3 rounded-full bg-emerald-500"></div>
                       <p className="text-sm uppercase tracking-widest text-amber-600">Program Tahsin</p>
                     </div>
-                    <p className="text-slate-500 text-sm leading-relaxed">Penilaian harian mencakup makhroj, kelancaran, dan adab (etika) dalam membaca dan menghormati Al-Qur&apos;an.</p>
+                    <p className="text-slate-500 text-sm leading-relaxed">Penilaian harian mencakup makhroj, kelancaran, dan tajwid dalam membaca Al-Qur&apos;an. Nilai menggunakan skala A–D untuk aspek makhroj & tajwid, dan L/KL/TL untuk kelancaran.</p>
                   </div>
                   <div className="rounded-3xl border border-amber-200 bg-gradient-to-br from-amber-100/50 to-amber-50/50 p-5">
                     <p className="text-xs text-amber-600 font-semibold uppercase tracking-widest">Sistem Penilaian</p>
-                    <div className="mt-4 space-y-1.5 text-sm text-slate-600">
-                      <p>A = 100% (Sangat Baik) | B = 80% (Baik)</p>
-                      <p>C = 70% (Cukup) | D = 55% (Kurang)</p>
-                      <p>L = 100% (Lancar) | TL = 50% (Tidak Lancar)</p>
+                    <div className="mt-4 space-y-2 text-sm text-slate-600">
+                      <div className="grid grid-cols-2 gap-x-3 gap-y-1">
+                        <span><b className="text-slate-800">✓</b> = Hafal (100%)</span>
+                        <span><b className="text-slate-800">A</b> = Sangat Baik (100%)</span>
+                        <span><b className="text-slate-800">B</b> = Baik (80%)</span>
+                        <span><b className="text-slate-800">C</b> = Cukup Baik (70%)</span>
+                        <span><b className="text-slate-800">D</b> = Kurang Baik (55%)</span>
+                      </div>
+                      <div className="border-t border-amber-200 pt-2 mt-2">
+                        <p className="text-xs text-amber-600 font-semibold mb-1">Kelancaran:</p>
+                        <div className="grid grid-cols-3 gap-x-2">
+                          <span><b className="text-slate-800">L</b> = Lancar (100%)</span>
+                          <span><b className="text-slate-800">KL</b> = Kurang Lancar (75%)</span>
+                          <span><b className="text-slate-800">TL</b> = Tidak Lancar (50%)</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -567,6 +612,8 @@ export default async function LandingPage() {
           </div>
         </div>
       </footer>
+      <AiChatbot />
+      <TestimonialBubble />
     </div>
   );
 }

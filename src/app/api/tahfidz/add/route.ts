@@ -8,10 +8,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
+import { requireActiveSemester } from '@/lib/semester';
 import type { NilaiTahfidz } from '@/lib/surahData';
 
 export const dynamic = 'force-dynamic';
-const VALID_NILAI: NilaiTahfidz[] = ['✓', 'A', 'B', 'C', 'D', 'L', 'TL'];
+const VALID_NILAI: NilaiTahfidz[] = ['✓', 'A', 'B', 'C', 'D', 'L', 'KL', 'TL'];
 
 export async function POST(request: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -52,6 +53,10 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = createServerClient();
+
+    // Cek semester aktif
+    const semesterCheck = await requireActiveSemester(supabase);
+    if (semesterCheck.error) return semesterCheck.error;
 
     if (session.user.role === 'Tim_Quran') {
       const { data: santri, error: santriError } = await supabase

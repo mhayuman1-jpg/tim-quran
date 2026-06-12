@@ -5,7 +5,7 @@
 // Kolom: Tanggal, Nama Siswa, Surah/Juz, Halaman, Catatan, (tombol edit)
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { CalendarDays, Pencil, RotateCcw } from 'lucide-react';
+import { CalendarDays, Pencil, RotateCcw, Trash2 } from 'lucide-react';
 import DataTable, { type ColumnDef } from '@/components/shared/DataTable';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -34,8 +34,12 @@ interface HafalanRow {
 interface HafalanHistoryProps {
   /** Filter by student_id (opsional) */
   studentId?: string;
+  /** Filter by class_id (opsional) */
+  classId?: string;
   /** Callback saat tombol edit diklik */
   onEdit?: (hafalan: HafalanRow) => void;
+  /** Callback saat tombol hapus diklik */
+  onDelete?: (hafalan: HafalanRow) => void;
   /** Callback saat nama siswa diklik */
   onSelectStudent?: (student: { id: string; nama: string }) => void;
   /** Key untuk trigger refetch dari parent */
@@ -84,7 +88,9 @@ function EditIndicator({ editedFields, field }: { editedFields?: Record<string, 
 
 export default function HafalanHistory({
   studentId,
+  classId,
   onEdit,
+  onDelete,
   onSelectStudent,
   refreshKey = 0,
   onReset,
@@ -106,6 +112,7 @@ export default function HafalanHistory({
     try {
       const params = new URLSearchParams();
       if (studentId) params.set('student_id', studentId);
+      if (classId) params.set('class_id', classId);
       if (dateFrom) params.set('date_from', dateFrom);
       if (dateTo) params.set('date_to', dateTo);
 
@@ -128,7 +135,7 @@ export default function HafalanHistory({
     } finally {
       setLoading(false);
     }
-  }, [studentId, dateFrom, dateTo, refreshKey, onDataLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [studentId, classId, dateFrom, dateTo, refreshKey, onDataLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     fetchHafalan();
@@ -263,26 +270,45 @@ export default function HafalanHistory({
     },
   );
 
-  // Tambahkan kolom aksi jika ada callback edit
-  if (onEdit) {
+  // Tambahkan kolom aksi jika ada callback edit atau delete
+  if (onEdit || onDelete) {
     columns.push({
       key: 'aksi',
       header: 'Aksi',
       align: 'center',
-      width: '80px',
+      width: '100px',
       render: (row) => (
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={(e) => {
-            e.stopPropagation();
-            onEdit(row);
-          }}
-          leftIcon={<Pencil size={14} />}
-          aria-label={`Edit hafalan ${row.surah_juz}`}
-        >
-          Edit
-        </Button>
+        <div className="flex items-center justify-center gap-1">
+          {onEdit && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit(row);
+              }}
+              leftIcon={<Pencil size={14} />}
+              aria-label={`Edit hafalan ${row.surah_juz}`}
+            >
+              Edit
+            </Button>
+          )}
+          {onDelete && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete(row);
+              }}
+              leftIcon={<Trash2 size={14} />}
+              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+              aria-label={`Hapus hafalan ${row.surah_juz}`}
+            >
+              Hapus
+            </Button>
+          )}
+        </div>
       ),
     });
   }

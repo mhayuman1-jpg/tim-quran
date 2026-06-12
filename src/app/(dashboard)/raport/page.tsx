@@ -15,6 +15,7 @@ import ConfirmDialog from '@/components/shared/ConfirmDialog';
 import RaportTahfidzForm, { type RaportTahfidzFormData } from '@/components/features/raport/RaportTahfidzForm';
 import RaportTahfidzPrintable, { type RaportTahfidzData, type DetailSurahData } from '@/components/features/raport/RaportTahfidzPrintable';
 import { useRole } from '@/hooks/useRole';
+import { useViewMode } from '@/hooks/useViewMode';
 import { triggerRaportPdfDownload, sanitizePdfFilename } from '@/lib/raport/pdf-renderer';
 import { triggerRaportDocxDownload, sanitizeDocxFilename } from '@/lib/raport/docx-renderer';
 import { getRaportBrowserPrintStyle } from '@/lib/raport/print-config';
@@ -65,6 +66,7 @@ interface ClassGroup {
 
 export default function RaportPage() {
   const { role, isKabid, isSekretaris, isManajemen } = useRole();
+  const { viewAsRole } = useViewMode();
   const printRef = useRef<HTMLDivElement>(null);
   const downloadingLockRef = useRef(false);
   const [downloadingFormat, setDownloadingFormat] = useState<'pdf' | 'docx' | 'xlsx' | null>(null);
@@ -100,7 +102,21 @@ export default function RaportPage() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
-  const isAdmin = isManajemen();
+  // isTeacherMode: Tim_Quran asli ATAU Kabid/Sekretaris dalam Mode Mengajar
+  const isTeacherMode = role === 'Tim_Quran' || viewAsRole === 'Tim_Quran';
+  const isAdmin = isManajemen() && !isTeacherMode;
+
+  // ── Teacher class-first view states
+  const [teacherClasses, setTeacherClasses] = useState<ClassOption[]>([]);
+  const [teacherClassesLoading, setTeacherClassesLoading] = useState(false);
+  const [selectedTeacherClassId, setSelectedTeacherClassId] = useState<string | null>(null);
+  const [selectedTeacherClassName, setSelectedTeacherClassName] = useState<string | null>(null);
+
+  interface ClassOption {
+    id: string;
+    name: string;
+    jumlah_siswa: number;
+  }
 
   // ── Print ─────────────────────────────────────────────────────────────
   const handlePrint = useReactToPrint({
@@ -181,7 +197,7 @@ export default function RaportPage() {
         ['Halaman', selected.tahsin_halaman ?? '—'],
         ['Makhroj', selected.tahsin_makhroj ?? '—'],
         ['Kelancaran', selected.tahsin_kelancaran ?? '—'],
-        ['Adab', selected.tahsin_adab ?? '—'],
+        ['Tajwid', selected.tahsin_adab ?? '—'],
         ['Catatan', selected.tahsin_catatan ?? '—'], [],
         ['Detail Surah'],
         ['Urutan', 'Nama Surah', 'Makhroj', 'Tajwid', 'Lancar', 'Wafa Buku', 'Wafa Halaman'],
@@ -236,13 +252,53 @@ export default function RaportPage() {
   }, [filterPeriode]);
 
   useEffect(() => {
-    if (isAdmin) fetchAdminList();
-  }, [isAdmin, fetchAdminList]);
+    if (isAdmin && !isTeacherMode) fetchAdminList();
+  }, [isAdmin, isTeacherMode, fetchAdminList]);
+
+  // Fetch classes for Tim_Quran teacher (or Kabid/Sekretaris in Mode Mengajar)
+  const teacherViewHeaders = useCallback(() => {
+    const h: Record<string, string> = {};
+    if (isTeacherMode) {
+      h['x-view-mode'] = 'teaching';
+    }
+    return h;
+  }, [isTeacherMode]);
+
+  useEffect(() => {
+    if (!isTeacherMode) return;
+    let cancelled = false;
+    (async () => {
+      setTeacherClassesLoading(true);
+      try {
+        const res = await fetch('/api/kelas/list', { headers: teacherViewHeaders() });
+        const json = await res.json();
+        if (!cancelled && res.ok) setTeacherClasses(json.data ?? []);
+      } catch { /* silent */ }
+      if (!cancelled) setTeacherClassesLoading(false);
+    })();
+    return () => { cancelled = true; };
+  }, [isTeacherMode, teacherViewHeaders]);
+
+  const handleSelectTeacherClass = (classId: string, className: string) => {
+    setSelectedTeacherClassId(classId);
+    setSelectedTeacherClassName(className);
+    setSelected(null);
+    setRaportList([]);
+    setSearched(false);
+  };
+
+  const handleBackToTeacherClasses = () => {
+    setSelectedTeacherClassId(null);
+    setSelectedTeacherClassName(null);
+    setSelected(null);
+    setRaportList([]);
+    setSearched(false);
+  };
 
   // ═══════════════════════════════════════════════════════════════════════
   // TEACHER: Fetch raport list
   // ═══════════════════════════════════════════════════════════════════════
-  const fetchRaport = useCallback(async () => {
+  const fetchRaport = useCallback(async (classId?: string) => {
     setListLoading(true);
     setListError(null);
     setSearched(true);
@@ -250,7 +306,8 @@ export default function RaportPage() {
     try {
       const params = new URLSearchParams();
       if (filterPeriode.trim()) params.set('periode', filterPeriode.trim());
-      const res = await fetch(`/api/raport/tahfidz?${params}`);
+      if (classId) params.set('class_id', classId);
+      const res = await fetch(`/api/raport/tahfidz?${params}`, { headers: teacherViewHeaders() });
       const json = await res.json();
       if (!res.ok) { setListError(json.message ?? 'Gagal memuat data.'); setRaportList([]); return; }
       setRaportList(json.data ?? []);
@@ -260,7 +317,7 @@ export default function RaportPage() {
     } finally {
       setListLoading(false);
     }
-  }, [filterPeriode]);
+  }, [filterPeriode, teacherViewHeaders]);
 
   // ═══════════════════════════════════════════════════════════════════════
   // Shared: Select raport (load full detail)
@@ -347,7 +404,7 @@ export default function RaportPage() {
       setFormSuccess(id ? 'Raport berhasil diperbarui.' : 'Raport berhasil disimpan.');
       setFormOpen(false);
       if (isAdmin) fetchAdminList();
-      else fetchRaport();
+      else fetchRaport(selectedTeacherClassId ?? undefined);
       if (selected && id === selected.id) {
         const r = await fetch(`/api/raport/tahfidz?id=${id}`);
         const j = await r.json();
@@ -376,7 +433,7 @@ export default function RaportPage() {
       if (selected?.id === deleteId) setSelected(null);
       setDeleteId(null);
       if (isAdmin) fetchAdminList();
-      else fetchRaport();
+      else fetchRaport(selectedTeacherClassId ?? undefined);
     } catch {
       alert('Gagal menghapus.');
     } finally {
@@ -682,7 +739,7 @@ export default function RaportPage() {
   );
 
   // ═══════════════════════════════════════════════════════════════════════
-  // TEACHER VIEW: Existing flat list
+  // TEACHER VIEW: Class-first for Tim_Quran, flat list for others
   // ═══════════════════════════════════════════════════════════════════════
 
   const renderTeacherView = () => (
@@ -692,14 +749,25 @@ export default function RaportPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
             <ClipboardList size={24} className="text-amber-600" />
-            Raport Tahfidz & Tahsin
+            {isTeacherMode && selectedTeacherClassName
+              ? `Raport — ${selectedTeacherClassName}`
+              : 'Raport Tahfidz & Tahsin'}
           </h1>
-          <p className="text-slate-500 text-sm mt-0.5">Penilaian hafalan dan tahsin Al-Qur'an per surah — format resmi siap cetak.</p>
+          <p className="text-slate-500 text-sm mt-0.5">
+            {isTeacherMode && !selectedTeacherClassId
+              ? 'Pilih kelas untuk melihat dan membuat raport.'
+              : isTeacherMode && selectedTeacherClassName
+                ? `${selectedTeacherClassName} — pilih siswa untuk melihat raport.`
+                : 'Penilaian hafalan dan tahsin Al-Qur\'an per surah — format resmi siap cetak.'
+            }
+          </p>
         </div>
-        <Button variant="primary" leftIcon={<Plus size={16} />}
-          onClick={() => { setEditingId(null); setEditingData(null); setFormError(null); setFormOpen(true); }}>
-          Buat Raport
-        </Button>
+        {(!isTeacherMode || selectedTeacherClassId) && (
+          <Button variant="primary" leftIcon={<Plus size={16} />}
+            onClick={() => { setEditingId(null); setEditingData(null); setFormError(null); setFormOpen(true); }}>
+            Buat Raport
+          </Button>
+        )}
       </div>
 
       {formSuccess && (
@@ -709,149 +777,204 @@ export default function RaportPage() {
         </div>
       )}
 
-      <div className="flex gap-5 items-start">
-        {/* LEFT: Daftar Raport */}
-        <div className="w-80 shrink-0 space-y-3">
-          <div className="bg-white rounded-xl border border-slate-200 p-4 space-y-3">
-            <input
-              type="text"
-              value={filterPeriode}
-              onChange={e => setFilterPeriode(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && fetchRaport()}
-              placeholder="Filter periode..."
-              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
-            />
-            <Button variant="primary" leftIcon={<Search size={14} />} onClick={fetchRaport} loading={listLoading} className="w-full justify-center">
-              Tampilkan
-            </Button>
-            {listError && <p className="text-xs text-red-600">{listError}</p>}
+      {/* ── Class-first view for Tim_Quran ── */}
+      {isTeacherMode && !selectedTeacherClassId && (
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-4">
+          <div>
+            <h2 className="text-base font-semibold text-slate-800">Pilih Kelas</h2>
+            <p className="text-slate-500 text-sm">Pilih kelas untuk melihat dan membuat raport siswa.</p>
           </div>
-
-          {searched && (
-            <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-              {listLoading ? (
-                <div className="p-4 space-y-2">
-                  {[1, 2, 3].map(i => <div key={i} className="h-16 bg-slate-100 rounded-lg animate-pulse" />)}
-                </div>
-              ) : raportList.length === 0 ? (
-                <p className="text-center text-slate-400 text-sm py-8">Tidak ada raport ditemukan.</p>
-              ) : (
-                <div className="divide-y divide-slate-100">
-                  {raportList.map(row => {
-                    const isActive = selected?.id === row.id;
-                    return (
-                      <div key={row.id}
-                        onClick={() => handleSelect(row)}
-                        className={`p-3 cursor-pointer transition-colors hover:bg-amber-50 ${isActive ? 'bg-amber-50 border-l-2 border-amber-500' : ''}`}>
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="min-w-0">
-                            <p className="text-sm font-semibold text-slate-800 truncate">{row.santri?.nama ?? '—'}</p>
-                            <p className="text-xs text-slate-500">{row.santri?.classes?.name ?? '—'} · {row.periode}</p>
-                            <p className="text-xs text-slate-400">{row.tahun_ajaran}{row.juz ? ` · Juz ${row.juz}` : ''}</p>
-                          </div>
-                          <div className="flex gap-1 shrink-0">
-                            <button onClick={e => { e.stopPropagation(); handleEdit(row); }}
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors" title="Edit">
-                              <Edit2 size={13} />
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
+          {teacherClassesLoading ? (
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className="h-20 rounded-xl bg-slate-100 animate-pulse" />
+              ))}
             </div>
-          )}
-
-          {!searched && (
-            <div className="bg-white rounded-xl border border-slate-200 p-8 text-center">
-              <ClipboardList size={36} className="text-slate-200 mx-auto mb-3" />
-              <p className="text-slate-400 text-sm">Tekan Tampilkan untuk melihat raport.</p>
-              <Button variant="secondary" className="mt-3" onClick={fetchRaport}>Tampilkan Semua</Button>
-            </div>
-          )}
-        </div>
-
-        {/* RIGHT: Preview */}
-        <div className="flex-1 min-w-0">
-          {selectedLoading ? (
-            <div className="bg-white rounded-xl border border-slate-200 p-16 flex items-center justify-center">
-              <span className="w-8 h-8 border-2 border-amber-200 border-t-amber-600 rounded-full animate-spin" />
-            </div>
-          ) : selected ? (
-            <div className="space-y-4">
-              <div className="bg-white rounded-xl border border-slate-200 px-4 py-3 flex items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <button onClick={() => setSelected(null)}
-                    className="flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700 transition-colors">
-                    <ChevronLeft size={16} /> Kembali
-                  </button>
-                  <div className="w-px h-5 bg-slate-200" />
-                  <p className="text-sm font-semibold text-slate-700">
-                    {selected.santri?.nama} — {selected.periode}
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <Button variant={inlineEdit ? 'secondary' : 'ghost'} leftIcon={<Edit2 size={14} />}
-                    onClick={() => { setInlineEdit(p => !p); }}>
-                    {inlineEdit ? 'Batal Edit Langsung' : 'Edit Langsung'}
-                  </Button>
-                  {inlineEdit && (
-                    <Button variant="primary" leftIcon={<Edit2 size={14} />} onClick={handleSaveInline} loading={formSubmitting}>
-                      Simpan Perubahan
-                    </Button>
-                  )}
-                  <Button variant="primary" leftIcon={<Printer size={14} />} onClick={() => handlePrint()}>
-                    Cetak
-                  </Button>
-                  <Button variant="secondary" leftIcon={<FileDown size={14} />}
-                    onClick={handleDownloadPdf} loading={downloadingFormat === 'pdf'}>
-                    Download PDF
-                    {selected.pdf_path ? (
-                      <span className="ml-1.5 inline-flex items-center rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">⚡ Cached</span>
-                    ) : (
-                      <span className="ml-1.5 inline-flex items-center rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">⏳ Baru</span>
-                    )}
-                  </Button>
-                  <Button variant="secondary" leftIcon={<FileText size={14} />} onClick={handleDownloadWord} loading={downloadingFormat === 'docx'}>
-                    Download Word
-                  </Button>
-                  <Button variant="secondary" leftIcon={<FileDown size={14} />} onClick={handleDownloadExcel} loading={downloadingFormat === 'xlsx'}>
-                    Download Excel
-                  </Button>
-                </div>
-              </div>
-
-              {formError && (
-                <div className="rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-700">{formError}</div>
-              )}
-
-              <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
-                {currentPreviewRaport ? (
-                  <RaportTahfidzPrintable
-                    key={selected.id}
-                    raport={currentPreviewRaport}
-                    hideButtons
-                    contentRef={printRef}
-                    inlineEdit={inlineEdit}
-                    onInlineChange={handleInlineFieldChange}
-                    onInlineDetailChange={handleInlineDetailChange}
-                    onInlineAddRow={handleInlineAddRow}
-                    onInlineRemoveRow={handleInlineRemoveRow}
-                  />
-                ) : null}
-              </div>
+          ) : teacherClasses.length === 0 ? (
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-6 text-center">
+              <ClipboardList size={32} className="text-slate-300 mx-auto mb-2" />
+              <p className="text-sm text-slate-500">Belum ada kelas yang ditugaskan.</p>
             </div>
           ) : (
-            <div className="bg-white rounded-xl border border-slate-200 p-16 text-center">
-              <ClipboardList size={48} className="text-slate-200 mx-auto mb-4" />
-              <p className="text-slate-500 font-medium">Pilih raport dari daftar di kiri</p>
-              <p className="text-slate-400 text-sm mt-1">Preview akan tampil di sini secara langsung.</p>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {teacherClasses.map(c => (
+                <button
+                  key={c.id}
+                  onClick={() => handleSelectTeacherClass(c.id, c.name)}
+                  className="text-left rounded-xl border border-slate-200 p-4 hover:border-amber-400 hover:bg-amber-50 transition-all"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-amber-400 to-orange-400 flex items-center justify-center shrink-0">
+                      <ClipboardList size={16} className="text-white" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-slate-800">{c.name}</p>
+                      <p className="text-[11px] text-slate-400">{c.jumlah_siswa ?? 0} siswa</p>
+                    </div>
+                  </div>
+                </button>
+              ))}
             </div>
           )}
         </div>
-      </div>
+      )}
+
+      {/* ── Raport list when class is selected (Tim_Quran) or flat view (others) ── */}
+      {(!isTeacherMode || selectedTeacherClassId) && (
+        <div className="flex gap-5 items-start">
+          {/* LEFT: Daftar Raport */}
+          <div className="w-80 shrink-0 space-y-3">
+            <div className="bg-white rounded-xl border border-slate-200 p-4 space-y-3">
+              {isTeacherMode && selectedTeacherClassId && (
+                <button onClick={handleBackToTeacherClasses} className="flex items-center gap-1 text-xs text-amber-600 hover:text-amber-700 font-medium mb-1">
+                  <ArrowLeft size={12} /> Semua Kelas
+                </button>
+              )}
+              <input
+                type="text"
+                value={filterPeriode}
+                onChange={e => setFilterPeriode(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && fetchRaport(selectedTeacherClassId ?? undefined)}
+                placeholder="Filter periode..."
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+              />
+              <Button variant="primary" leftIcon={<Search size={14} />}
+                onClick={() => fetchRaport(selectedTeacherClassId ?? undefined)}
+                loading={listLoading} className="w-full justify-center">
+                Tampilkan
+              </Button>
+              {listError && <p className="text-xs text-red-600">{listError}</p>}
+            </div>
+
+            {searched && (
+              <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                {listLoading ? (
+                  <div className="p-4 space-y-2">
+                    {[1, 2, 3].map(i => <div key={i} className="h-16 bg-slate-100 rounded-lg animate-pulse" />)}
+                  </div>
+                ) : raportList.length === 0 ? (
+                  <p className="text-center text-slate-400 text-sm py-8">Tidak ada raport ditemukan.</p>
+                ) : (
+                  <div className="divide-y divide-slate-100">
+                    {raportList.map(row => {
+                      const isActive = selected?.id === row.id;
+                      return (
+                        <div key={row.id}
+                          onClick={() => handleSelect(row)}
+                          className={`p-3 cursor-pointer transition-colors hover:bg-amber-50 ${isActive ? 'bg-amber-50 border-l-2 border-amber-500' : ''}`}>
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold text-slate-800 truncate">{row.santri?.nama ?? '—'}</p>
+                              <p className="text-xs text-slate-500">{row.santri?.classes?.name ?? '—'} · {row.periode}</p>
+                              <p className="text-xs text-slate-400">{row.tahun_ajaran}{row.juz ? ` · Juz ${row.juz}` : ''}</p>
+                            </div>
+                            <div className="flex gap-1 shrink-0">
+                              <button onClick={e => { e.stopPropagation(); handleEdit(row); }}
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors" title="Edit">
+                                <Edit2 size={13} />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {!searched && (
+              <div className="bg-white rounded-xl border border-slate-200 p-8 text-center">
+                <ClipboardList size={36} className="text-slate-200 mx-auto mb-3" />
+                <p className="text-slate-400 text-sm">Tekan Tampilkan untuk melihat raport.</p>
+                <Button variant="secondary" className="mt-3"
+                  onClick={() => fetchRaport(selectedTeacherClassId ?? undefined)}>
+                  Tampilkan Semua
+                </Button>
+              </div>
+            )}
+          </div>
+
+          {/* RIGHT: Preview */}
+          <div className="flex-1 min-w-0">
+            {selectedLoading ? (
+              <div className="bg-white rounded-xl border border-slate-200 p-16 flex items-center justify-center">
+                <span className="w-8 h-8 border-2 border-amber-200 border-t-amber-600 rounded-full animate-spin" />
+              </div>
+            ) : selected ? (
+              <div className="space-y-4">
+                <div className="bg-white rounded-xl border border-slate-200 px-4 py-3 flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <button onClick={() => setSelected(null)}
+                      className="flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700 transition-colors">
+                      <ChevronLeft size={16} /> Kembali
+                    </button>
+                    <div className="w-px h-5 bg-slate-200" />
+                    <p className="text-sm font-semibold text-slate-700">
+                      {selected.santri?.nama} — {selected.periode}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button variant={inlineEdit ? 'secondary' : 'ghost'} leftIcon={<Edit2 size={14} />}
+                      onClick={() => { setInlineEdit(p => !p); }}>
+                      {inlineEdit ? 'Batal Edit Langsung' : 'Edit Langsung'}
+                    </Button>
+                    {inlineEdit && (
+                      <Button variant="primary" leftIcon={<Edit2 size={14} />} onClick={handleSaveInline} loading={formSubmitting}>
+                        Simpan Perubahan
+                      </Button>
+                    )}
+                    <Button variant="primary" leftIcon={<Printer size={14} />} onClick={() => handlePrint()}>
+                      Cetak
+                    </Button>
+                    <Button variant="secondary" leftIcon={<FileDown size={14} />}
+                      onClick={handleDownloadPdf} loading={downloadingFormat === 'pdf'}>
+                      Download PDF
+                      {selected.pdf_path ? (
+                        <span className="ml-1.5 inline-flex items-center rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">⚡ Cached</span>
+                      ) : (
+                        <span className="ml-1.5 inline-flex items-center rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">⏳ Baru</span>
+                      )}
+                    </Button>
+                    <Button variant="secondary" leftIcon={<FileText size={14} />} onClick={handleDownloadWord} loading={downloadingFormat === 'docx'}>
+                      Download Word
+                    </Button>
+                    <Button variant="secondary" leftIcon={<FileDown size={14} />} onClick={handleDownloadExcel} loading={downloadingFormat === 'xlsx'}>
+                      Download Excel
+                    </Button>
+                  </div>
+                </div>
+
+                {formError && (
+                  <div className="rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-700">{formError}</div>
+                )}
+
+                <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+                  {currentPreviewRaport ? (
+                    <RaportTahfidzPrintable
+                      key={selected.id}
+                      raport={currentPreviewRaport}
+                      hideButtons
+                      contentRef={printRef}
+                      inlineEdit={inlineEdit}
+                      onInlineChange={handleInlineFieldChange}
+                      onInlineDetailChange={handleInlineDetailChange}
+                      onInlineAddRow={handleInlineAddRow}
+                      onInlineRemoveRow={handleInlineRemoveRow}
+                    />
+                  ) : null}
+                </div>
+              </div>
+            ) : (
+              <div className="bg-white rounded-xl border border-slate-200 p-16 text-center">
+                <ClipboardList size={48} className="text-slate-200 mx-auto mb-4" />
+                <p className="text-slate-500 font-medium">Pilih raport dari daftar di kiri</p>
+                <p className="text-slate-400 text-sm mt-1">Preview akan tampil di sini secara langsung.</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </>
   );
 
@@ -861,7 +984,7 @@ export default function RaportPage() {
 
   return (
     <div className="space-y-5">
-      {isAdmin ? renderAdminView() : renderTeacherView()}
+      {isTeacherMode ? renderTeacherView() : renderAdminView()}
 
       {/* Modal Form */}
       <Modal
@@ -880,6 +1003,8 @@ export default function RaportPage() {
           loading={formSubmitting}
           onSubmit={handleFormSubmit}
           onCancel={() => { setFormOpen(false); setEditingId(null); setEditingData(null); setFormError(null); }}
+          classId={isTeacherMode ? (selectedTeacherClassId ?? undefined) : undefined}
+          viewHeaders={isTeacherMode ? teacherViewHeaders() : undefined}
         />
       </Modal>
 

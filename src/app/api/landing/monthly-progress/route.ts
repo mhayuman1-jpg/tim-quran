@@ -14,6 +14,7 @@ function getNilaiNumeric(nilai: string | null): number {
   if (nilai === 'C') return 70;
   if (nilai === 'D') return 55;
   if (nilai === 'L') return 100;
+  if (nilai === 'KL') return 75;
   if (nilai === 'TL') return 50;
   return 0;
 }

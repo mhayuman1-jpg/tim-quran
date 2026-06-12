@@ -1,12 +1,13 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, Users, BookOpen,
-  FileText, QrCode, BarChart2, Repeat, TrendingUp,
+  FileText, BarChart2, Repeat, TrendingUp,
   School, UserCheck, Megaphone, Newspaper, Settings, Globe, X, Eye,
-  CalendarDays,
+  CalendarDays, MessageCircle, MessageSquareQuote,
 } from 'lucide-react';
 import { useSession } from '@/hooks/useSession';
 import { useRole } from '@/hooks/useRole';
@@ -41,9 +42,9 @@ const menuItems: MenuItem[] = [
   // ── Kehadiran ────────────────────────────────────────────────────────
   { label: 'Absensi',        href: '/absensi',            icon: <BarChart2 size={16} />,       group: 'Kehadiran', roles: ['Kabid', 'Tim_Quran', 'Sekretaris'] },
   { label: 'Monitoring',     href: '/absensi/monitoring', icon: <TrendingUp size={16} />,      group: 'Kehadiran', roles: ['Kabid'] },
-  { label: 'Scan QR',        href: '/scan',               icon: <QrCode size={16} />,          group: 'Kehadiran', roles: ['Kabid', 'Tim_Quran', 'Sekretaris'] },
 
   // ── Manajemen ────────────────────────────────────────────────────────
+  { label: 'Pesan',              href: '/pesan',              icon: <MessageCircle size={16} />,    group: 'Manajemen', roles: ['Kabid', 'Sekretaris'] },
   { label: 'Rekap Tahfidz & Tahsin', href: '/rekap',              icon: <Repeat size={16} />,          group: 'Manajemen', roles: ['Kabid', 'Sekretaris'] },
   { label: 'Laporan Progres', href: '/laporan',           icon: <TrendingUp size={16} />,      group: 'Manajemen', roles: ['Kabid', 'Sekretaris'] },
   { label: 'Semester',       href: '/semester',           icon: <CalendarDays size={16} />,    group: 'Manajemen', roles: ['Kabid'] },
@@ -53,6 +54,7 @@ const menuItems: MenuItem[] = [
   // ── Konten ───────────────────────────────────────────────────────────
   { label: 'Kelola Pengumuman', href: '/dashboard/pengumuman', icon: <Megaphone size={16} />,       group: 'Konten', roles: ['Kabid', 'Sekretaris', 'Bendahara'] },
   { label: 'Kelola Artikel',    href: '/dashboard/kelola-artikel', icon: <Newspaper size={16} />,       group: 'Konten', roles: ['Kabid', 'Sekretaris'] },
+  { label: 'Kelola Testimoni',  href: '/kelola-testimoni', icon: <MessageSquareQuote size={16} />,  group: 'Konten', roles: ['Kabid'] },
   { label: 'Kelola Website',    href: '/dashboard/website', icon: <Globe size={16} />,           group: 'Konten', roles: ['Kabid'] },
 
   // ── Akun ─────────────────────────────────────────────────────────────
@@ -82,6 +84,22 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
   const { getEffectiveRole, isViewingAsOther } = useViewMode();
   const effectiveRole = getEffectiveRole(role);
   const { items: navItems } = useNavigation();
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    const fetchUnread = async () => {
+      try {
+        const res = await fetch('/api/messages/unread-count');
+        if (res.ok) {
+          const data = await res.json();
+          setUnreadCount(data.count);
+        }
+      } catch {}
+    };
+    fetchUnread();
+    const interval = setInterval(fetchUnread, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Build navMap from SWR cached data
   const navMap: Record<string, string> = {};
@@ -181,8 +199,14 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
                             style={{background: 'linear-gradient(180deg, #d97706, #f59e0b)'}} />
                         )}
                         <span style={{color: isActive ? '#d97706' : 'rgba(217,119,6,0.4)'}}
-                          className="shrink-0 ml-1">
+                          className="shrink-0 ml-1 relative">
                           {item.icon}
+                          {item.label === 'Pesan' && unreadCount > 0 && (
+                            <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-red-500 text-white text-[8px] font-bold flex items-center justify-center"
+                              style={{ boxShadow: "0 1px 4px rgba(239,68,68,0.5)" }}>
+                              {unreadCount > 9 ? "9+" : unreadCount}
+                            </span>
+                          )}
                         </span>
                         {item.label}
                       </Link>

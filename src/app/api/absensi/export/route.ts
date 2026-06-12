@@ -8,7 +8,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
 import { normalizeAttendanceRows } from '@/lib/attendance';
-import { shouldFilterByTeacher, getTeacherFilterId } from '@/lib/rbac';
+import { shouldFilterByTeacher, getTeacherFilterId, getTeacherClassIds, applyTeacherSantriFilter } from '@/lib/rbac';
 import * as xlsx from 'xlsx';
 
 export async function GET(request: NextRequest) {
@@ -38,7 +38,8 @@ export async function GET(request: NextRequest) {
 
     if (shouldFilterByTeacher((session.user as any).role, request)) {
       const teacherId = getTeacherFilterId((session.user as any).role, request, (session.user as any).id);
-      santriQ = santriQ.eq('assigned_teacher_id', teacherId);
+      const classIds = await getTeacherClassIds(supabase, teacherId);
+      santriQ = applyTeacherSantriFilter(santriQ, teacherId, classIds, classId);
     }
     if (classId) santriQ = santriQ.eq('class_id', classId);
 
@@ -51,7 +52,7 @@ export async function GET(request: NextRequest) {
     const santriIds = santriList.map((s: any) => s.id);
     const { data: attendances } = await supabase
       .from('attendances')
-      .select('id, santri_id, student_id, date, status')
+      .select('id, student_id, date, status')
       .gte('date', startDate)
       .lte('date', endDate)
       .order('date');

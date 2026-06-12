@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { CalendarDays, ArrowRight } from 'lucide-react';
+import { CalendarDays, ArrowRight, RotateCcw, PowerOff } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
+import Modal from '@/components/ui/Modal';
 import { useToast } from '@/lib/toast';
 import type { Santri, SemesterSetting } from '@/types';
 
@@ -26,6 +27,20 @@ export default function SemesterPage() {
   const [search, setSearch] = useState('');
   const [savingSemester, setSavingSemester] = useState(false);
   const [transferring, setTransferring] = useState(false);
+
+  // ── Reset Semester State ──
+  const [openResetModal, setOpenResetModal] = useState(false);
+  const [resetSemesterName, setResetSemesterName] = useState('');
+  const [resetEndDate, setResetEndDate] = useState('');
+  const [resetNotes, setResetNotes] = useState('');
+  const [resetJuz, setResetJuz] = useState(true);
+  const [resetting, setResetting] = useState(false);
+
+  // ── Deactivate Semester State ──
+  const [deactivating, setDeactivating] = useState(false);
+  const [openDeactivateModal, setOpenDeactivateModal] = useState(false);
+
+  const isSemesterActive = semester?.is_active === true;
 
   const filteredStudents = useMemo(() => {
     return students.filter((student) => {
@@ -128,6 +143,82 @@ export default function SemesterPage() {
     }
   };
 
+  const handleDeactivateSemester = async () => {
+    setDeactivating(true);
+    try {
+      const res = await fetch('/api/semester/deactivate', { method: 'POST' });
+      const json = await res.json();
+      if (!res.ok) {
+        toast.error(json.message ?? 'Gagal menonaktifkan semester.');
+        return;
+      }
+      toast.success(json.message ?? 'Semester berhasil dinonaktifkan.');
+      setOpenDeactivateModal(false);
+      await fetchSemesterConfig();
+    } catch {
+      toast.error('Terjadi kesalahan saat menonaktifkan semester.');
+    } finally {
+      setDeactivating(false);
+    }
+  };
+
+  const handleResetSemester = async () => {
+    if (!resetSemesterName.trim()) {
+      toast.error('Nama semester baru wajib diisi.');
+      return;
+    }
+    if (!resetEndDate) {
+      toast.error('Tanggal akhir semester wajib diisi.');
+      return;
+    }
+    setResetting(true);
+    try {
+      const res = await fetch('/api/semester/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          semester_name: resetSemesterName.trim(),
+          end_date: resetEndDate,
+          notes: resetNotes.trim() || null,
+          reset_juz: resetJuz,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        toast.error(json.message ?? 'Gagal mereset semester.');
+        return;
+      }
+      toast.success(json.message ?? 'Semester berhasil direset.');
+      setOpenResetModal(false);
+      setResetSemesterName('');
+      setResetEndDate('');
+      setResetNotes('');
+      setResetJuz(true);
+      await fetchSemesterConfig();
+      await fetchStudents();
+    } catch {
+      toast.error('Terjadi kesalahan saat mereset semester.');
+    } finally {
+      setResetting(false);
+    }
+  };
+
+  const openResetModalWithDefaults = () => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth() + 1;
+    if (month >= 7 && month <= 12) {
+      setResetSemesterName(`Ganjil ${year}/${year + 1}`);
+      setResetEndDate(`${year + 1}-01-31`);
+    } else {
+      setResetSemesterName(`Genap ${year - 1}/${year}`);
+      setResetEndDate(`${year}-06-30`);
+    }
+    setResetNotes('');
+    setResetJuz(true);
+    setOpenResetModal(true);
+  };
+
   const handleToggleStudent = (studentId: string) => {
     setSelectedStudents((prev) =>
       prev.includes(studentId)
@@ -177,28 +268,68 @@ export default function SemesterPage() {
 
   return (
     <div className="space-y-6">
+      {/* ── Header ── */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Semester & Mutasi Kelas</h1>
           <p className="text-sm text-slate-500 mt-1">Kelola periode semester aktif dan pemindahan siswa antar kelas.</p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <Button
+            variant="danger"
+            leftIcon={<RotateCcw size={16} />}
+            onClick={openResetModalWithDefaults}
+          >
+            Mulai Semester Baru
+          </Button>
           <Button variant="secondary" onClick={() => { fetchSemesterConfig(); fetchClasses(); fetchStudents(); }}>
             Muat Ulang Data
           </Button>
         </div>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-2">
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="rounded-2xl bg-amber-100 p-3 text-amber-700">
-              <CalendarDays size={20} />
+      {/* ── Warning: Tidak ada semester aktif ── */}
+      {!semester || !isSemesterActive ? (
+        <div className="rounded-2xl border-2 border-dashed border-red-300 bg-red-50 p-6 text-center">
+          <div className="flex flex-col items-center gap-3">
+            <div className="rounded-full bg-red-100 p-3">
+              <PowerOff size={24} className="text-red-600" />
             </div>
             <div>
+              <p className="text-base font-semibold text-red-800">Semester Tidak Aktif</p>
+              <p className="text-sm text-red-600 mt-1 max-w-md">
+                Saat ini tidak ada semester yang aktif. Semua sistem penilaian <strong>tidak dapat digunakan</strong> termasuk absensi, input jurnal hafalan/tahsin, dan raport.
+              </p>
+              <p className="text-sm text-red-500 mt-2">
+                Aktifkan semester baru untuk mengembalikan fungsi sistem.
+              </p>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {/* ── Info Semester & Form Semester Baru ── */}
+      <div className="grid gap-6 xl:grid-cols-2">
+        {/* Card: Semester Aktif */}
+        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="flex items-center gap-3 mb-4">
+            <div className={`rounded-2xl p-3 ${isSemesterActive ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-400'}`}>
+              <CalendarDays size={20} />
+            </div>
+            <div className="flex-1">
               <p className="text-sm font-semibold text-slate-900">Semester Aktif</p>
               <p className="text-xs text-slate-500">Konfigurasi semester saat ini</p>
             </div>
+            {semester && (
+              <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${
+                isSemesterActive
+                  ? 'bg-green-100 text-green-700'
+                  : 'bg-red-100 text-red-700'
+              }`}>
+                <span className={`h-1.5 w-1.5 rounded-full ${isSemesterActive ? 'bg-green-500' : 'bg-red-500'}`} />
+                {isSemesterActive ? 'Aktif' : 'Nonaktif'}
+              </span>
+            )}
           </div>
           {semester ? (
             <div className="space-y-3 text-sm text-slate-700">
@@ -217,12 +348,26 @@ export default function SemesterPage() {
                 </div>
               )}
               <div className="text-slate-400 text-xs">Terakhir diperbarui: {semester.updated_at ?? semester.created_at}</div>
+              {isSemesterActive && (
+                <div className="pt-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    leftIcon={<PowerOff size={14} />}
+                    onClick={() => setOpenDeactivateModal(true)}
+                    className="text-red-600 hover:bg-red-50 hover:text-red-700"
+                  >
+                    Nonaktifkan Semester
+                  </Button>
+                </div>
+              )}
             </div>
           ) : (
             <p className="text-sm text-slate-500">Belum ada konfigurasi semester tersimpan.</p>
           )}
         </div>
 
+        {/* Card: Atur Semester Baru */}
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex items-center gap-3 mb-4">
             <div className="rounded-2xl bg-slate-100 p-3 text-slate-700">
@@ -254,6 +399,7 @@ export default function SemesterPage() {
         </div>
       </div>
 
+      {/* ── Pemindahan Siswa ── */}
       <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -345,6 +491,99 @@ export default function SemesterPage() {
           </table>
         </div>
       </div>
+
+      {/* ── Modal Reset Semester ── */}
+      <Modal open={openResetModal} onClose={() => setOpenResetModal(false)} title="Mulai Semester Baru" size="md">
+        <div className="space-y-4">
+          <div className="rounded-2xl bg-red-50 border border-red-200 p-4 text-sm text-red-700">
+            <p className="font-semibold mb-1">Peringatan</p>
+            <p className="text-red-600">
+              Tindakan ini akan menonaktifkan semester saat ini dan membuat semester baru.
+              {resetJuz && ' Semua juz terakhir siswa aktif akan direset ke 1.'}
+            </p>
+            <p className="text-red-500 mt-2 text-xs">
+              Data jurnal (hafalan, tahsin, absensi) TIDAK akan terhapus — data lama tetap tersimpan.
+            </p>
+          </div>
+
+          <Input
+            label="Nama Semester Baru"
+            value={resetSemesterName}
+            onChange={(e) => setResetSemesterName(e.target.value)}
+            placeholder="Contoh: Ganjil 2026/2027"
+          />
+
+          <Input
+            label="Tanggal Akhir Semester"
+            type="date"
+            value={resetEndDate}
+            onChange={(e) => setResetEndDate(e.target.value)}
+          />
+
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium text-slate-700">Catatan (opsional)</label>
+            <textarea
+              value={resetNotes}
+              onChange={(e) => setResetNotes(e.target.value)}
+              rows={3}
+              className="w-full rounded-2xl border border-slate-300 px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500"
+              placeholder="Catatan untuk semester baru"
+            />
+          </div>
+
+          <label className="flex items-center gap-3 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={resetJuz}
+              onChange={(e) => setResetJuz(e.target.checked)}
+              className="h-4 w-4 text-amber-600 border-slate-300 rounded"
+            />
+            <div className="text-sm">
+              <span className="font-medium text-slate-700">Reset juz terakhir semua siswa ke 1</span>
+              <p className="text-xs text-slate-500">Cocok untuk awal tahun ajaran baru</p>
+            </div>
+          </label>
+
+          <div className="flex justify-end gap-3 pt-2">
+            <Button variant="ghost" onClick={() => setOpenResetModal(false)}>
+              Batal
+            </Button>
+            <Button variant="danger" loading={resetting} onClick={handleResetSemester}>
+              Ya, Mulai Semester Baru
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* ── Modal Nonaktifkan Semester ── */}
+      <Modal open={openDeactivateModal} onClose={() => setOpenDeactivateModal(false)} title="Nonaktifkan Semester" size="sm">
+        <div className="space-y-4">
+          <div className="rounded-2xl bg-red-50 border border-red-200 p-4 text-sm">
+            <p className="font-semibold text-red-800 mb-1">Konfirmasi Nonaktifkan Semester</p>
+            <p className="text-red-600">
+              Setelah semester dinonaktifkan, <strong>semua sistem penilaian tidak dapat digunakan</strong>:
+            </p>
+            <ul className="mt-2 ml-4 text-red-600 text-xs space-y-1 list-disc">
+              <li>Absensi scan tidak berfungsi</li>
+              <li>Input jurnal hafalan / tahsin terblokir</li>
+              <li>Input raport tidak bisa dilakukan</li>
+              <li>Upload rekap terblokir</li>
+            </ul>
+            <p className="text-red-500 mt-3 text-xs">
+              Anda harus membuat semester baru untuk mengaktifkan kembali sistem.
+            </p>
+          </div>
+
+          <div className="flex justify-end gap-3 pt-2">
+            <Button variant="ghost" onClick={() => setOpenDeactivateModal(false)}>
+              Batal
+            </Button>
+            <Button variant="danger" loading={deactivating} onClick={handleDeactivateSemester}>
+              Ya, Nonaktifkan Semester
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

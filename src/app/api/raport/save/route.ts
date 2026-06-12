@@ -1,4 +1,4 @@
-﻿// src/app/api/raport/save/route.ts
+﻿﻿﻿// src/app/api/raport/save/route.ts
 // POST: Simpan raport baru (insert)
 // PUT: Update raport yang sudah ada
 //
@@ -11,6 +11,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
+import { requireActiveSemester } from '@/lib/semester';
 
 export const dynamic = 'force-dynamic';
 
@@ -60,7 +61,11 @@ export async function POST(request: NextRequest) {
 
     const supabase = createServerClient();
 
-    // â”€â”€ RBAC: Tim_Quran hanya bisa simpan raport untuk siswa tanggung jawabnya
+    // Cek semester aktif
+    const semesterCheck = await requireActiveSemester(supabase);
+    if (semesterCheck.error) return semesterCheck.error;
+
+    //RBAC: Tim_Quran hanya bisa simpan raport untuk siswa tanggung jawabnya
     if (session.user.role === 'Tim_Quran') {
       const { data: santri, error: santriError } = await supabase
         .from('santri')
@@ -205,6 +210,10 @@ export async function PUT(request: NextRequest) {
     }
 
     const supabase = createServerClient();
+
+    // Cek semester aktif
+    const semesterCheck = await requireActiveSemester(supabase);
+    if (semesterCheck.error) return semesterCheck.error;
 
     // Cek raport ada dan RBAC
     const { data: existing, error: fetchError } = await supabase

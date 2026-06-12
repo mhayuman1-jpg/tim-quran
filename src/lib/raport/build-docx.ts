@@ -351,11 +351,14 @@ function buildCatatanKeterangan(raport: RaportExportData): Table {
           }),
           makeCell(
             [
-              para(run('Keterangan :', { bold: true, size: 18 }), AlignmentType.LEFT, { after: 40 }),
+              para(run('Keterangan Penilaian :', { bold: true, size: 18 }), AlignmentType.LEFT, { after: 40 }),
               para([run('A', { bold: true, size: 18 }), run(' = Sangat Baik', { size: 18 })]),
               para([run('B', { bold: true, size: 18 }), run(' = Baik', { size: 18 })]),
-              para([run('C', { bold: true, size: 18 }), run(' = Cukup Baik', { size: 18 })]),
-              para([run('D', { bold: true, size: 18 }), run(' = Kurang Baik', { size: 18 })]),
+              para([run('C', { bold: true, size: 18 }), run(' = Cukup', { size: 18 })]),
+              para([run('D', { bold: true, size: 18 }), run(' = Kurang', { size: 18 })]),
+              para([run('L', { bold: true, size: 18 }), run(' = Lancar', { size: 18 })]),
+              para([run('KL', { bold: true, size: 18 }), run(' = Kurang Lancar', { size: 18 })]),
+              para([run('TL', { bold: true, size: 18 }), run(' = Tidak Lancar', { size: 18 })]),
             ],
             { widthPct: 32 },
           ),

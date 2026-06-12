@@ -5,7 +5,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
-import { shouldFilterByTeacher, getTeacherFilterId } from '@/lib/rbac';
+import { shouldFilterByTeacher, getTeacherFilterId, getTeacherClassIds, applyTeacherSantriFilter } from '@/lib/rbac';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,6 +28,7 @@ export async function GET(request: NextRequest) {
     // Ambil siswa yang diampu — gunakan shouldFilterByTeacher agar konsisten
     // Tim_Quran: selalu filter by assigned_teacher_id
     // Kabid/Sekretaris: hanya filter jika dalam Mode Mengajar
+    // Filter via assigned_teacher_id ATAU via kelas yang diampu (teacher1/2/3_id)
     let santriQuery = supabase
       .from('santri')
       .select('id, nama, nisn, gender, juz_terakhir, assigned_teacher_id, classes(name)')
@@ -35,7 +36,8 @@ export async function GET(request: NextRequest) {
       .order('nama', { ascending: true });
 
     if (shouldFilterByTeacher(role, request)) {
-      santriQuery = santriQuery.eq('assigned_teacher_id', teacherId);
+      const classIds = await getTeacherClassIds(supabase, teacherId);
+      santriQuery = applyTeacherSantriFilter(santriQuery, teacherId, classIds);
     }
 
     const { data: students, error: sErr } = await santriQuery;
@@ -60,13 +62,37 @@ export async function GET(request: NextRequest) {
       }, { status: 200 });
     }
 
-    // Kehadiran hari ini untuk siswa yang diampu
-    const { count: totalHadir } = await supabase
+    // Kehadiran hari ini untuk siswa yang diampu — fallback ke hari terakhir jika kosong
+    let { count: totalHadir } = await supabase
       .from('attendances')
       .select('*', { count: 'exact', head: true })
       .eq('date', today)
       .eq('status', 'Hadir')
       .in('student_id', studentIds);
+
+    let attendanceDate = today;
+
+    // Jika tidak ada absensi hari ini, cari absensi terakhir
+    if (!totalHadir || totalHadir === 0) {
+      const { data: lastAttendance } = await supabase
+        .from('attendances')
+        .select('date')
+        .in('student_id', studentIds)
+        .order('date', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (lastAttendance?.date) {
+        attendanceDate = lastAttendance.date;
+        const { count: lastHadir } = await supabase
+          .from('attendances')
+          .select('*', { count: 'exact', head: true })
+          .eq('date', attendanceDate)
+          .eq('status', 'Hadir')
+          .in('student_id', studentIds);
+        totalHadir = lastHadir;
+      }
+    }
 
     const hadirHariIni = totalHadir ?? 0;
     const persentaseKehadiran = totalSiswa > 0

@@ -95,7 +95,7 @@ export default function StudentProgressChart({ data }: StudentProgressChartProps
         <div style={cardStyle}>
           <p style={labelStyle}>Rata-rata Tahsin</p>
           <p style={{ ...valueStyle, color: '#b45309' }}>{tahsinAvg}%</p>
-          <p style={subStyle}>Makhroj, Kelancaran, Adab</p>
+          <p style={subStyle}>Makhroj, Kelancaran, Tajwid</p>
         </div>
         <div style={cardStyle}>
           <p style={labelStyle}>Periode</p>
@@ -174,7 +174,7 @@ export default function StudentProgressChart({ data }: StudentProgressChartProps
             <div className="h-3 w-3 rounded-full bg-emerald-500"></div>
             <p style={{ fontWeight: 600, color: '#1e293b' }}>Tahsin</p>
           </div>
-          <p style={{ fontSize: '14px', color: '#94a3b8' }}>Penilaian harian mencakup makhroj, kelancaran, dan adab (etika) dalam membaca dan menghormati Al-Qur&apos;an.</p>
+          <p style={{ fontSize: '14px', color: '#94a3b8' }}>Penilaian harian mencakup makhroj, kelancaran, dan tajwid dalam membaca Al-Qur&apos;an.</p>
         </div>
       </div>
     </div>

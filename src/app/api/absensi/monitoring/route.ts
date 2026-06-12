@@ -99,7 +99,7 @@ export async function GET(request: NextRequest) {
 
     const { data: attendances, error } = await supabase
       .from('attendances')
-      .select('id, santri_id, student_id, date, status')
+      .select('id, student_id, date, status')
       .eq('status', 'Hadir')
       .gte('date', from)
       .lte('date', to);

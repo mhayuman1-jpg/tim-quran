@@ -8,11 +8,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
+import { requireActiveSemester } from '@/lib/semester';
 import type { TahsinMetode } from '@/types';
 import type { NilaiTahfidz } from '@/lib/surahData';
 
 const VALID_METODE: TahsinMetode[] = ['Wafa', 'IWR', 'Al-Quran'];
-const VALID_RATING: NilaiTahfidz[] = ['✓', 'A', 'B', 'C', 'D', 'L', 'TL', ''];
+const VALID_RATING: NilaiTahfidz[] = ['✓', 'A', 'B', 'C', 'D', 'L', 'KL', 'TL', ''];
 
 interface DetailRow {
   nama_surah: string;
@@ -141,6 +142,10 @@ export async function POST(request: NextRequest) {
       : null;
 
     const supabase = createServerClient();
+
+    // Cek semester aktif
+    const semesterCheck = await requireActiveSemester(supabase);
+    if (semesterCheck.error) return semesterCheck.error;
 
     if (session.user.role === 'Tim_Quran') {
       const { data: assigned, error: assignedError } = await supabase

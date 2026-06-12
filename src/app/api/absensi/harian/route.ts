@@ -8,7 +8,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
 import { normalizeAttendanceRows } from '@/lib/attendance';
-import { shouldFilterByTeacher, getTeacherFilterId } from '@/lib/rbac';
+import { shouldFilterByTeacher, getTeacherFilterId, getTeacherClassIds, applyTeacherSantriFilter } from '@/lib/rbac';
 
 export const dynamic = 'force-dynamic';
 
@@ -47,7 +47,32 @@ export async function GET(request: NextRequest) {
 
     if (shouldFilterByTeacher(session.user.role, request)) {
       const teacherId = getTeacherFilterId(session.user.role, request, session.user.id);
-      santriQuery = santriQuery.eq('assigned_teacher_id', teacherId);
+      const classIds = await getTeacherClassIds(supabase, teacherId);
+
+      // Lazy auto-distribute unassigned students
+      const targetClassIds = classId ? [classId] : classIds;
+      for (const cid of targetClassIds) {
+        const { data: unassigned } = await supabase
+          .from('santri').select('id')
+          .eq('class_id', cid).eq('status', 'Aktif').is('assigned_teacher_id', null);
+        if (unassigned && unassigned.length > 0) {
+          const { data: kelas } = await supabase
+            .from('classes').select('teacher1_id, teacher2_id, teacher3_id').eq('id', cid).single();
+          const activeTeachers = kelas ? [kelas.teacher1_id, kelas.teacher2_id, kelas.teacher3_id].filter(Boolean) : [];
+          if (activeTeachers.length > 0) {
+            const ids = unassigned.map((s: any) => s.id);
+            const chunkSize = Math.ceil(ids.length / activeTeachers.length);
+            await Promise.all(activeTeachers.map((tid: string, i: number) => {
+              const chunk = ids.slice(i * chunkSize, (i + 1) * chunkSize);
+              return chunk.length > 0
+                ? supabase.from('santri').update({ assigned_teacher_id: tid }).in('id', chunk)
+                : Promise.resolve({ data: null, error: null });
+            }));
+          }
+        }
+      }
+
+      santriQuery = applyTeacherSantriFilter(santriQuery, teacherId, classIds, classId);
     }
 
     if (classId) {
@@ -73,7 +98,7 @@ export async function GET(request: NextRequest) {
 
     const { data: attendances, error: attendError } = await supabase
       .from('attendances')
-      .select('id, santri_id, student_id, date, status')
+      .select('id, student_id, date, status')
       .eq('date', date);
 
     if (attendError) {

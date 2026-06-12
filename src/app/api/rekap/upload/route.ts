@@ -8,6 +8,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
 import { storageUpload, storageDelete } from '@/lib/storage/tigris';
+import { requireActiveSemester } from '@/lib/semester';
 
 export async function POST(request: NextRequest) {
   try {
@@ -97,6 +98,10 @@ export async function POST(request: NextRequest) {
     await storageUpload('timquran-rekap', storagePath, buffer, file.type || 'application/octet-stream');
 
     const supabase = createServerClient();
+
+    // Cek semester aktif
+    const semesterCheck = await requireActiveSemester(supabase);
+    if (semesterCheck.error) return semesterCheck.error;
 
     // Simpan metadata ke tabel `rekap_bulanan`
     const { data: rekapData, error: dbError } = await supabase

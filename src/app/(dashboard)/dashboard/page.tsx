@@ -13,7 +13,7 @@ import useSWR from "swr";
 interface JuzSummary { juz: number; count: number; }
 interface DashboardStats {
   totalSantriAktif: number;
-  kehadiranHariIni: { hadir: number; total: number; persentase: number; };
+  kehadiranHariIni: { hadir: number; total: number; persentase: number; tanggal?: string; };
   ringkasanJuz: JuzSummary[];
   jumlahTimAktif: number;
 }
@@ -269,9 +269,9 @@ export default function DashboardPage() {
       });
 
       const pdf = new jsPDF({
-        orientation: 'landscape',
+        orientation: 'portrait',
         unit: 'mm',
-        format: [85.6, 54],
+        format: [74, 105],
       });
       const pageWidth = pdf.internal.pageSize.getWidth();
       const pageHeight = pdf.internal.pageSize.getHeight();
@@ -363,7 +363,7 @@ export default function DashboardPage() {
               icon={<Users size={18} style={{color: '#3b82f6'}} />}
             />
             <StatCard
-              title="Kehadiran Hari Ini"
+              title={stats?.kehadiranHariIni?.tanggal === today ? "Kehadiran Hari Ini" : "Kehadiran Terakhir"}
               value={`${stats?.kehadiranHariIni.persentase ?? 0}%`}
               subtitle={`${stats?.kehadiranHariIni.hadir ?? 0} / ${stats?.kehadiranHariIni.total ?? 0} siswa`}
               progress={stats?.kehadiranHariIni.persentase ?? 0}

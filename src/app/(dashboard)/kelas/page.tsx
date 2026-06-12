@@ -351,6 +351,26 @@ export default function KelasPage() {
     }
   };
 
+  // ── Redistribute students
+  const [redistribLoading, setRedistribLoading] = useState(false);
+  const handleRedistribute = async () => {
+    setRedistribLoading(true);
+    try {
+      const res = await fetch('/api/kelas/redistribute-students', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+      const json = await res.json();
+      if (!res.ok) {
+        toast.error(json.message ?? 'Gagal membagi rata siswa.');
+        return;
+      }
+      toast.success(json.message ?? 'Siswa berhasil dibagi rata.');
+      fetchKelas();
+    } catch {
+      toast.error('Terjadi kesalahan saat distribusi siswa.');
+    } finally {
+      setRedistribLoading(false);
+    }
+  };
+
   // ── Assign students
   const handleOpenAssignStudent = async (kelas: Kelas) => {
     setAssignStudentTarget(kelas);
@@ -674,6 +694,15 @@ export default function KelasPage() {
             title="Distribusi guru ke semua kelas secara otomatis"
           >
             Auto Assign
+          </Button>
+          <Button
+            variant="ghost"
+            leftIcon={<Users size={15} />}
+            onClick={handleRedistribute}
+            loading={redistribLoading}
+            title="Bagi rata siswa ke guru 1, 2, 3 di semua kelas"
+          >
+            Bagi Rata Siswa
           </Button>
           <Button
             variant="primary"

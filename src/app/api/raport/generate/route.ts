@@ -75,7 +75,7 @@ export async function GET(request: NextRequest) {
     // ── 2. Ambil data tahsin siswa ─────────────────────────────────────────
     let tahsinQuery = supabase
       .from('tahsin')
-      .select('id, tanggal, metode, makhroj, kelancaran, adab, buku, halaman, catatan, teacher_id, users(name)')
+      .select('id, tanggal, metode, makhroj, kelancaran, adab, buku, halaman, catatan, teacher_id, updated_at, users(name)')
       .eq('student_id', studentId);
 
     if (startDate) {
@@ -85,7 +85,7 @@ export async function GET(request: NextRequest) {
       tahsinQuery = tahsinQuery.lte('tanggal', endDate);
     }
 
-    const { data: tahsinData, error: tErr } = await tahsinQuery.order('tanggal', { ascending: false });
+    const { data: tahsinData, error: tErr } = await tahsinQuery.order('updated_at', { ascending: false });
 
     if (tErr) return NextResponse.json({ message: tErr.message }, { status: 500 });
 
@@ -148,7 +148,25 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const detailSurah = Array.from(surahMap.values()).map((s, i) => ({
+    // Sort detail surah berdasarkan urutan surah di dalam Juz yang terdeteksi
+    const surahEntries = Array.from(surahMap.values());
+    const surahOrderMap = new Map<string, number>();
+    for (let j = 1; j <= 30; j++) {
+      const surahsInJuz = SURAH_PER_JUZ[j] ?? [];
+      for (let idx = 0; idx < surahsInJuz.length; idx++) {
+        const key = sanitizeSurahName(surahsInJuz[idx].nama);
+        if (!surahOrderMap.has(key)) {
+          surahOrderMap.set(key, j * 1000 + idx);
+        }
+      }
+    }
+    surahEntries.sort((a, b) => {
+      const orderA = surahOrderMap.get(sanitizeSurahName(a.nama_surah)) ?? 999999;
+      const orderB = surahOrderMap.get(sanitizeSurahName(b.nama_surah)) ?? 999999;
+      return orderA - orderB;
+    });
+
+    const detailSurah = surahEntries.map((s, i) => ({
       ...s,
       urutan: i + 1,
     }));
@@ -157,16 +175,18 @@ export async function GET(request: NextRequest) {
     const latestCatatan = hafalanData?.find(h => h.catatan?.trim())?.catatan ?? '';
 
     // ── 5. Summary tahsin ──────────────────────────────────────────────────
-    const tahsinSummary = (tahsinData ?? []).slice(0, 10).map(t => ({
-      tanggal: t.tanggal,
-      metode: t.metode,
-      makhroj: t.makhroj,
-      kelancaran: t.kelancaran,
-      adab: t.adab,
-      buku: t.buku,
-      halaman: t.halaman,
-      catatan: t.catatan,
-    }));
+    // Ambil data tahsin dari catatan yang paling baru diupdate
+    const latestTahsin = tahsinData?.[0] ?? null;
+    const tahsinSummary = latestTahsin ? [{
+      tanggal: latestTahsin.tanggal,
+      metode: latestTahsin.metode,
+      makhroj: latestTahsin.makhroj,
+      kelancaran: latestTahsin.kelancaran,
+      adab: latestTahsin.adab,
+      buku: latestTahsin.buku,
+      halaman: latestTahsin.halaman,
+      catatan: latestTahsin.catatan,
+    }] : [];
 
     // ── 6. Deteksi Juz Otomatis dari Jurnal ────────────────────────────────
     const studentSurahs = new Set<string>();

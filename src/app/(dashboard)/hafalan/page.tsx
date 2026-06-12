@@ -5,16 +5,33 @@
 // - Form input setoran hafalan (modal)
 // - Riwayat hafalan dengan filter tanggal
 // - Daftar siswa sesuai role (Tim_Quran hanya lihat siswa tanggung jawabnya)
+// - Tim_Quran: class-first view (pilih kelas dulu)
 
-import React, { useState } from 'react';
-import { Plus, BookOpen, Download } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Plus, BookOpen, Download, ArrowLeft } from 'lucide-react';
+import { useSession } from 'next-auth/react';
 import Modal from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
 import HafalanForm, { type HafalanFormData } from '@/components/features/hafalan/HafalanForm';
 import HafalanHistory from '@/components/features/hafalan/HafalanHistory';
 import type { Hafalan } from '@/types';
 
+interface ClassOption {
+  id: string;
+  name: string;
+  jumlah_siswa: number;
+}
+
 export default function HafalanPage() {
+  const { data: session } = useSession();
+  const isTeacherMode = session?.user?.role === 'Tim_Quran';
+
+  // Class-first view state
+  const [classes, setClasses] = useState<ClassOption[]>([]);
+  const [classesLoading, setClassesLoading] = useState(false);
+  const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
+  const [selectedClassName, setSelectedClassName] = useState<string | null>(null);
+
   // State modal tambah/edit
   const [modalOpen, setModalOpen] = useState(false);
   const [editingHafalan, setEditingHafalan] = useState<Hafalan | null>(null);
@@ -24,6 +41,34 @@ export default function HafalanPage() {
 
   // Trigger refresh history setelah add/edit
   const [refreshKey, setRefreshKey] = useState(0);
+
+  // Fetch classes for Tim_Quran
+  useEffect(() => {
+    if (!isTeacherMode) return;
+    let cancelled = false;
+    (async () => {
+      setClassesLoading(true);
+      try {
+        const res = await fetch('/api/kelas/list');
+        const json = await res.json();
+        if (!cancelled && res.ok) {
+          setClasses(json.data ?? []);
+        }
+      } catch { /* silent */ }
+      if (!cancelled) setClassesLoading(false);
+    })();
+    return () => { cancelled = true; };
+  }, [isTeacherMode]);
+
+  const handleSelectClass = (classId: string, className: string) => {
+    setSelectedClassId(classId);
+    setSelectedClassName(className);
+  };
+
+  const handleBackToClasses = () => {
+    setSelectedClassId(null);
+    setSelectedClassName(null);
+  };
 
   // ── Buka modal tambah
   const handleOpenAdd = () => {
@@ -58,6 +103,22 @@ export default function HafalanPage() {
     setModalOpen(false);
     setEditingHafalan(null);
     setSubmitError(null);
+  };
+
+  // ── Hapus catatan hafalan
+  const handleDelete = async (hafalan: any) => {
+    if (!confirm('Yakin ingin menghapus catatan hafalan ini?')) return;
+    try {
+      const res = await fetch(`/api/hafalan/delete?id=${hafalan.id}`, { method: 'DELETE' });
+      const json = await res.json();
+      if (!res.ok) {
+        alert(json.message ?? 'Gagal menghapus catatan hafalan.');
+        return;
+      }
+      setRefreshKey((k) => k + 1);
+    } catch {
+      alert('Terjadi kesalahan. Silakan coba lagi.');
+    }
   };
 
   // ── Submit form (add atau edit)
@@ -149,32 +210,39 @@ export default function HafalanPage() {
             Setoran Hafalan
           </h1>
           <p className="text-slate-500 text-sm mt-1">
-            Pencatatan progres hafalan harian santri.
+            {isTeacherMode && !selectedClassId
+              ? 'Pilih kelas untuk melihat riwayat hafalan.'
+              : selectedClassName
+                ? `Riwayat hafalan — ${selectedClassName}`
+                : 'Pencatatan progres hafalan harian santri.'
+            }
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Button
-            variant="secondary"
-            leftIcon={<Download size={16} />}
-            onClick={() => {
-              const a = document.createElement('a');
-              a.href = '/api/hafalan/export';
-              a.download = 'hafalan.xlsx';
-              document.body.appendChild(a);
-              a.click();
-              document.body.removeChild(a);
-            }}
-          >
-            Export Excel
-          </Button>
-          <Button
-            variant="primary"
-            leftIcon={<Plus size={16} />}
-            onClick={handleOpenAdd}
-          >
-            Tambah Setoran
-          </Button>
-        </div>
+        {(!isTeacherMode || selectedClassId) && (
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="secondary"
+              leftIcon={<Download size={16} />}
+              onClick={() => {
+                const a = document.createElement('a');
+                a.href = '/api/hafalan/export';
+                a.download = 'hafalan.xlsx';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+              }}
+            >
+              Export Excel
+            </Button>
+            <Button
+              variant="primary"
+              leftIcon={<Plus size={16} />}
+              onClick={handleOpenAdd}
+            >
+              Tambah Setoran
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Notifikasi sukses */}
@@ -190,16 +258,69 @@ export default function HafalanPage() {
         </div>
       )}
 
+      {/* ── Class-first view for Tim_Quran ── */}
+      {isTeacherMode && !selectedClassId && (
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-4">
+          <div>
+            <h2 className="text-base font-semibold text-slate-800">Pilih Kelas</h2>
+            <p className="text-slate-500 text-sm">Pilih kelas untuk melihat riwayat hafalan siswa.</p>
+          </div>
+          {classesLoading ? (
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className="h-20 rounded-xl bg-slate-100 animate-pulse" />
+              ))}
+            </div>
+          ) : classes.length === 0 ? (
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-6 text-center">
+              <BookOpen size={32} className="text-slate-300 mx-auto mb-2" />
+              <p className="text-sm text-slate-500">Belum ada kelas yang ditugaskan.</p>
+            </div>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {classes.map(c => (
+                <button
+                  key={c.id}
+                  onClick={() => handleSelectClass(c.id, c.name)}
+                  className="text-left rounded-xl border border-slate-200 p-4 hover:border-amber-400 hover:bg-amber-50 transition-all"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-amber-400 to-orange-400 flex items-center justify-center shrink-0">
+                      <BookOpen size={16} className="text-white" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-slate-800">{c.name}</p>
+                      <p className="text-[11px] text-slate-400">{c.jumlah_siswa ?? 0} siswa</p>
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Riwayat hafalan */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-        <h2 className="text-base font-semibold text-slate-800 mb-4">
-          Riwayat Hafalan
-        </h2>
-        <HafalanHistory
-          onEdit={handleOpenEdit}
-          refreshKey={refreshKey}
-        />
-      </div>
+      {(!isTeacherMode || selectedClassId) && (
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-base font-semibold text-slate-800">
+              Riwayat Hafalan{selectedClassName ? ` — ${selectedClassName}` : ''}
+            </h2>
+            {isTeacherMode && selectedClassId && (
+              <button onClick={handleBackToClasses} className="flex items-center gap-1 text-xs text-amber-600 hover:text-amber-700 font-medium">
+                <ArrowLeft size={12} /> Semua Kelas
+              </button>
+            )}
+          </div>
+          <HafalanHistory
+            classId={selectedClassId ?? undefined}
+            onEdit={handleOpenEdit}
+            onDelete={handleDelete}
+            refreshKey={refreshKey}
+          />
+        </div>
+      )}
 
       {/* Modal tambah/edit hafalan */}
       <Modal

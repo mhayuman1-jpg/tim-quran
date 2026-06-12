@@ -12,6 +12,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
+import { getTeacherClassIds, applyTeacherSantriFilter } from '@/lib/rbac';
 
 export async function GET(request: NextRequest) {
   // Verifikasi sesi
@@ -45,12 +46,14 @@ export async function GET(request: NextRequest) {
     const supabase = createServerClient();
 
     // 1. Ambil semua siswa yang dibina oleh teacher_id ini
-    const { data: santriList, error: santriError } = await supabase
+    const classIds = await getTeacherClassIds(supabase, teacherId);
+    let santriQ = supabase
       .from('santri')
       .select('id, nisn, nama, gender, juz_terakhir, classes ( id, name )')
-      .eq('assigned_teacher_id', teacherId)
       .eq('status', 'Aktif')
       .order('nama', { ascending: true });
+    santriQ = applyTeacherSantriFilter(santriQ, teacherId, classIds);
+    const { data: santriList, error: santriError } = await santriQ;
 
     if (santriError) {
       console.error('Fetch santri error (laporan tim):', santriError);

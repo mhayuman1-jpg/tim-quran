@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
+import { requireActiveSemester } from '@/lib/semester';
 import type { TahsinMetode } from '@/types';
 
 export const dynamic = 'force-dynamic';
@@ -63,6 +64,10 @@ export async function PUT(request: NextRequest) {
     }
 
     const supabase = createServerClient();
+
+    // Cek semester aktif
+    const semesterCheck = await requireActiveSemester(supabase);
+    if (semesterCheck.error) return semesterCheck.error;
 
     // Ambil data tahsin yang ada untuk validasi akses
     const { data: existingTahsin, error: fetchError } = await supabase

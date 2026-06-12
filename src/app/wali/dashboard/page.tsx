@@ -619,7 +619,7 @@ export default function WaliDashboardPage() {
                       )}
                       {t.adab && (
                         <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-purple-50 text-purple-700">
-                          Adab: {t.adab}
+                          Tajwid: {t.adab}
                         </span>
                       )}
                     </div>

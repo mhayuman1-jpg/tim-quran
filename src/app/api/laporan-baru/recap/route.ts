@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
+import { getTeacherClassIds, applyTeacherSantriFilter } from '@/lib/rbac';
 
 export const dynamic = 'force-dynamic';
 
@@ -27,12 +28,14 @@ export async function GET(request: NextRequest) {
 
   try {
     // Ambil siswa yang diampu teacher
-    const { data: students, error: sErr } = await supabase
+    const classIds = await getTeacherClassIds(supabase, teacherId);
+    let santriQ = supabase
       .from('santri')
       .select('id, nama, nisn, gender, juz_terakhir, classes(name)')
-      .eq('assigned_teacher_id', teacherId)
       .eq('status', 'Aktif')
       .order('nama', { ascending: true });
+    santriQ = applyTeacherSantriFilter(santriQ, teacherId, classIds);
+    const { data: students, error: sErr } = await santriQ;
 
     if (sErr) return NextResponse.json({ message: 'Gagal mengambil data siswa.', error: sErr.message }, { status: 500 });
 

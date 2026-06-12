@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
+import { requireActiveSemester } from '@/lib/semester';
 import {
   insertAttendanceRecord,
   queryAttendanceByStudentMaybeSingle,
@@ -32,6 +33,10 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = createServerClient();
+
+    // Cek semester aktif
+    const semesterCheck = await requireActiveSemester(supabase);
+    if (semesterCheck.error) return semesterCheck.error;
 
     // 1. Cari siswa berdasarkan nilai qr_code
     const { data: siswa, error: siswaError } = await supabase

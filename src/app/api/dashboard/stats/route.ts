@@ -43,8 +43,8 @@ export async function GET(_request: NextRequest) {
 
     const totalAktif = totalSantriAktif ?? 0;
 
-    // 2. Jumlah santri hadir hari ini
-    const { count: totalHadir, error: hadirError } = await supabase
+    // 2. Jumlah santri hadir hari ini — fallback ke hari terakhir jika kosong
+    let { count: totalHadir, error: hadirError } = await supabase
       .from('attendances')
       .select('*', { count: 'exact', head: true })
       .eq('date', today)
@@ -58,7 +58,29 @@ export async function GET(_request: NextRequest) {
       );
     }
 
-    // Hitung persentase kehadiran â€” tampilkan apa adanya meski >100%
+    let attendanceDate = today;
+
+    // Jika tidak ada absensi hari ini, cari absensi terakhir
+    if (!totalHadir || totalHadir === 0) {
+      const { data: lastAttendance } = await supabase
+        .from('attendances')
+        .select('date')
+        .order('date', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (lastAttendance?.date) {
+        attendanceDate = lastAttendance.date;
+        const { count: lastHadir } = await supabase
+          .from('attendances')
+          .select('*', { count: 'exact', head: true })
+          .eq('date', attendanceDate)
+          .eq('status', 'Hadir');
+        totalHadir = lastHadir;
+      }
+    }
+
+    // Hitung persentase kehadiran — tampilkan apa adanya meski >100%
     const hadirHariIni = totalHadir ?? 0;
     const persentaseKehadiran =
       totalAktif > 0
@@ -89,12 +111,12 @@ export async function GET(_request: NextRequest) {
       .map(([juz, count]) => ({ juz: Number(juz), count }))
       .sort((a, b) => a.juz - b.juz);
 
-    // 4. Jumlah Tim_Quran aktif
+    // 4. Jumlah Tim_Quran aktif — hitung semua Tim_Quran yang bukan Nonaktif
     const { count: totalTim, error: timError } = await supabase
       .from('users')
       .select('*', { count: 'exact', head: true })
       .eq('role', 'Tim_Quran')
-      .eq('status', 'Aktif');
+      .neq('status', 'Nonaktif');
 
     if (timError) {
       console.error('Fetch Tim_Quran error:', timError);
@@ -111,6 +133,7 @@ export async function GET(_request: NextRequest) {
           hadir: hadirHariIni,
           total: totalAktif,
           persentase: persentaseKehadiran,
+          tanggal: attendanceDate,
         },
         ringkasanJuz,
         jumlahTimAktif: totalTim ?? 0,

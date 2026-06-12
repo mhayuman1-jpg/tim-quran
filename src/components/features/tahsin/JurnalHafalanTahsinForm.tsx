@@ -50,7 +50,7 @@ interface Props {
 // Options for Makhroj and Tajwid (without Hafal option)
 const NILAI_MAKHROJ_TAJWID = NILAI_TANPA_HAFAL;
 
-// Options for Lancar column (Kosong, Lancar, Tidak Lancar)
+// Options for Lancar column (Kosong, Lancar, Kurang Lancar, Tidak Lancar)
 const NILAI_LANCAR_OPTS = NILAI_LANCAR;
 
 function NilaiSelect({ value, onChange, disabled, options }: {
@@ -106,11 +106,12 @@ function NilaiSelect({ value, onChange, disabled, options }: {
                 </span>
                 {opt.v === '' ? 'Kosong'
                   : opt.v === 'L' ? 'Lancar'
-                    : opt.v === 'TL' ? 'Tidak Lancar'
-                      : opt.v === 'A' ? 'Sangat Baik'
-                        : opt.v === 'B' ? 'Baik'
-                          : opt.v === 'C' ? 'Cukup'
-                            : 'Kurang'}
+                    : opt.v === 'KL' ? 'Kurang Lancar'
+                      : opt.v === 'TL' ? 'Tidak Lancar'
+                        : opt.v === 'A' ? 'Sangat Baik'
+                          : opt.v === 'B' ? 'Baik'
+                            : opt.v === 'C' ? 'Cukup'
+                              : 'Kurang'}
               </button>
             ))}
           </div>
@@ -545,14 +546,14 @@ export default function JurnalHafalanTahsinForm({ loading = false, mode = 'both'
               {errors.tahsin_metode && <p className="text-xs text-red-600">{errors.tahsin_metode}</p>}
             </div>
             <Input
-              label="Buku / Jilid"
+              label="Jilid / Surah"
               value={form.tahsin_buku}
               onChange={(e) => setField('tahsin_buku', e.target.value)}
               error={errors.tahsin_buku}
               disabled={loading}
             />
             <Input
-              label="Halaman / Level"
+              label="Halaman / Ayat"
               value={form.tahsin_halaman}
               onChange={(e) => setField('tahsin_halaman', e.target.value)}
               disabled={loading}
@@ -573,7 +574,7 @@ export default function JurnalHafalanTahsinForm({ loading = false, mode = 'both'
                 {[
                   { field: 'tahsin_makhroj' as const, label: 'Makhroj', desc: 'Ketepatan tempat keluarnya huruf' },
                   { field: 'tahsin_kelancaran' as const, label: 'Kelancaran', desc: 'Kelancaran membaca tanpa terhenti' },
-                  { field: 'tahsin_adab' as const, label: 'Adab & Tajwid', desc: 'Adab membaca dan penerapan tajwid' },
+                  { field: 'tahsin_adab' as const, label: 'Tajwid', desc: 'Penerapan tajwid saat membaca' },
                 ].map(({ field, label, desc }) => (
                   <tr key={field} className="hover:bg-slate-50">
                     <td className="px-4 py-3">
@@ -585,12 +586,14 @@ export default function JurnalHafalanTahsinForm({ loading = false, mode = 'both'
                         value={form[field]}
                         onChange={(value) => setField(field, value)}
                         disabled={loading}
+                        options={field === 'tahsin_kelancaran' ? NILAI_LANCAR_OPTS : undefined}
                       />
                     </td>
                     <td className="px-4 py-3 hidden sm:table-cell">
                       <span className="text-xs text-slate-400">
                         {form[field] === '✓' ? 'Lulus / Hafal' :
                           form[field] === 'L' ? 'Lancar' :
+                          form[field] === 'KL' ? 'Kurang Lancar' :
                           form[field] === 'TL' ? 'Tidak Lancar' :
                           form[field] === 'A' ? 'Sangat Baik (100)' :
                           form[field] === 'B' ? 'Baik (80)' :
