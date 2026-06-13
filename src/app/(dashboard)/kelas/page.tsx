@@ -103,6 +103,9 @@ export default function KelasPage() {
   // ── Download arsip pembagian tugas
   const [downloadingArsip, setDownloadingArsip] = useState(false);
 
+  // ── Download data siswa per kelas
+  const [downloadingSiswa, setDownloadingSiswa] = useState<string | null>(null);
+
   // ── Fetch kelas
   const fetchKelas = useCallback(async () => {
     setLoading(true);
@@ -425,6 +428,28 @@ export default function KelasPage() {
       toast.error('Terjadi kesalahan saat membagi siswa.');
     } finally {
       setSplitLoadingId(null);
+    }
+  };
+
+  // ── Download data siswa per kelas (Excel)
+  const handleDownloadDataSiswa = async (kelas: Kelas) => {
+    setDownloadingSiswa(kelas.id);
+    try {
+      const params = new URLSearchParams();
+      params.set('class_id', kelas.id);
+      const res = await fetch(`/api/siswa/export?${params.toString()}`, { credentials: 'same-origin' });
+      if (!res.ok) { toast.error('Gagal mendownload data siswa.'); return; }
+      const blob = await res.blob();
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `Data_Siswa_${kelas.name.replace(/\s+/g, '_')}.xlsx`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+      toast.success(`Data siswa kelas ${kelas.name} berhasil didownload.`);
+    } catch {
+      toast.error('Terjadi kesalahan saat mendownload data siswa.');
+    } finally {
+      setDownloadingSiswa(null);
     }
   };
 
@@ -863,6 +888,16 @@ export default function KelasPage() {
                     <td className="px-4 py-3">
                       {editingId !== kelas.id && (
                         <div className="flex items-center justify-end gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            leftIcon={<Download size={14} />}
+                            onClick={() => handleDownloadDataSiswa(kelas)}
+                            loading={downloadingSiswa === kelas.id}
+                            title="Download data siswa kelas ini"
+                          >
+                            Download Data
+                          </Button>
                           <Button
                             variant="ghost"
                             size="sm"

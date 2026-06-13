@@ -342,19 +342,6 @@ const RaportTahfidzDocument = React.forwardRef<HTMLDivElement, RaportTahfidzDocu
                 Sekolah Terpadu Dengan Pendidikan Berkarakter
               </div>
 
-              <div
-                style={{
-                  display: 'flex',
-                  height: '2px',
-                  margin: '2px auto',
-                  borderRadius: '2px',
-                  width: '90%',
-                }}
-              >
-                <div style={{ flex: 1, background: '#16a34a' }} />
-                <div style={{ flex: 1, background: '#16a34a' }} />
-              </div>
-
               <div style={{ fontSize: '10px', color: '#333', lineHeight: 1.3, textAlign: 'center' }}>
                 <span style={{ fontWeight: 700 }}>Alamat : </span>
                 {profil.alamat ? profil.alamat : 'Lingk. Jado RT.09 Kel. Dorotangga Dompu - NTB'}

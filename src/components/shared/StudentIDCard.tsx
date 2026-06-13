@@ -201,9 +201,13 @@ export function StudentIDCard({
         <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column", gap: "4px" }}>
           {/* Nama — white with strong shadow */}
           <p style={{
-            fontWeight: 800, fontSize: "14px", color: c.white,
-            margin: 0, lineHeight: 1.2, letterSpacing: "0.02em",
-            whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+            fontWeight: 800, fontSize: student.nama.length > 18 ? "12px" : "14px",
+            color: c.white,
+            margin: 0, lineHeight: 1.15, letterSpacing: "0.02em",
+            overflow: "hidden",
+            display: "-webkit-box",
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: "vertical" as any,
             textShadow: "0 1px 3px rgba(0,0,0,0.4), 0 0 8px rgba(0,0,0,0.15)",
           }}>
             {student.nama}
@@ -222,7 +226,7 @@ export function StudentIDCard({
                 fontSize: "6.5px", color: c.goldLight, width: "30px", flexShrink: 0,
                 textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 700,
                 textShadow: "0 1px 2px rgba(0,0,0,0.3)",
-              }}>NISN</span>
+              }}>NIS</span>
               <span style={{
                 fontSize: "9px", color: c.white, fontFamily: "'SF Mono', 'Consolas', monospace",
                 fontWeight: 700, letterSpacing: "0.04em",

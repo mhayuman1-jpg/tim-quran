@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
     let query = supabase
       .from('santri')
       .select(
-        `id, nisn, nama, gender, tanggal_lahir, juz_terakhir, status,
+        `id, nisn, nama, gender, tanggal_lahir, juz_terakhir, qr_code, assigned_teacher_id, status, created_at,
          classes ( id, name )`
       )
       .order('nama', { ascending: true });
@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
     if (error) return NextResponse.json({ message: error.message }, { status: 500 });
 
     const wb = xlsx.utils.book_new();
-    const headers = ['No', 'NISN', 'Nama Lengkap', 'Jenis Kelamin', 'Tanggal Lahir', 'Kelas', 'Juz Terakhir', 'Status'];
+    const headers = ['No', 'NISN', 'Nama Lengkap', 'Jenis Kelamin', 'Tanggal Lahir', 'Kelas', 'Juz Terakhir', 'QR Code', 'Status', 'Tanggal Dibuat'];
     const rows = ((data ?? []) as any[]).map((r, i) => [
       i + 1,
       r.nisn ?? '',
@@ -56,18 +56,22 @@ export async function GET(request: NextRequest) {
       r.tanggal_lahir ?? '',
       r.classes?.name ?? '',
       r.juz_terakhir ?? '',
+      r.qr_code ?? '',
       r.status ?? '',
+      r.created_at ? new Date(r.created_at).toLocaleDateString('id-ID') : '',
     ]);
 
     const ws = xlsx.utils.aoa_to_sheet([headers, ...rows]);
     ws['!cols'] = [
       { wch: 4 }, { wch: 14 }, { wch: 28 }, { wch: 14 },
-      { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 12 },
+      { wch: 14 }, { wch: 14 }, { wch: 14 },
+      { wch: 16 }, { wch: 12 }, { wch: 16 },
     ];
     xlsx.utils.book_append_sheet(wb, ws, 'Data Siswa');
 
     const buffer = xlsx.write(wb, { type: 'buffer', bookType: 'xlsx' }) as Buffer;
-    const filename = `data_siswa${classId ? '_' + classId : ''}.xlsx`;
+    const className = (data?.[0] as any)?.classes?.name ?? classId;
+    const filename = `data_siswa${className ? '_' + className.replace(/\s+/g, '_') : ''}.xlsx`;
     return new NextResponse(new Uint8Array(buffer), {
       status: 200,
       headers: {
