@@ -20,7 +20,7 @@ const amiri = Amiri({
 export const metadata: Metadata = {
   title: "Tim Qur'an — Sistem Manajemen Tahfidz & Tahsin",
   description: "Platform digital untuk mengelola program Tahfidz & Tahsin Al-Qur'an.",
-  icons: { icon: "/favicon.ico" },
+  icons: { icon: "/favicon.png" },
 };
 
 export const viewport = {
