@@ -67,6 +67,7 @@ export default function SiswaPage() {
 
   const fetchSiswa = useCallback(async (q = '', classId = '') => {
     setLoading(true);
+    setSelectedIds([]);
     try {
       const params = new URLSearchParams();
       if (q) params.set('search', q);
@@ -89,8 +90,8 @@ export default function SiswaPage() {
       .catch(() => {});
   }, [fetchSiswa, viewHeaders]);
 
-  const handleSearch = (value: string) => { setSearch(value); fetchSiswa(value, classFilter); };
-  const handleClassFilter = (value: string) => { setClassFilter(value); fetchSiswa(search, value); };
+  const handleSearch = (value: string) => { setSearch(value); setSelectedIds([]); fetchSiswa(value, classFilter); };
+  const handleClassFilter = (value: string) => { setClassFilter(value); setSelectedIds([]); fetchSiswa(search, value); };
 
   // ── Teacher mode: class-first view
   const isTeacherMode = role === 'Tim_Quran' || (viewAsRole === 'Tim_Quran');
