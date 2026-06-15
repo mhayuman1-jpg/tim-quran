@@ -38,14 +38,33 @@ export async function POST(request: NextRequest) {
     const semesterCheck = await requireActiveSemester(supabase);
     if (semesterCheck.error) return semesterCheck.error;
 
-    // 1. Cari siswa berdasarkan nilai qr_code (case-insensitive)
-    const { data: siswa, error: siswaError } = await supabase
+    // 1. Cari siswa berdasarkan qr_code — exact match dulu, lalu prefix match (8 char pertama)
+    const scanned = qr_code.trim();
+    let siswa: { id: string; nama: string } | null = null;
+
+    // Coba exact match (case-insensitive)
+    const { data: exactMatch } = await supabase
       .from('santri')
       .select('id, nama')
-      .ilike('qr_code', qr_code.trim())
-      .single();
+      .ilike('qr_code', scanned)
+      .limit(1)
+      .maybeSingle();
 
-    if (siswaError || !siswa) {
+    if (exactMatch) {
+      siswa = exactMatch;
+    } else if (scanned.length >= 8) {
+      // Fallback: prefix match — cocokkan 8 karakter pertama (untuk ID card lama)
+      const prefix = scanned.slice(0, 8).toLowerCase();
+      const { data: prefixMatch } = await supabase
+        .from('santri')
+        .select('id, nama')
+        .ilike('qr_code', prefix + '%')
+        .limit(1)
+        .maybeSingle();
+      siswa = prefixMatch ?? null;
+    }
+
+    if (!siswa) {
       return NextResponse.json(
         { message: 'QR Code tidak dikenali.' },
         { status: 404 }
