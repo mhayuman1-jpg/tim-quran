@@ -42,6 +42,7 @@ export default function IdCardPage() {
   const [extracting, setExtracting] = useState(false);
   const [extractProgress, setExtractProgress] = useState('');
   const [cards, setCards] = useState<ExtractedCard[]>([]);
+  const [debugImages, setDebugImages] = useState<{ page: number; dataUrl: string }[]>([]);
 
   // Update state
   const [updating, setUpdating] = useState(false);
@@ -107,11 +108,11 @@ export default function IdCardPage() {
 
       const extractedCards: ExtractedCard[] = [];
       const SCALE = 3;
+      const debugImagesList: { page: number; dataUrl: string }[] = [];
 
       // Helper: find all QR codes in ImageData by iteratively masking
-      function findAllQrCodes(imageData: ImageData, w: number, h: number): { data: string; x: number; y: number; size: number }[] {
+      function findAllQrCodes(pixels: Uint8ClampedArray, w: number, h: number): { data: string; x: number; y: number; size: number }[] {
         const results: { data: string; x: number; y: number; size: number }[] = [];
-        const pixels = new Uint8ClampedArray(imageData.data);
 
         for (let attempt = 0; attempt < 15; attempt++) {
           const found = jsQR(pixels, w, h, { inversionAttempts: 'attemptBoth' });
@@ -128,7 +129,9 @@ export default function IdCardPage() {
           });
 
           // Black out the QR region (with padding) so next scan finds others
-          const padding = 10;
+          const padding = 20;
+          const cx = Math.floor((found.location.topLeftCorner.x + found.location.bottomRightCorner.x) / 2);
+          const cy = Math.floor((found.location.topLeftCorner.y + found.location.bottomRightCorner.y) / 2);
           const qrW = Math.hypot(
             found.location.topRightCorner.x - found.location.topLeftCorner.x,
             found.location.topRightCorner.y - found.location.topLeftCorner.y
@@ -137,8 +140,6 @@ export default function IdCardPage() {
             found.location.bottomLeftCorner.x - found.location.topLeftCorner.x,
             found.location.bottomLeftCorner.y - found.location.topLeftCorner.y
           );
-          const cx = Math.floor((found.location.topLeftCorner.x + found.location.bottomRightCorner.x) / 2);
-          const cy = Math.floor((found.location.topLeftCorner.y + found.location.bottomRightCorner.y) / 2);
           const halfW = Math.ceil(qrW / 2) + padding;
           const halfH = Math.ceil(qrH / 2) + padding;
           const x0 = Math.max(0, cx - halfW);
@@ -158,6 +159,23 @@ export default function IdCardPage() {
         return results;
       }
 
+      // Helper: scan a region for QR
+      function scanRegion(imageData: ImageData, rx: number, ry: number, rw: number, rh: number): string | null {
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = rw;
+        tempCanvas.height = rh;
+        const tempCtx = tempCanvas.getContext('2d')!;
+        // Need to extract from the original imageData
+        const tempData = tempCtx.createImageData(rw, rh);
+        for (let row = 0; row < rh; row++) {
+          const srcOffset = ((ry + row) * imageData.width + rx) * 4;
+          const dstOffset = row * rw * 4;
+          tempData.data.set(imageData.data.subarray(srcOffset, srcOffset + rw * 4), dstOffset);
+        }
+        const result = jsQR(tempData.data, rw, rh, { inversionAttempts: 'attemptBoth' });
+        return result ? result.data : null;
+      }
+
       for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
         setExtractProgress(`Halaman ${pageNum}/${totalPages}...`);
 
@@ -174,17 +192,90 @@ export default function IdCardPage() {
         const scaledH = canvas.height;
         const unscaled = page.getViewport({ scale: 1 });
 
-        // Find ALL QR codes on full page
+        console.log(`=== Page ${pageNum} ===`);
+        console.log(`Unscaled: ${unscaled.width}x${unscaled.height}`);
+        console.log(`Scaled (${SCALE}x): ${scaledW}x${scaledH}`);
+
+        // Save debug image
+        const dataUrl = canvas.toDataURL('image/png');
+        debugImagesList.push({ page: pageNum, dataUrl });
+
+        // Count non-white pixels to verify canvas has content
         const fullPageData = ctx.getImageData(0, 0, scaledW, scaledH);
-        const qrResults = findAllQrCodes(fullPageData, scaledW, scaledH);
-        console.log(`Page ${pageNum}: ${qrResults.length} QR codes found`);
+        let nonWhitePixels = 0;
+        for (let i = 0; i < fullPageData.data.length; i += 4) {
+          if (fullPageData.data[i] < 240 || fullPageData.data[i + 1] < 240 || fullPageData.data[i + 2] < 240) {
+            nonWhitePixels++;
+          }
+        }
+        console.log(`Non-white pixels: ${nonWhitePixels} / ${scaledW * scaledH} (${(nonWhitePixels / (scaledW * scaledH) * 100).toFixed(1)}%)`);
+
+        // Strategy 1: scan full page with iterative masking
+        const fullPixels = new Uint8ClampedArray(fullPageData.data);
+        let qrResults = findAllQrCodes(fullPixels, scaledW, scaledH);
+        console.log(`Strategy 1 (full page): ${qrResults.length} QR codes`);
+
+        // Strategy 2: if few found, try splitting into 3 columns and scanning each
+        if (qrResults.length < totalPages * 2) {
+          const colWidth = Math.floor(scaledW / 3);
+          for (let col = 0; col < 3; col++) {
+            const colX = col * colWidth;
+            const w = col === 2 ? scaledW - colX : colWidth;
+            const colData = ctx.getImageData(colX, 0, w, scaledH);
+            const colPixels = new Uint8ClampedArray(colData.data);
+            const colQrs = findAllQrCodes(colPixels, w, scaledH);
+            console.log(`Strategy 2 column ${col}: ${colQrs.length} QR codes`);
+            for (const q of colQrs) {
+              // Adjust x to page coordinates
+              const adjustedX = q.x + colX;
+              const isDupe = qrResults.some(existing =>
+                Math.abs(existing.x - adjustedX) < 50 && Math.abs(existing.y - q.y) < 50
+              );
+              if (!isDupe) {
+                qrResults.push({ ...q, x: adjustedX });
+              }
+            }
+          }
+        }
+
+        // Strategy 3: if still few, try scanning with grid (4 cols x 3 rows)
+        if (qrResults.length < totalPages * 2) {
+          const gridCols = 4;
+          const gridRows = 3;
+          const cellW = Math.floor(scaledW / gridCols);
+          const cellH = Math.floor(scaledH / gridRows);
+          for (let gr = 0; gr < gridRows; gr++) {
+            for (let gc = 0; gc < gridCols; gc++) {
+              const rx = gc * cellW;
+              const ry = gr * cellH;
+              const w = gc === gridCols - 1 ? scaledW - rx : cellW;
+              const h = gr === gridRows - 1 ? scaledH - ry : cellH;
+              const cellData = ctx.getImageData(rx, ry, w, h);
+              const cellPixels = new Uint8ClampedArray(cellData.data);
+              const cellQrs = findAllQrCodes(cellPixels, w, h);
+              for (const q of cellQrs) {
+                const adjustedX = q.x + rx;
+                const adjustedY = q.y + ry;
+                const isDupe = qrResults.some(existing =>
+                  Math.abs(existing.x - adjustedX) < 50 && Math.abs(existing.y - adjustedY) < 50
+                );
+                if (!isDupe) {
+                  qrResults.push({ ...q, x: adjustedX, y: adjustedY });
+                }
+              }
+            }
+          }
+          console.log(`Strategy 3 (grid): total ${qrResults.length} QR codes`);
+        }
+
+        qrResults.sort((a, b) => a.x - b.x);
+        console.log(`Final: ${qrResults.length} QR codes on page ${pageNum}`);
 
         // Extract text from PDF
         const textContent = await page.getTextContent();
         const items = textContent.items as { str: string; transform: number[] }[];
         const pageWidth = unscaled.width;
 
-        // Build text items with positions (in unscaled PDF coords)
         const textItems = items
           .map(it => ({
             text: it.str.trim(),
@@ -193,17 +284,9 @@ export default function IdCardPage() {
           }))
           .filter(t => t.text.length > 0);
 
-        // For each QR found, determine which card region it belongs to
-        // Sort QR results by x position (left to right = card 1, 2, 3)
-        qrResults.sort((a, b) => a.x - b.x);
-
         for (let qi = 0; qi < qrResults.length; qi++) {
           const qr = qrResults[qi];
           const qrXunscaled = qr.x / SCALE;
-          const qrYunscaled = qr.y / SCALE;
-
-          // Find text items that are in the same vertical region as this QR
-          // (within same card column — roughly same x range)
           const cardLeft = qrXunscaled - pageWidth / 3;
           const cardRight = qrXunscaled + pageWidth / 3;
 
@@ -211,7 +294,6 @@ export default function IdCardPage() {
             .filter(t => t.x >= cardLeft && t.x <= cardRight)
             .map(t => t.text);
 
-          // Parse name + NIS from card texts
           const skipWords = ['SDIT', 'BIDANG', 'KARTU', 'SCAN', 'AKTIF', 'SANTRI', 'IDENTITAS', 'QUR\'AN', 'AL HILMI', 'AL-HILMI', 'NAMA', 'NISN', 'KELAS', 'ALAMAT', 'TTL', 'ORANG TUA'];
           let foundNama = '';
           let foundNisn = '';
@@ -219,18 +301,11 @@ export default function IdCardPage() {
           for (const t of cardTexts) {
             if (t.length <= 1) continue;
             if (skipWords.some(w => t.toUpperCase().includes(w))) continue;
-
-            // NIS/NISN: 3-5 digits
-            if (/^\d{3,5}$/.test(t) && !foundNisn) {
-              foundNisn = t;
-              continue;
-            }
-
-            // Name: letters, spaces, dots, apostrophes, 3+ chars
-            if (/^[A-Za-z\s.'-]{3,}$/.test(t) && t.length > foundNama.length) {
-              foundNama = t;
-            }
+            if (/^\d{3,5}$/.test(t) && !foundNisn) { foundNisn = t; continue; }
+            if (/^[A-Za-z\s.'-]{3,}$/.test(t) && t.length > foundNama.length) { foundNama = t; }
           }
+
+          console.log(`QR ${qi}: data=${qr.data.slice(0, 16)}... name=${foundNama} nisn=${foundNisn}`);
 
           extractedCards.push({
             nama: foundNama,
@@ -241,6 +316,8 @@ export default function IdCardPage() {
           });
         }
       }
+
+      setDebugImages(debugImagesList);
 
       // Step 3: Match with database
       setExtractProgress('Mencocokkan dengan database...');
@@ -420,6 +497,20 @@ export default function IdCardPage() {
 
         {extractProgress && !isProcessing && (
           <p className="mt-3 text-sm text-slate-600">{extractProgress}</p>
+        )}
+
+        {debugImages.length > 0 && !isProcessing && (
+          <div className="mt-4 p-3 bg-slate-50 rounded-lg border border-slate-200">
+            <p className="text-xs font-medium text-slate-500 mb-2">Debug: Rendered pages (klik untuk download)</p>
+            <div className="flex gap-2 flex-wrap">
+              {debugImages.map(d => (
+                <a key={d.page} href={d.dataUrl} download={`page-${d.page}.png`}
+                  className="text-xs bg-white border border-slate-200 rounded px-2 py-1 hover:bg-blue-50 hover:border-blue-300 transition-colors">
+                  Page {d.page}
+                </a>
+              ))}
+            </div>
+          </div>
         )}
       </div>
 
