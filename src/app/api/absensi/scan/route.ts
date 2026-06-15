@@ -38,11 +38,11 @@ export async function POST(request: NextRequest) {
     const semesterCheck = await requireActiveSemester(supabase);
     if (semesterCheck.error) return semesterCheck.error;
 
-    // 1. Cari siswa berdasarkan nilai qr_code
+    // 1. Cari siswa berdasarkan nilai qr_code (case-insensitive)
     const { data: siswa, error: siswaError } = await supabase
       .from('santri')
       .select('id, nama')
-      .eq('qr_code', qr_code.trim())
+      .ilike('qr_code', qr_code.trim())
       .single();
 
     if (siswaError || !siswa) {
