@@ -50,7 +50,7 @@ const menuItems: MenuItem[] = [
   { label: 'Semester',       href: '/semester',           icon: <CalendarDays size={16} />,    group: 'Manajemen', roles: ['Kabid'] },
   { label: 'Kelas',          href: '/kelas',              icon: <School size={16} />,          group: 'Manajemen', roles: ['Kabid'] },
   { label: "Tim Qur'an",     href: '/tim',                icon: <UserCheck size={16} />,       group: 'Manajemen', roles: ['Kabid'] },
-  { label: 'Fix QR Code',     href: '/admin/fix-qr',       icon: <QrCode size={16} />,          group: 'Manajemen', roles: ['Kabid'] },
+  { label: 'ID Card PDF',     href: '/admin/fix-qr',       icon: <QrCode size={16} />,          group: 'Manajemen', roles: ['Kabid'] },
 
   // ── Konten ───────────────────────────────────────────────────────────
   { label: 'Kelola Pengumuman', href: '/dashboard/pengumuman', icon: <Megaphone size={16} />,       group: 'Konten', roles: ['Kabid', 'Sekretaris', 'Bendahara'] },
