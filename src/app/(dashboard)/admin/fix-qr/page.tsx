@@ -24,6 +24,7 @@ export default function FixQrPage() {
   const [cards, setCards] = useState<ExtractedCard[]>([]);
   const [updating, setUpdating] = useState(false);
   const [result, setResult] = useState<{ updated: number; failed: number } | null>(null);
+  const [debugInfo, setDebugInfo] = useState<string[]>([]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
@@ -31,6 +32,7 @@ export default function FixQrPage() {
       setFile(f);
       setCards([]);
       setResult(null);
+      setDebugInfo([]);
     }
   };
 
@@ -39,6 +41,9 @@ export default function FixQrPage() {
     setExtracting(true);
     setExtractProgress('Memuat PDF...');
     setResult(null);
+    setDebugInfo([]);
+
+    const debug: string[] = [];
 
     try {
       const pdfjsLib = await import('pdfjs-dist');
@@ -47,148 +52,153 @@ export default function FixQrPage() {
       const arrayBuffer = await file.arrayBuffer();
       const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
       const totalPages = pdf.numPages;
+      debug.push(`PDF: ${totalPages} halaman`);
 
-      const extractedCards: ExtractedCard[] = [];
+      const allQrCodes: { qr: string; pageNum: number; col: number }[] = [];
+      const allTextGroups: { texts: string[]; col: number; pageNum: number }[] = [];
 
       for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
-        setExtractProgress(`Memproses halaman ${pageNum}/${totalPages}...`);
+        setExtractProgress(`Render halaman ${pageNum}/${totalPages}...`);
 
         const page = await pdf.getPage(pageNum);
-        const viewport = page.getViewport({ scale: 2.5 });
+        const unscaled = page.getViewport({ scale: 1 });
+        const pageW = unscaled.width;
+        const pageH = unscaled.height;
+        debug.push(`Hal ${pageNum}: ${Math.round(pageW)}x${Math.round(pageH)}`);
 
-        // Render page ke canvas
+        const scale = 3;
+        const viewport = page.getViewport({ scale });
+
         const canvas = document.createElement('canvas');
         canvas.width = viewport.width;
         canvas.height = viewport.height;
-        const ctx = canvas.getContext('2d')!;
-
+        const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
         await page.render({ canvasContext: ctx, viewport }).promise;
 
-        // Render text content untuk extract nama
+        const scaledW = canvas.width;
+        const scaledH = canvas.height;
+
+        const jsQR = (await import('jsqr')).default;
+
+        // ── 1. Coba decode QR dari seluruh halaman ──
+        const fullData = ctx.getImageData(0, 0, scaledW, scaledH);
+        const fullResult = jsQR(fullData.data, scaledW, scaledH, { inversionAttempts: 'attemptBoth' });
+        if (fullResult) {
+          allQrCodes.push({ qr: fullResult.data, pageNum, col: 0 });
+          debug.push(`Hal ${pageNum}: QR ditemukan dari full page: ${fullResult.data.slice(0, 8)}`);
+        }
+
+        // ── 2. Split halaman jadi 3 kolom (3 kartu per baris) ──
+        const colWidth = Math.floor(scaledW / 3);
+        const searchTop = Math.floor(scaledH * 0.15);
+        const searchBottom = Math.floor(scaledH * 0.85);
+        const searchHeight = searchBottom - searchTop;
+
+        for (let col = 0; col < 3; col++) {
+          const colX = col * colWidth;
+
+          // Coba beberapa region untuk QR
+          const regions = [
+            // QR di kanan kartu (~60-90% lebar kolom, 20-70% tinggi)
+            { x: colX + Math.floor(colWidth * 0.55), y: searchTop + Math.floor(searchHeight * 0.1), w: Math.floor(colWidth * 0.4), h: Math.floor(searchHeight * 0.6) },
+            // QR lebih lebar
+            { x: colX + Math.floor(colWidth * 0.5), y: searchTop, w: Math.floor(colWidth * 0.48), h: Math.floor(searchHeight * 0.7) },
+            // Seluruh kolom
+            { x: colX, y: searchTop, w: colWidth, h: searchHeight },
+          ];
+
+          for (const r of regions) {
+            // Pastikan dalam batas canvas
+            const rx = Math.max(0, r.x);
+            const ry = Math.max(0, r.y);
+            const rw = Math.min(r.w, scaledW - rx);
+            const rh = Math.min(r.h, scaledH - ry);
+            if (rw <= 0 || rh <= 0) continue;
+
+            const regionData = ctx.getImageData(rx, ry, rw, rh);
+            const regionResult = jsQR(regionData.data, rw, rh, { inversionAttempts: 'attemptBoth' });
+            if (regionResult) {
+              const exists = allQrCodes.some(q => q.qr === regionResult.data && q.pageNum === pageNum && q.col === col);
+              if (!exists) {
+                allQrCodes.push({ qr: regionResult.data, pageNum, col });
+                debug.push(`Hal ${pageNum} kolom ${col}: QR ditemukan: ${regionResult.data.slice(0, 8)}`);
+              }
+              break; // Sudah ketemu, stop coba region lain
+            }
+          }
+        }
+
+        // ── 3. Extract text dan group by posisi X (kolom) ──
         const textContent = await page.getTextContent();
-        const textItems = textContent.items as { str: string; transform: number[] }[];
+        const items = textContent.items as { str: string; transform: number[] }[];
 
-        // Parse text items: cari nama siswa dan NIS
-        // Layout kartu: nama di kiri atas, NIS di bawah nama
-        const sortedItems = [...textItems].sort((a, b) => {
-          const yDiff = b.transform[5] - a.transform[5]; // Y position (top to bottom)
-          if (Math.abs(yDiff) > 10) return yDiff;
-          return a.transform[4] - b.transform[4]; // X position (left to right)
-        });
-
-        // Cari pattern: text yang panjang (kemungkinan nama) dan angka (NIS)
-        let foundNama = '';
-        let foundNisn = '';
-
-        for (const item of sortedItems) {
+        // Group text items by kolom
+        const colTexts: string[][] = [[], [], []];
+        for (const item of items) {
           const text = item.str.trim();
           if (!text) continue;
 
-          // Skip text yang terlalu pendek atau header
-          if (text.length < 2) continue;
-          if (text.includes('SDIT') || text.includes('BIDANG') || text.includes('KARTU') || text.includes('SCAN') || text.includes('AKTIF')) continue;
+          // Posisi X dalam unscaled
+          const xPos = item.transform[4];
+          const colIdx = Math.min(2, Math.floor(xPos / (pageW / 3)));
+          colTexts[colIdx].push(text);
+        }
 
-          // Cari NIS (angka 3-4 digit)
-          if (/^\d{3,4}$/.test(text) && !foundNisn) {
-            foundNisn = text;
-            continue;
-          }
-
-          // Cari nama (text dengan huruf, minimal 3 karakter, bukan angka)
-          if (/^[A-Za-z\s.'-]{3,}$/.test(text) && text.length > foundNama.length && !foundNisn) {
-            foundNama = text;
+        for (let col = 0; col < 3; col++) {
+          if (colTexts[col].length > 0) {
+            allTextGroups.push({ texts: colTexts[col], col, pageNum });
           }
         }
 
-        // Jika tidak ketemu nama dari text, coba cari dari nama file atau fallback
-        if (!foundNama) {
-          // Coba cari semua text yang bukan header/footer
-          const allTexts = textItems
-            .map(t => t.str.trim())
-            .filter(t => t.length > 2 && !t.includes('SDIT') && !t.includes('BIDANG') && !t.includes('KARTU') && !t.includes('SCAN') && !t.includes('AKTIF') && !/^\d{3,4}$/.test(t));
-
-          // Ambil text terpanjang sebagai nama
-          if (allTexts.length > 0) {
-            foundNama = allTexts.reduce((a, b) => a.length > b.length ? a : b);
-          }
-        }
-
-        // Decode QR code dari gambar
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-
-        // QR code biasanya di sisi kanan kartu
-        // Kartu 85mm x 55mm, QR code di kanan ~30% lebar
-        const qrRegionX = Math.floor(canvas.width * 0.62);
-        const qrRegionWidth = canvas.width - qrRegionX;
-        const qrRegionY = Math.floor(canvas.height * 0.25);
-        const qrRegionHeight = Math.floor(canvas.height * 0.55);
-
-        // BuatImageData untuk region QR code
-        const qrCanvas = document.createElement('canvas');
-        qrCanvas.width = qrRegionWidth;
-        qrCanvas.height = qrRegionHeight;
-        const qrCtx = qrCanvas.getContext('2d')!;
-        qrCtx.drawImage(canvas, qrRegionX, qrRegionY, qrRegionWidth, qrRegionHeight, 0, 0, qrRegionWidth, qrRegionHeight);
-        const qrImageData = qrCtx.getImageData(0, 0, qrRegionWidth, qrRegionHeight);
-
-        const jsQR = (await import('jsqr')).default;
-        const qrCode = jsQR(qrImageData.data, qrRegionWidth, qrRegionHeight, {
-          inversionAttempts: 'attemptBoth',
-        });
-
-        let qrText = '';
-        if (qrCode) {
-          qrText = qrCode.data;
-        } else {
-          // Coba decode dari seluruh halaman
-          const fullImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-          const fullQr = jsQR(fullImageData.data, canvas.width, canvas.height, {
-            inversionAttempts: 'attemptBoth',
-          });
-          if (fullQr) {
-            qrText = fullQr.data;
-          }
-        }
-
-        // Jika masih tidak ketemu, coba render ulang dengan scale berbeda
-        if (!qrText) {
-          const retryViewport = page.getViewport({ scale: 3 });
-          const retryCanvas = document.createElement('canvas');
-          retryCanvas.width = retryViewport.width;
-          retryCanvas.height = retryViewport.height;
-          const retryCtx = retryCanvas.getContext('2d')!;
-          await page.render({ canvasContext: retryCtx, viewport: retryViewport }).promise;
-
-          const retryQrX = Math.floor(retryCanvas.width * 0.6);
-          const retryQrW = retryCanvas.width - retryQrX;
-          const retryQrY = Math.floor(retryCanvas.height * 0.2);
-          const retryQrH = Math.floor(retryCanvas.height * 0.6);
-
-          const retryQrCanvas = document.createElement('canvas');
-          retryQrCanvas.width = retryQrW;
-          retryQrCanvas.height = retryQrH;
-          const retryQrCtx = retryQrCanvas.getContext('2d')!;
-          retryQrCtx.drawImage(retryCanvas, retryQrX, retryQrY, retryQrW, retryQrH, 0, 0, retryQrW, retryQrH);
-          const retryQrData = retryQrCtx.getImageData(0, 0, retryQrW, retryQrH);
-
-          const retryQr = jsQR(retryQrData.data, retryQrW, retryQrH, { inversionAttempts: 'attemptBoth' });
-          if (retryQr) {
-            qrText = retryQr.data;
-          }
-        }
-
-        if (foundNama || qrText) {
-          extractedCards.push({
-            nama: foundNama,
-            nisn: foundNisn,
-            qrCode: qrText,
-            matched: false,
-            selected: true,
-          });
-        }
+        debug.push(`Hal ${pageNum}: ${items.length} text items, kolom: ${colTexts.map(t => t.length).join(',')}`);
       }
 
-      // Cocokkan dengan database
+      debug.push(`Total QR ditemukan: ${allQrCodes.length}`);
+      debug.push(`Total text groups: ${allTextGroups.length}`);
+
+      // ── 4. Match QR codes dengan text ──
+      // Build extracted cards
+      const extractedCards: ExtractedCard[] = [];
+
+      for (const qr of allQrCodes) {
+        // Cari text group yang sesuai kolom dan halaman
+        const textGroup = allTextGroups.find(t => t.pageNum === qr.pageNum && t.col === qr.col);
+
+        let foundNama = '';
+        let foundNisn = '';
+
+        if (textGroup) {
+          const skipWords = ['SDIT', 'BIDANG', 'KARTU', 'SCAN', 'AKTIF', 'SANTRI', 'IDENTITAS', 'QUR\'AN'];
+          const filtered = textGroup.texts.filter(t =>
+            t.length > 1 &&
+            !skipWords.some(w => t.toUpperCase().includes(w))
+          );
+
+          for (const t of filtered) {
+            // NIS = angka 3-4 digit
+            if (/^\d{3,5}$/.test(t) && !foundNisn) {
+              foundNisn = t;
+              continue;
+            }
+            // Nama = huruf, minimal 3 karakter
+            if (/^[A-Za-z\s.'-]{3,}$/.test(t) && t.length > foundNama.length) {
+              foundNama = t;
+            }
+          }
+        }
+
+        extractedCards.push({
+          nama: foundNama,
+          nisn: foundNisn,
+          qrCode: qr.qr,
+          matched: false,
+          selected: true,
+        });
+      }
+
+      debug.push(`Total kartu: ${extractedCards.length}`);
+
+      // ── 5. Cocokkan dengan database ──
       setExtractProgress('Mencocokkan dengan database...');
       const matchRes = await fetch('/api/siswa/list?limit=500');
       const matchData = await matchRes.json();
@@ -196,27 +206,38 @@ export default function FixQrPage() {
 
       for (const card of extractedCards) {
         // Cari by nama (exact atau fuzzy)
-        const match = dbStudents.find(s =>
-          s.nama.toLowerCase() === card.nama.toLowerCase() ||
-          s.nama.toLowerCase().includes(card.nama.toLowerCase()) ||
-          card.nama.toLowerCase().includes(s.nama.toLowerCase())
-        );
+        const match = dbStudents.find(s => {
+          const sName = s.nama.toLowerCase();
+          const cName = card.nama.toLowerCase();
+          return sName === cName || sName.includes(cName) || cName.includes(sName);
+        });
 
         if (match) {
           card.matched = true;
           card.dbName = match.nama;
           card.dbQrCode = match.qr_code;
-          // Update nama ke nama database (lebih akurat)
           card.nama = match.nama;
-          card.nisn = match.nisn;
+          card.nisn = card.nisn || match.nisn;
+        } else if (card.nisn) {
+          // Coba by NISN
+          const nisnMatch = dbStudents.find(s => s.nisn === card.nisn);
+          if (nisnMatch) {
+            card.matched = true;
+            card.dbName = nisnMatch.nama;
+            card.dbQrCode = nisnMatch.qr_code;
+            card.nama = nisnMatch.nama;
+          }
         }
       }
 
       setCards(extractedCards);
-      setExtractProgress(`Selesai! ${extractedCards.length} kartu ditemukan.`);
+      setDebugInfo(debug);
+      setExtractProgress(`Selesai! ${extractedCards.length} QR code ditemukan dari ${totalPages} halaman.`);
     } catch (err) {
       console.error('PDF extract error:', err);
-      toast.error('Gagal membaca PDF. Pastikan file benar dan coba lagi.');
+      debug.push(`Error: ${err instanceof Error ? err.message : String(err)}`);
+      setDebugInfo(debug);
+      toast.error('Gagal membaca PDF. Cek info debug di bawah.');
     } finally {
       setExtracting(false);
     }
@@ -252,7 +273,6 @@ export default function FixQrPage() {
       setResult({ updated: data.updated, failed: data.failed });
       toast.success(`${data.updated} QR code berhasil diupdate!`);
 
-      // Refresh cards
       setCards(prev => prev.map(c => {
         const r = data.results?.find((r: { nama: string }) => r.nama === c.nama);
         if (r?.status === 'updated') {
@@ -324,7 +344,7 @@ export default function FixQrPage() {
             </Button>
             <Button
               variant="ghost"
-              onClick={() => { setFile(null); setCards([]); setResult(null); }}
+              onClick={() => { setFile(null); setCards([]); setResult(null); setDebugInfo([]); }}
               disabled={extracting}
             >
               Reset
@@ -334,6 +354,16 @@ export default function FixQrPage() {
 
         {extractProgress && !extracting && (
           <p className="mt-3 text-sm text-slate-600">{extractProgress}</p>
+        )}
+
+        {/* Debug info */}
+        {debugInfo.length > 0 && (
+          <div className="mt-3 p-3 bg-slate-50 rounded-lg border border-slate-200">
+            <p className="text-xs font-medium text-slate-500 mb-1">Debug Info:</p>
+            {debugInfo.map((d, i) => (
+              <p key={i} className="text-xs text-slate-600 font-mono">{d}</p>
+            ))}
+          </div>
         )}
       </div>
 
@@ -417,7 +447,7 @@ export default function FixQrPage() {
                     <td className="py-2 px-3">
                       {!card.matched ? (
                         <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">
-                          <AlertCircle size={12} /> Tidak cocok
+                          <AlertCircle size={12} /> Belum cocok
                         </span>
                       ) : card.dbQrCode?.toUpperCase() === card.qrCode.toUpperCase() ? (
                         <span className="inline-flex items-center gap-1 text-xs font-medium text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
