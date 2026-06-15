@@ -106,14 +106,63 @@ export default function IdCardPage() {
       const jsQR = (await import('jsqr')).default;
 
       const extractedCards: ExtractedCard[] = [];
+      const SCALE = 3;
+
+      // Helper: find all QR codes in ImageData by iteratively masking
+      function findAllQrCodes(imageData: ImageData, w: number, h: number): { data: string; x: number; y: number; size: number }[] {
+        const results: { data: string; x: number; y: number; size: number }[] = [];
+        const pixels = new Uint8ClampedArray(imageData.data);
+
+        for (let attempt = 0; attempt < 15; attempt++) {
+          const found = jsQR(pixels, w, h, { inversionAttempts: 'attemptBoth' });
+          if (!found) break;
+
+          results.push({
+            data: found.data,
+            x: found.location.topLeftCorner.x,
+            y: found.location.topLeftCorner.y,
+            size: Math.hypot(
+              found.location.topRightCorner.x - found.location.topLeftCorner.x,
+              found.location.topRightCorner.y - found.location.topLeftCorner.y
+            ),
+          });
+
+          // Black out the QR region (with padding) so next scan finds others
+          const padding = 10;
+          const qrW = Math.hypot(
+            found.location.topRightCorner.x - found.location.topLeftCorner.x,
+            found.location.topRightCorner.y - found.location.topLeftCorner.y
+          );
+          const qrH = Math.hypot(
+            found.location.bottomLeftCorner.x - found.location.topLeftCorner.x,
+            found.location.bottomLeftCorner.y - found.location.topLeftCorner.y
+          );
+          const cx = Math.floor((found.location.topLeftCorner.x + found.location.bottomRightCorner.x) / 2);
+          const cy = Math.floor((found.location.topLeftCorner.y + found.location.bottomRightCorner.y) / 2);
+          const halfW = Math.ceil(qrW / 2) + padding;
+          const halfH = Math.ceil(qrH / 2) + padding;
+          const x0 = Math.max(0, cx - halfW);
+          const y0 = Math.max(0, cy - halfH);
+          const x1 = Math.min(w, cx + halfW);
+          const y1 = Math.min(h, cy + halfH);
+          for (let py = y0; py < y1; py++) {
+            for (let px = x0; px < x1; px++) {
+              const idx = (py * w + px) * 4;
+              pixels[idx] = 0;
+              pixels[idx + 1] = 0;
+              pixels[idx + 2] = 0;
+              pixels[idx + 3] = 255;
+            }
+          }
+        }
+        return results;
+      }
 
       for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
         setExtractProgress(`Halaman ${pageNum}/${totalPages}...`);
 
         const page = await pdf.getPage(pageNum);
-        const unscaled = page.getViewport({ scale: 1 });
-        const scale = 3;
-        const viewport = page.getViewport({ scale });
+        const viewport = page.getViewport({ scale: SCALE });
 
         const canvas = document.createElement('canvas');
         canvas.width = viewport.width;
@@ -123,80 +172,73 @@ export default function IdCardPage() {
 
         const scaledW = canvas.width;
         const scaledH = canvas.height;
+        const unscaled = page.getViewport({ scale: 1 });
 
-        // Split 3 kolom per halaman
-        const colWidth = Math.floor(scaledW / 3);
-        const searchTop = Math.floor(scaledH * 0.1);
-        const searchBottom = Math.floor(scaledH * 0.9);
-        const searchHeight = searchBottom - searchTop;
+        // Find ALL QR codes on full page
+        const fullPageData = ctx.getImageData(0, 0, scaledW, scaledH);
+        const qrResults = findAllQrCodes(fullPageData, scaledW, scaledH);
+        console.log(`Page ${pageNum}: ${qrResults.length} QR codes found`);
 
-        // Extract text per kolom
+        // Extract text from PDF
         const textContent = await page.getTextContent();
         const items = textContent.items as { str: string; transform: number[] }[];
-        const colTexts: string[][] = [[], [], []];
+        const pageWidth = unscaled.width;
 
-        for (const item of items) {
-          const text = item.str.trim();
-          if (!text) continue;
-          const xPos = item.transform[4];
-          const colIdx = Math.min(2, Math.floor(xPos / (unscaled.width / 3)));
-          colTexts[colIdx].push(text);
-        }
+        // Build text items with positions (in unscaled PDF coords)
+        const textItems = items
+          .map(it => ({
+            text: it.str.trim(),
+            x: it.transform[4],
+            y: it.transform[5],
+          }))
+          .filter(t => t.text.length > 0);
 
-        // Scan QR per kolom
-        for (let col = 0; col < 3; col++) {
-          const colX = col * colWidth;
+        // For each QR found, determine which card region it belongs to
+        // Sort QR results by x position (left to right = card 1, 2, 3)
+        qrResults.sort((a, b) => a.x - b.x);
 
-          // Try multiple regions for QR
-          const regions = [
-            { x: colX + Math.floor(colWidth * 0.55), y: searchTop + Math.floor(searchHeight * 0.05), w: Math.floor(colWidth * 0.42), h: Math.floor(searchHeight * 0.65) },
-            { x: colX + Math.floor(colWidth * 0.45), y: searchTop, w: Math.floor(colWidth * 0.53), h: Math.floor(searchHeight * 0.7) },
-            { x: colX, y: searchTop, w: colWidth, h: searchHeight },
-          ];
+        for (let qi = 0; qi < qrResults.length; qi++) {
+          const qr = qrResults[qi];
+          const qrXunscaled = qr.x / SCALE;
+          const qrYunscaled = qr.y / SCALE;
 
-          let qrText = '';
-          for (const r of regions) {
-            const rx = Math.max(0, r.x);
-            const ry = Math.max(0, r.y);
-            const rw = Math.min(r.w, scaledW - rx);
-            const rh = Math.min(r.h, scaledH - ry);
-            if (rw <= 0 || rh <= 0) continue;
+          // Find text items that are in the same vertical region as this QR
+          // (within same card column — roughly same x range)
+          const cardLeft = qrXunscaled - pageWidth / 3;
+          const cardRight = qrXunscaled + pageWidth / 3;
 
-            const regionData = ctx.getImageData(rx, ry, rw, rh);
-            const regionResult = jsQR(regionData.data, rw, rh, { inversionAttempts: 'attemptBoth' });
-            if (regionResult) { qrText = regionResult.data; break; }
-          }
+          const cardTexts = textItems
+            .filter(t => t.x >= cardLeft && t.x <= cardRight)
+            .map(t => t.text);
 
-          // Also try full page for this column area
-          if (!qrText) {
-            const fullColData = ctx.getImageData(colX, searchTop, colWidth, searchHeight);
-            const fullColResult = jsQR(fullColData.data, colWidth, searchHeight, { inversionAttempts: 'attemptBoth' });
-            if (fullColResult) qrText = fullColResult.data;
-          }
-
-          // Parse text for name + NIS
-          const skipWords = ['SDIT', 'BIDANG', 'KARTU', 'SCAN', 'AKTIF', 'SANTRI', 'IDENTITAS', 'QUR\'AN', 'AL HILMI'];
+          // Parse name + NIS from card texts
+          const skipWords = ['SDIT', 'BIDANG', 'KARTU', 'SCAN', 'AKTIF', 'SANTRI', 'IDENTITAS', 'QUR\'AN', 'AL HILMI', 'AL-HILMI', 'NAMA', 'NISN', 'KELAS', 'ALAMAT', 'TTL', 'ORANG TUA'];
           let foundNama = '';
           let foundNisn = '';
 
-          const filtered = colTexts[col].filter(t =>
-            t.length > 1 && !skipWords.some(w => t.toUpperCase().includes(w))
-          );
+          for (const t of cardTexts) {
+            if (t.length <= 1) continue;
+            if (skipWords.some(w => t.toUpperCase().includes(w))) continue;
 
-          for (const t of filtered) {
-            if (/^\d{3,5}$/.test(t) && !foundNisn) { foundNisn = t; continue; }
-            if (/^[A-Za-z\s.'-]{3,}$/.test(t) && t.length > foundNama.length) { foundNama = t; }
+            // NIS/NISN: 3-5 digits
+            if (/^\d{3,5}$/.test(t) && !foundNisn) {
+              foundNisn = t;
+              continue;
+            }
+
+            // Name: letters, spaces, dots, apostrophes, 3+ chars
+            if (/^[A-Za-z\s.'-]{3,}$/.test(t) && t.length > foundNama.length) {
+              foundNama = t;
+            }
           }
 
-          if (qrText || foundNama) {
-            extractedCards.push({
-              nama: foundNama,
-              nisn: foundNisn,
-              qrCode: qrText,
-              matched: false,
-              selected: true,
-            });
-          }
+          extractedCards.push({
+            nama: foundNama,
+            nisn: foundNisn,
+            qrCode: qr.data,
+            matched: false,
+            selected: true,
+          });
         }
       }
 
@@ -206,20 +248,59 @@ export default function IdCardPage() {
       const matchData = await matchRes.json();
       const dbStudents: { nama: string; nisn: string; qr_code: string }[] = matchData.data ?? [];
 
-      for (const card of extractedCards) {
-        const match = dbStudents.find(s => {
-          const sName = s.nama.toLowerCase();
-          const cName = card.nama.toLowerCase();
-          return sName === cName || sName.includes(cName) || cName.includes(sName);
-        });
+      // Also try to match by QR code prefix (first 8 chars)
+      const qrPrefixMap = new Map<string, typeof dbStudents[0]>();
+      for (const s of dbStudents) {
+        if (s.qr_code) {
+          qrPrefixMap.set(s.qr_code.slice(0, 8).toUpperCase(), s);
+        }
+      }
 
-        if (match) {
-          card.matched = true;
-          card.dbName = match.nama;
-          card.dbQrCode = match.qr_code;
-          card.nama = match.nama;
-          card.nisn = card.nisn || match.nisn;
-        } else if (card.nisn) {
+      for (const card of extractedCards) {
+        // First try: match by QR prefix
+        if (card.qrCode) {
+          const prefix = card.qrCode.slice(0, 8).toUpperCase();
+          const qrMatch = qrPrefixMap.get(prefix);
+          if (qrMatch) {
+            card.matched = true;
+            card.dbName = qrMatch.nama;
+            card.dbQrCode = qrMatch.qr_code;
+            card.nama = qrMatch.nama;
+            card.nisn = card.nisn || qrMatch.nisn;
+            continue;
+          }
+
+          // Also try: exact QR match
+          const exactMatch = dbStudents.find(s => s.qr_code && s.qr_code.toUpperCase() === card.qrCode.toUpperCase());
+          if (exactMatch) {
+            card.matched = true;
+            card.dbName = exactMatch.nama;
+            card.dbQrCode = exactMatch.qr_code;
+            card.nama = exactMatch.nama;
+            card.nisn = card.nisn || exactMatch.nisn;
+            continue;
+          }
+        }
+
+        // Second try: match by name
+        if (card.nama) {
+          const nameMatch = dbStudents.find(s => {
+            const sName = s.nama.toLowerCase();
+            const cName = card.nama.toLowerCase();
+            return sName === cName || sName.includes(cName) || cName.includes(sName);
+          });
+          if (nameMatch) {
+            card.matched = true;
+            card.dbName = nameMatch.nama;
+            card.dbQrCode = nameMatch.qr_code;
+            card.nama = nameMatch.nama;
+            card.nisn = card.nisn || nameMatch.nisn;
+            continue;
+          }
+        }
+
+        // Third try: match by NISN
+        if (card.nisn) {
           const nisnMatch = dbStudents.find(s => s.nisn === card.nisn);
           if (nisnMatch) {
             card.matched = true;
