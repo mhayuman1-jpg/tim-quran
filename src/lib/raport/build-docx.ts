@@ -387,7 +387,7 @@ function buildSignatureBlock(raport: RaportExportData, kota: string, tanggal: st
       new TableRow({
         children: [
           makeCell([
-            para(run('Guru Kelas,', { size: 20 }), AlignmentType.CENTER),
+            para(run('Guru Pengajar,', { size: 20 }), AlignmentType.CENTER),
             para(run('', { size: 20 }), AlignmentType.CENTER, { before: 400, after: 40 }),
             guru
               ? para(run(guru, { bold: true, underline: true, size: 20 }), AlignmentType.CENTER)

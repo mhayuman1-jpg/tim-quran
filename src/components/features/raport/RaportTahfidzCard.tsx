@@ -430,7 +430,7 @@ const RaportTahfidzCard = React.forwardRef<HTMLDivElement, RaportTahfidzCardProp
 
         <div className="signature-section">
           <div className="signature-box">
-            <div>Guru Kelas</div>
+            <div>Guru Pengajar</div>
             <div className="signature-line" />
             <div className="signature-name">{namaGuruKelas || '—'}</div>
             <div className="signature-nih">NIY: {niyGuruKelas || '—'}</div>

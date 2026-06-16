@@ -564,7 +564,7 @@ export default function RaportTahfidzForm({
       <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-4">
         <p className="text-sm font-semibold text-slate-700">✍️ Nama Penandatangan</p>
         {[
-          { key: 'guru', nama: 'nama_guru_kelas' as const, niy: 'niy_guru_kelas' as const, label: 'Guru Kelas', ph1: 'Fitri Nurhandayani, S. Pd., Gr.', ph2: 'NIY.NIY.GTTY.0842020' },
+          { key: 'guru', nama: 'nama_guru_kelas' as const, niy: 'niy_guru_kelas' as const, label: 'Guru Pengajar', ph1: 'Fitri Nurhandayani, S. Pd., Gr.', ph2: 'NIY.NIY.GTTY.0842020' },
           { key: 'kabid', nama: 'nama_kabid' as const, niy: 'niy_kabid' as const, label: "Kabid Qur'an", ph1: 'M. Fikramullah, S. Ag., Gr.', ph2: 'NIY.GTTY.0832020' },
           { key: 'kepsek', nama: 'nama_kepala_sekolah' as const, niy: 'niy_kepala_sekolah' as const, label: 'Kepala Sekolah', ph1: 'Syamsul, S. Pd., M.Pd., Gr.', ph2: 'NIY.GTY.0012011' },
         ].map(({ key, nama, niy, label, ph1, ph2 }) => (

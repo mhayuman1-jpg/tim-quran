@@ -715,7 +715,7 @@ const RaportTahfidzDocument = React.forwardRef<HTMLDivElement, RaportTahfidzDocu
           }}
         >
           <div style={{ textAlign: 'center' }}>
-            <div style={{ marginBottom: 1, fontSize: '11px' }}>Guru Kelas,</div>
+            <div style={{ marginBottom: 1, fontSize: '11px' }}>Guru Pengajar,</div>
             <div style={{ height: 45 }} />
             {namaGuruKelas ? (
               <>
@@ -729,12 +729,12 @@ const RaportTahfidzDocument = React.forwardRef<HTMLDivElement, RaportTahfidzDocu
                     fontSize: '11px',
                   }}
                 >
-                  {renderEditableText('nama_guru_kelas', namaGuruKelas, 'Nama Guru Kelas', {
+                  {renderEditableText('nama_guru_kelas', namaGuruKelas, 'Nama Guru Pengajar', {
                     display: 'block',
                     width: '100%',
                   })}
                 </div>
-                {renderEditableText('niy_guru_kelas', niyGuruKelas, 'NIY Guru Kelas', {
+                {renderEditableText('niy_guru_kelas', niyGuruKelas, 'NIY Guru Pengajar', {
                   fontSize: '10px',
                   color: '#222',
                   display: 'block',

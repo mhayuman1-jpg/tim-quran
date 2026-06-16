@@ -48,6 +48,7 @@ export async function GET(_request: NextRequest) {
     }
 
     const list = normalized.map((row: any) => ({
+      student_id: row.santri_id,
       nama: namaMap[row.santri_id] ?? 'Tidak diketahui',
       scanned_at: new Date(row.created_at).toLocaleTimeString('id-ID', {
         timeZone: 'Asia/Makassar',

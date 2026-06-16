@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { CalendarDays, ArrowRight, RotateCcw, PowerOff } from 'lucide-react';
+import { CalendarDays, ArrowRight, RotateCcw, PowerOff, AlertTriangle } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Modal from '@/components/ui/Modal';
@@ -35,6 +35,14 @@ export default function SemesterPage() {
   const [resetNotes, setResetNotes] = useState('');
   const [resetJuz, setResetJuz] = useState(true);
   const [resetting, setResetting] = useState(false);
+
+  // ── Reset Penuh State ──
+  const [openResetFullModal, setOpenResetFullModal] = useState(false);
+  const [resetFullSemesterName, setResetFullSemesterName] = useState('');
+  const [resetFullEndDate, setResetFullEndDate] = useState('');
+  const [resetFullNotes, setResetFullNotes] = useState('');
+  const [resetFullConfirm, setResetFullConfirm] = useState('');
+  const [resettingFull, setResettingFull] = useState(false);
 
   // ── Deactivate Semester State ──
   const [deactivating, setDeactivating] = useState(false);
@@ -203,6 +211,66 @@ export default function SemesterPage() {
     }
   };
 
+  const handleResetFull = async () => {
+    if (!resetFullSemesterName.trim()) {
+      toast.error('Nama semester baru wajib diisi.');
+      return;
+    }
+    if (!resetFullEndDate) {
+      toast.error('Tanggal akhir semester wajib diisi.');
+      return;
+    }
+    if (resetFullConfirm !== 'RESET') {
+      toast.error('Ketik "RESET" untuk konfirmasi.');
+      return;
+    }
+    setResettingFull(true);
+    try {
+      const res = await fetch('/api/semester/reset-full', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          semester_name: resetFullSemesterName.trim(),
+          end_date: resetFullEndDate,
+          notes: resetFullNotes.trim() || null,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        toast.error(json.message ?? 'Gagal mereset penuh semester.');
+        return;
+      }
+      toast.success(json.message ?? 'Reset penuh berhasil.');
+      setOpenResetFullModal(false);
+      setResetFullSemesterName('');
+      setResetFullEndDate('');
+      setResetFullNotes('');
+      setResetFullConfirm('');
+      await fetchSemesterConfig();
+      await fetchStudents();
+    } catch {
+      toast.error('Terjadi kesalahan saat mereset penuh semester.');
+    } finally {
+      setResettingFull(false);
+    }
+  };
+
+  const openResetFullModalHandler = () => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth() + 1;
+    if (month >= 7 && month <= 12) {
+      setResetFullSemesterName(`Ganjil ${year}/${year + 1}`);
+      setResetFullEndDate(`${year + 1}-01-31`);
+    } else {
+      setResetFullSemesterName(`Genap ${year - 1}/${year}`);
+      setResetFullEndDate(`${year}-06-30`);
+    }
+    setResetFullNotes('');
+    setResetFullConfirm('');
+    setOpenResetFullModal(true);
+  };
+
   const openResetModalWithDefaults = () => {
     const now = new Date();
     const year = now.getFullYear();
@@ -281,6 +349,14 @@ export default function SemesterPage() {
             onClick={openResetModalWithDefaults}
           >
             Mulai Semester Baru
+          </Button>
+          <Button
+            variant="danger"
+            leftIcon={<AlertTriangle size={16} />}
+            onClick={openResetFullModalHandler}
+            className="bg-red-700 hover:bg-red-800"
+          >
+            Reset Penuh Semester
           </Button>
           <Button variant="secondary" onClick={() => { fetchSemesterConfig(); fetchClasses(); fetchStudents(); }}>
             Muat Ulang Data
@@ -550,6 +626,95 @@ export default function SemesterPage() {
             </Button>
             <Button variant="danger" loading={resetting} onClick={handleResetSemester}>
               Ya, Mulai Semester Baru
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* ── Modal Reset Penuh Semester ── */}
+      <Modal open={openResetFullModal} onClose={() => setOpenResetFullModal(false)} title="Reset Penuh Semester" size="lg">
+        <div className="space-y-4">
+          <div className="rounded-2xl bg-red-50 border-2 border-red-300 p-4 text-sm">
+            <div className="flex items-center gap-2 mb-2">
+              <AlertTriangle size={20} className="text-red-700" />
+              <p className="font-bold text-red-800 text-base">PERINGATAN: Tindakan Destruktif!</p>
+            </div>
+            <p className="text-red-700 font-semibold">
+              Semua data penilaian dan absensi akan <strong>DIHAPUS PERMANEN</strong>:
+            </p>
+            <ul className="mt-2 ml-5 text-red-700 text-xs space-y-1 list-disc">
+              <li>Hafalan (setoran harian siswa)</li>
+              <li>Tahsin (catatan sesi tahsin)</li>
+              <li>Absensi (kehadiran harian)</li>
+              <li>Raport Tahfidz &amp; Raport Qur'an</li>
+              <li>Detail Raport per surah</li>
+            </ul>
+            <div className="mt-3 rounded-xl bg-red-100 border border-red-200 p-3 text-red-800 text-xs">
+              <p className="font-semibold">Yang TIDAK terhapus:</p>
+              <ul className="mt-1 ml-4 list-disc space-y-0.5">
+                <li>Data siswa (santri)</li>
+                <li>Data kelas, guru, dan pengguna</li>
+                <li>File rekap yang sudah diupload</li>
+                <li>Pengumuman dan artikel</li>
+              </ul>
+            </div>
+            <p className="mt-3 text-red-600 text-xs">
+              Setelah reset, semester baru akan dibuat otomatis dan juz terakhir semua siswa direset ke 1.
+              Tindakan ini <strong>tidak dapat dibatalkan</strong>.
+            </p>
+          </div>
+
+          <Input
+            label="Nama Semester Baru"
+            value={resetFullSemesterName}
+            onChange={(e) => setResetFullSemesterName(e.target.value)}
+            placeholder="Contoh: Ganjil 2026/2027"
+          />
+
+          <Input
+            label="Tanggal Akhir Semester"
+            type="date"
+            value={resetFullEndDate}
+            onChange={(e) => setResetFullEndDate(e.target.value)}
+          />
+
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium text-slate-700">Catatan (opsional)</label>
+            <textarea
+              value={resetFullNotes}
+              onChange={(e) => setResetFullNotes(e.target.value)}
+              rows={3}
+              className="w-full rounded-2xl border border-slate-300 px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500"
+              placeholder="Catatan untuk semester baru"
+            />
+          </div>
+
+          <div className="rounded-xl bg-red-50 border border-red-200 p-3">
+            <label className="flex flex-col gap-2">
+              <span className="text-sm font-bold text-red-800">
+                Ketik <span className="font-mono bg-red-100 px-1.5 py-0.5 rounded text-base">RESET</span> untuk konfirmasi
+              </span>
+              <input
+                type="text"
+                value={resetFullConfirm}
+                onChange={(e) => setResetFullConfirm(e.target.value.toUpperCase())}
+                className="w-full rounded-2xl border-2 border-red-300 px-3 py-2 text-sm text-slate-800 font-mono focus:outline-none focus:ring-2 focus:ring-red-500 bg-white"
+                placeholder="Ketik RESET"
+              />
+            </label>
+          </div>
+
+          <div className="flex justify-end gap-3 pt-2">
+            <Button variant="ghost" onClick={() => setOpenResetFullModal(false)}>
+              Batal
+            </Button>
+            <Button
+              variant="danger"
+              loading={resettingFull}
+              disabled={resetFullConfirm !== 'RESET'}
+              onClick={handleResetFull}
+            >
+              Ya, Reset Penuh Semester
             </Button>
           </div>
         </div>

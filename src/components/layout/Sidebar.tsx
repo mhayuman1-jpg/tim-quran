@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import useSWR, { useSWRConfig } from 'swr';
 import {
   LayoutDashboard, Users, BookOpen,
   FileText, BarChart2, Repeat, TrendingUp,
@@ -84,22 +85,15 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
   const { getEffectiveRole, isViewingAsOther } = useViewMode();
   const effectiveRole = getEffectiveRole(role);
   const { items: navItems } = useNavigation();
-  const [unreadCount, setUnreadCount] = useState(0);
+  const { mutate } = useSWRConfig();
 
-  useEffect(() => {
-    const fetchUnread = async () => {
-      try {
-        const res = await fetch('/api/messages/unread-count');
-        if (res.ok) {
-          const data = await res.json();
-          setUnreadCount(data.count);
-        }
-      } catch {}
-    };
-    fetchUnread();
-    const interval = setInterval(fetchUnread, 30000);
-    return () => clearInterval(interval);
-  }, []);
+  const { data: unreadData } = useSWR('/api/messages/unread-count', {
+    refreshInterval: 30000,
+    revalidateOnFocus: false,
+    dedupingInterval: 30000,
+  });
+
+  const unreadCount = unreadData?.count ?? 0;
 
   // Build navMap from SWR cached data
   const navMap: Record<string, string> = {};

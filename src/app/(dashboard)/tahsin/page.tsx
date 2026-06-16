@@ -125,7 +125,7 @@ export default function TahsinPage() {
 
   // Scan QR state
   const [scanFeedback, setScanFeedback] = useState<{ type: 'success' | 'error' | 'warning'; message: string } | null>(null);
-  const [scannedList, setScannedList] = useState<{ nama: string; scanned_at: string; id?: string }[]>([]);
+  const [scannedList, setScannedList] = useState<{ student_id: string; nama: string; scanned_at: string }[]>([]);
   const [scannerOpen, setScannerOpen] = useState(false);
 
   // ── Class-based view for Tim_Quran
@@ -164,7 +164,7 @@ export default function TahsinPage() {
     playSuccessBeep();
     setScanFeedback({ type: 'success', message: `${siswa.nama} — Absen berhasil!` });
     const jam = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
-    setScannedList(prev => [{ nama: siswa.nama, scanned_at: jam, id: siswa.id }, ...prev]);
+    setScannedList(prev => [{ student_id: siswa.id, nama: siswa.nama, scanned_at: jam }, ...prev]);
     fetchTodayList();
     // Auto-select student
     setSelectedStudent({ id: siswa.id, nama: siswa.nama });
@@ -378,6 +378,12 @@ export default function TahsinPage() {
 
   const displayedStudents = searchQuery.trim().length >= 2 ? studentOptions : studentList;
 
+  const isStudentAttended = useCallback((studentId: string) => {
+    return scannedList.some(s => s.student_id === studentId);
+  }, [scannedList]);
+
+  const selectedStudentAttended = selectedStudent ? isStudentAttended(selectedStudent.id) : false;
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -391,16 +397,26 @@ export default function TahsinPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            variant={scannerOpen ? 'secondary' : 'primary'}
-            leftIcon={<ScanLine size={16} />}
-            onClick={() => setScannerOpen(!scannerOpen)}
-          >
-            {scannerOpen ? 'Tutup Scanner' : 'Scan QR Absen'}
-          </Button>
-          <Button variant="primary" leftIcon={<Plus size={16} />} onClick={() => handleOpenAdd('both')}>
-            Tambah Jurnal
-          </Button>
+          {(!isTeacherMode || selectedClassId) && (
+            <>
+              <Button
+                variant={scannerOpen ? 'secondary' : 'primary'}
+                leftIcon={<ScanLine size={16} />}
+                onClick={() => setScannerOpen(!scannerOpen)}
+              >
+                {scannerOpen ? 'Tutup Scanner' : 'Scan QR Absen'}
+              </Button>
+              <Button
+                variant="primary"
+                leftIcon={<Plus size={16} />}
+                onClick={() => handleOpenAdd('both')}
+                disabled={selectedStudent != null && !selectedStudentAttended}
+                title={selectedStudent && !selectedStudentAttended ? 'Siswa belum absen hari ini' : undefined}
+              >
+                Tambah Jurnal
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
@@ -610,6 +626,14 @@ export default function TahsinPage() {
         <div className="space-y-6">
           {selectedStudent ? (
             <>
+              {!selectedStudentAttended && (
+                <div className="flex items-center gap-2.5 rounded-xl border px-4 py-2.5 bg-amber-50 border-amber-300 text-amber-800">
+                  <AlertCircle size={16} className="shrink-0" />
+                  <p className="flex-1 text-sm font-medium">
+                    Siswa ini belum absen hari ini. Scan QR absen terlebih dahulu untuk mengisi jurnal.
+                  </p>
+                </div>
+              )}
               <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-base font-semibold text-slate-800 flex items-center gap-2">
@@ -617,7 +641,14 @@ export default function TahsinPage() {
                     Riwayat Hafalan
                   </h2>
                   {hafalanCount === 0 && (
-                    <Button variant="primary" size="sm" leftIcon={<Plus size={14} />} onClick={() => handleOpenAdd('hafalan')}>
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      leftIcon={<Plus size={14} />}
+                      onClick={() => handleOpenAdd('hafalan')}
+                      disabled={!selectedStudentAttended}
+                      title={!selectedStudentAttended ? 'Siswa belum absen hari ini' : undefined}
+                    >
                       Tambah Jurnal
                     </Button>
                   )}
@@ -637,7 +668,14 @@ export default function TahsinPage() {
                     <BookOpen size={16} className="text-emerald-500" />
                     Riwayat Tahsin
                   </h2>
-                  <Button variant="primary" size="sm" leftIcon={<Plus size={14} />} onClick={() => handleOpenAdd('tahsin')}>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    leftIcon={<Plus size={14} />}
+                    onClick={() => handleOpenAdd('tahsin')}
+                    disabled={!selectedStudentAttended}
+                    title={!selectedStudentAttended ? 'Siswa belum absen hari ini' : undefined}
+                  >
                     Tambah Jurnal
                   </Button>
                 </div>

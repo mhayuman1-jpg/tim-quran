@@ -177,7 +177,7 @@ export function buildRaportHtmlTemplate(
 
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 20px;font-size:10px;margin-bottom:12px;">
     <div style="text-align:center;">
-      <p style="margin:0;">Guru Kelas,</p>
+      <p style="margin:0;">Guru Pengajar,</p>
       <div style="height:45px;"></div>
       <p style="margin:0;font-weight:700;text-decoration:underline;">${guru ? esc(guru) : '________________'}</p>
       <p style="margin:0;font-size:9px;">${esc(raport.niy_guru_kelas)}</p>

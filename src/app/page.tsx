@@ -1,6 +1,5 @@
 ﻿// src/app/page.tsx — Landing page baru Tim Qur'an
 
-export const dynamic = 'force-dynamic';
 export const revalidate = 60;
 
 import React from 'react';
@@ -11,11 +10,19 @@ import PublicNavbar from '@/components/layout/PublicNavbar';
 import { IslamicPatternBg, OrnamentalDivider, CornerOrnament } from '@/components/features/IslamicDecorations';
 import { ScrollAnimatedCard, ScrollAnimatedItem, ScrollAnimatedSection } from '@/components/features/AnimatedComponents';
 import { createServerClient } from '@/lib/supabase/server';
-import AiChatbot from '@/components/shared/AiChatbot';
-import TestimonialBubble from '@/components/shared/TestimonialBubble';
 
 const StudentProgressChart = nextDynamic(
   () => import('@/components/features/charts/StudentProgressChart'),
+  { ssr: false }
+);
+
+const AiChatbot = nextDynamic(
+  () => import('@/components/shared/AiChatbot'),
+  { ssr: false }
+);
+
+const TestimonialBubble = nextDynamic(
+  () => import('@/components/shared/TestimonialBubble'),
   { ssr: false }
 );
 
@@ -118,8 +125,10 @@ async function getPageData() {
     const santriData = Array.isArray(santriResult?.data) ? santriResult.data : [];
     const navigation = Array.isArray(navResult?.data) ? navResult.data : [];
     const totalSantri = santriData.length;
-    const monthlyProgress = await getMonthlyProgressData();
-    const testimonials = await getTestimonials();
+    const [monthlyProgress, testimonials] = await Promise.all([
+      getMonthlyProgressData(),
+      getTestimonials(),
+    ]);
 
     return {
       profil,

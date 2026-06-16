@@ -32,6 +32,7 @@ export default function SiswaPage() {
   const [classes, setClasses] = useState<{ id: string; name: string; jumlah_siswa?: number }[]>([]);
   const [classFilter, setClassFilter] = useState('');
   const [selectedClassName, setSelectedClassName] = useState('');
+  const [limit, setLimit] = useState(100);
 
   // ── Form modal
   const [formOpen, setFormOpen] = useState(false);
@@ -65,13 +66,14 @@ export default function SiswaPage() {
     return h;
   }, [viewAsRole, viewAsTeacherId]);
 
-  const fetchSiswa = useCallback(async (q = '', classId = '') => {
+  const fetchSiswa = useCallback(async (q = '', classId = '', lim = limit) => {
     setLoading(true);
     setSelectedIds([]);
     try {
       const params = new URLSearchParams();
       if (q) params.set('search', q);
       if (classId) params.set('class_id', classId);
+      params.set('limit', String(lim));
       const qs = params.toString();
       const url = qs ? `/api/siswa/list?${qs}` : '/api/siswa/list';
       const res = await fetch(url, { headers: viewHeaders });
@@ -80,25 +82,25 @@ export default function SiswaPage() {
       else setData(json.data ?? []);
     } catch { toast.error('Terjadi kesalahan saat memuat data siswa.'); setData([]); }
     finally { setLoading(false); }
-  }, [toast, viewHeaders]);
+  }, [toast, viewHeaders, limit]);
 
   useEffect(() => {
-    fetchSiswa();
+    fetchSiswa('', '', limit);
     fetch('/api/kelas/list', { headers: viewHeaders })
       .then(r => r.json())
       .then(json => setClasses(json.data ?? []))
       .catch(() => {});
-  }, [fetchSiswa, viewHeaders]);
+  }, [fetchSiswa, viewHeaders, limit]);
 
-  const handleSearch = (value: string) => { setSearch(value); setSelectedIds([]); fetchSiswa(value, classFilter); };
-  const handleClassFilter = (value: string) => { setClassFilter(value); setSelectedIds([]); fetchSiswa(search, value); };
+  const handleSearch = (value: string) => { setSearch(value); setSelectedIds([]); fetchSiswa(value, classFilter, limit); };
+  const handleClassFilter = (value: string) => { setClassFilter(value); setSelectedIds([]); fetchSiswa(search, value, limit); };
 
   // ── Teacher mode: class-first view
   const isTeacherMode = role === 'Tim_Quran' || (viewAsRole === 'Tim_Quran');
   const handleSelectClass = (classId: string, className: string) => {
     setSelectedClassName(className);
     setClassFilter(classId);
-    fetchSiswa('', classId);
+    fetchSiswa('', classId, limit);
   };
   const handleBackToClasses = () => {
     setSelectedClassName('');
@@ -397,6 +399,21 @@ export default function SiswaPage() {
               </select>
             </div>
           )}
+          {/* Limit selector */}
+          <div className="flex items-center gap-1.5">
+            <span className="text-sm text-slate-500">Tampilkan:</span>
+            <select
+              value={limit}
+              onChange={e => { setLimit(Number(e.target.value)); fetchSiswa(search, classFilter, Number(e.target.value)); }}
+              className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+            >
+              <option value={100}>100</option>
+              <option value={200}>200</option>
+              <option value={300}>300</option>
+              <option value={500}>500</option>
+            </select>
+            <span className="text-sm text-slate-500">siswa</span>
+          </div>
         </div>
       )}
 

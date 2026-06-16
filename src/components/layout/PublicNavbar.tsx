@@ -55,7 +55,6 @@ export default function PublicNavbar({
     { label: 'Pengumuman', href: '/pengumuman' },
     { label: 'Artikel',    href: '/artikel' },
     { label: 'Agenda',     href: '/agenda' },
-    { label: 'Wali Murid', href: '/wali/login' },
     { label: 'Daftar Tasmi', href: 'https://tasmi-alquran-app.firebaseapp.com/' },
   ];
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, memo } from "react";
 import { useSession } from "next-auth/react";
 import { Users, CheckCircle, UserCheck, BookOpen, Activity, FileImage, FileText, CreditCard, Repeat, TrendingUp, Megaphone, Newspaper, ArrowRight } from "lucide-react";
 import Link from "next/link";
@@ -43,7 +43,7 @@ interface StatCardProps {
   progress?: number;
 }
 
-function StatCard({ title, value, subtitle, icon, gradient, accent, progress }: StatCardProps) {
+const StatCard = memo(function StatCard({ title, value, subtitle, icon, gradient, accent, progress }: StatCardProps) {
   return (
     <div className="rounded-2xl p-6 relative overflow-hidden hover:-translate-y-1 transition-all duration-200"
       style={{background: 'white', border: '1px solid #f1f5f9', boxShadow: '0 2px 16px rgba(0,0,0,0.04)'}}>
@@ -80,9 +80,9 @@ function StatCard({ title, value, subtitle, icon, gradient, accent, progress }: 
       )}
     </div>
   );
-}
+});
 
-function JuzChart({ data, loading }: { data: JuzSummary[]; loading: boolean }) {
+const JuzChart = memo(function JuzChart({ data, loading }: { data: JuzSummary[]; loading: boolean }) {
   if (loading) return (
     <div className="rounded-2xl p-6 animate-pulse" style={{background: 'white', border: '1px solid #f1f5f9'}}>
       <div className="h-4 w-32 rounded bg-slate-200 mb-6" />
@@ -146,7 +146,7 @@ function JuzChart({ data, loading }: { data: JuzSummary[]; loading: boolean }) {
       )}
     </div>
   );
-}
+});
 
 export default function DashboardPage() {
   const { data: session } = useSession();
@@ -164,29 +164,37 @@ export default function DashboardPage() {
   const { toast } = useToast();
   const [greetingPlayed, setGreetingPlayed] = useState(false);
   const [audioBlocked, setAudioBlocked] = useState(false);
+  const [audioReady, setAudioReady] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  const audioRef = useMemo(() => {
-    if (typeof window === "undefined") return null;
-    const a = new Audio("/audio/dashboard-login.mp3");
-    a.volume = 1;
-    a.preload = "auto";
-    return a;
+  // Load audio immediately
+  useEffect(() => {
+    if (typeof window !== 'undefined' && !audioRef.current) {
+      const a = new Audio("/audio/dashboard-login.mp3");
+      a.volume = 1;
+      a.preload = "auto";
+      audioRef.current = a;
+      setAudioReady(true);
+    }
   }, []);
 
+  // Try auto-play on mount (respects browser autoplay policy)
   useEffect(() => {
-    if (!session?.user || !audioRef || greetingPlayed) return;
-    const tryAutoplay = () => {
-      audioRef.muted = true;
-      audioRef.play().then(() => {
-        audioRef.muted = false;
-        audioRef.currentTime = 0;
-        audioRef.play().then(() => setGreetingPlayed(true)).catch(() => {});
-      }).catch(() => {
+    if (!session?.user || greetingPlayed || !audioRef.current) return;
+    const tryAutoPlay = async () => {
+      try {
+        audioRef.current!.muted = true;
+        await audioRef.current!.play();
+        audioRef.current!.muted = false;
+        audioRef.current!.currentTime = 0;
+        await audioRef.current!.play();
+        setGreetingPlayed(true);
+      } catch {
         setAudioBlocked(true);
-      });
+      }
     };
-    tryAutoplay();
-  }, [session?.user, audioRef, greetingPlayed]);
+    tryAutoPlay();
+  }, [session?.user, greetingPlayed]);
 
   // SWR hooks untuk data sharing
   const { profil: profilData } = useProfil();
@@ -311,24 +319,22 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Audio element */}
-      {!greetingPlayed && audioRef && (
-        <audio
-          ref={(el) => { if (el && audioRef) { el.src = audioRef.src; } }}
-          autoPlay
-          onPlay={() => setGreetingPlayed(true)}
-          className="hidden"
-        />
-      )}
-
-      {/* Audio Play Banner */}
-      {!greetingPlayed && audioBlocked && (
+      {/* Audio Greeting Button (fallback jika auto-play diblokir browser) */}
+      {audioBlocked && session?.user && (
         <button
-          onClick={() => {
-            if (audioRef) {
-              audioRef.muted = false;
-              audioRef.currentTime = 0;
-              audioRef.play().then(() => setGreetingPlayed(true)).catch(() => {});
+          onClick={async () => {
+            if (audioRef.current) {
+              try {
+                audioRef.current.muted = true;
+                await audioRef.current.play();
+                audioRef.current.muted = false;
+                audioRef.current.currentTime = 0;
+                await audioRef.current.play();
+                setGreetingPlayed(true);
+                setAudioBlocked(false);
+              } catch {
+                setAudioBlocked(true);
+              }
             }
           }}
           className="w-full bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl p-4 flex items-center justify-center gap-3 hover:from-amber-600 hover:to-orange-600 transition-all shadow-lg cursor-pointer animate-pulse"

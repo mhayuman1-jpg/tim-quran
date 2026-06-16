@@ -242,15 +242,36 @@ export async function GET(request: NextRequest) {
     const totalTahsin  = tahsinData?.length  ?? 0;
     const surahHafal   = detailSurah.length;
 
-    // ── 9. Ambil info guru kelas dari class ────────────────────────────────
+    // ── 9. Ambil info guru pengajar dari assigned_teacher_id ─────────────────
     let namaGuruKelas = '';
     let niyGuruKelas = '';
     const { data: santri } = await supabase
       .from('santri')
-      .select('class_id')
+      .select('assigned_teacher_id, class_id')
       .eq('id', studentId)
       .single();
-    if (santri?.class_id) {
+    if (santri?.assigned_teacher_id) {
+      const { data: guru } = await supabase
+        .from('users')
+        .select('name')
+        .eq('id', santri.assigned_teacher_id)
+        .single();
+      if (guru) {
+        namaGuruKelas = guru.name ?? '';
+      }
+      // NIY masih dari kelas (karena users tidak punya kolom niy)
+      if (santri.class_id) {
+        const { data: kelas } = await supabase
+          .from('classes')
+          .select('niy_guru_kelas')
+          .eq('id', santri.class_id)
+          .single();
+        if (kelas) {
+          niyGuruKelas = kelas.niy_guru_kelas ?? '';
+        }
+      }
+    } else if (santri?.class_id) {
+      // Fallback: ambil dari kelas jika tidak ada assigned_teacher_id
       const { data: kelas } = await supabase
         .from('classes')
         .select('nama_guru_kelas, niy_guru_kelas')
