@@ -86,6 +86,8 @@ export async function GET(request: NextRequest) {
 
     if (!noSort) {
       query = query.order('nama', { ascending: true });
+    } else {
+      query = query.order('id', { ascending: true });
     }
     query = query.range(offset, offset + limit - 1);
 
