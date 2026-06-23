@@ -1,0 +1,34 @@
+
+> tim-quran@0.1.0 build
+> next build
+
+Attention: Next.js now collects completely anonymous telemetry regarding usage.
+This information is used to shape Next.js' roadmap and prioritize features.
+You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
+https://nextjs.org/telemetry
+
+  ▲ Next.js 14.2.35
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully
+   Skipping linting
+   Checking validity of types ...
+   Collecting page data ...
+Error: supabaseUrl is required.
+    at /vercel/sandbox/primary/.next/server/chunks/3370.js:37:56239
+    at new rz (/vercel/sandbox/primary/.next/server/chunks/3370.js:37:56490)
+    at rY (/vercel/sandbox/primary/.next/server/chunks/3370.js:37:60761)
+    at 30204 (/vercel/sandbox/primary/.next/server/app/api/rekap/download/route.js:1:1487)
+    at t (/vercel/sandbox/primary/.next/server/webpack-runtime.js:1:128)
+    at a (/vercel/sandbox/primary/.next/server/app/api/rekap/download/route.js:1:10376)
+    at /vercel/sandbox/primary/.next/server/app/api/rekap/download/route.js:1:10424
+    at t.X (/vercel/sandbox/primary/.next/server/webpack-runtime.js:1:2135)
+    at /vercel/sandbox/primary/.next/server/app/api/rekap/download/route.js:1:10389
+    at Object.<anonymous> (/vercel/sandbox/primary/.next/server/app/api/rekap/download/route.js:1:10452)
+
+> Build error occurred
+Error: Failed to collect page data for /api/rekap/download
+    at /vercel/sandbox/primary/node_modules/next/dist/build/utils.js:1269:15
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5) {
+  type: 'Error'
+}
