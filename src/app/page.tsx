@@ -1,6 +1,6 @@
 ﻿// src/app/page.tsx — Landing page baru Tim Qur'an
 
-export const revalidate = 60;
+export const dynamic = 'force-dynamic';
 
 import React from 'react';
 import { default as nextDynamic } from 'next/dynamic';
