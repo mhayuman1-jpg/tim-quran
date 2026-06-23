@@ -6,8 +6,8 @@
 // - Tabel siswa dengan ringkasan progres
 // - Klik siswa untuk lihat detail riwayat hafalan/tahsin/absensi
 
-import React, { useCallback, useEffect, useState } from 'react';
-import { Eye } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Eye, Search } from 'lucide-react';
 
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
@@ -135,6 +135,9 @@ export default function LaporanPage() {
   const [attendanceHistory, setAttendanceHistory] = useState<AttendanceRecord[]>([]);
   const [loadingDetail, setLoadingDetail] = useState(false);
 
+  // ── Search
+  const [searchQuery, setSearchQuery] = useState('');
+
   // ── Toast notifications
   const [toasts, setToasts] = useState<Toast[]>([]);
 
@@ -239,6 +242,18 @@ export default function LaporanPage() {
 
   const selectedTeacher = timMembers.find((m) => m.id === selectedTeacherId);
 
+  const filteredStudents = useMemo(() => {
+    if (!laporanData?.students) return [];
+    const q = searchQuery.toLowerCase().trim();
+    if (!q) return laporanData.students;
+    return laporanData.students.filter(
+      (s) =>
+        s.nama.toLowerCase().includes(q) ||
+        s.nisn.toLowerCase().includes(q) ||
+        (s.kelas && s.kelas.toLowerCase().includes(q))
+    );
+  }, [laporanData?.students, searchQuery]);
+
   return (
     <div className="space-y-6">
       {/* ── Page header */}
@@ -257,7 +272,10 @@ export default function LaporanPage() {
         <select
           id="teacher-select"
           value={selectedTeacherId}
-          onChange={(e) => setSelectedTeacherId(e.target.value)}
+          onChange={(e) => {
+            setSelectedTeacherId(e.target.value);
+            setSearchQuery('');
+          }}
           disabled={loadingMembers}
           className="w-full md:w-96 px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 disabled:bg-slate-100 disabled:text-slate-400"
         >
@@ -302,10 +320,20 @@ export default function LaporanPage() {
 
       {/* ── Students table */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="px-5 py-4 border-b border-slate-200">
+        <div className="px-5 py-4 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <h2 className="text-lg font-semibold text-slate-900">
             Daftar Siswa {selectedTeacher && `- ${selectedTeacher.name}`}
           </h2>
+          <div className="relative w-full sm:w-72">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Cari nama, NISN, atau kelas..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+            />
+          </div>
         </div>
 
         <div className="overflow-x-auto">
@@ -313,7 +341,7 @@ export default function LaporanPage() {
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200">
                 <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                  NISN
+                  NIS/NISN
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
                   Nama
@@ -378,9 +406,16 @@ export default function LaporanPage() {
                       : 'Pilih anggota Tim Qur\'an untuk melihat laporan.'}
                   </td>
                 </tr>
+              ) : filteredStudents.length === 0 ? (
+                // No search results
+                <tr>
+                  <td colSpan={8} className="px-4 py-8 text-center text-sm text-slate-500">
+                    Tidak ada siswa yang cocok dengan pencarian &quot;{searchQuery}&quot;.
+                  </td>
+                </tr>
               ) : (
                 // Data rows
-                laporanData.students.map((student) => (
+                filteredStudents.map((student) => (
                   <tr key={student.id} className="hover:bg-slate-50 transition-colors">
                     <td className="px-4 py-3">
                       <span className="text-sm text-slate-600">{student.nisn}</span>
@@ -435,7 +470,9 @@ export default function LaporanPage() {
         {!loadingLaporan && laporanData && laporanData.students.length > 0 && (
           <div className="px-5 py-3 border-t border-slate-200 bg-slate-50">
             <p className="text-xs text-slate-500">
-              Menampilkan {laporanData.students.length} siswa • Total kehadiran dihitung dari {laporanData.students[0]?.total_days ?? 0} hari aktif
+              Menampilkan {filteredStudents.length} dari {laporanData.students.length} siswa
+              {searchQuery && ` • Pencarian: "${searchQuery}"`}
+              {` • Total kehadiran dihitung dari ${laporanData.students[0]?.total_days ?? 0} hari aktif`}
             </p>
           </div>
         )}
@@ -453,7 +490,7 @@ export default function LaporanPage() {
             {/* Student info */}
             <div className="bg-slate-50 rounded-lg p-4 grid grid-cols-2 gap-3 text-sm">
               <div>
-                <span className="text-slate-600">NISN:</span>
+                <span className="text-slate-600">NIS/NISN:</span>
                 <span className="ml-2 font-medium text-slate-800">{selectedStudent.nisn}</span>
               </div>
               <div>
