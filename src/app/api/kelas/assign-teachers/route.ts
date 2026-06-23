@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
+import { shuffleArray } from '@/lib/shuffle';
 export const dynamic = 'force-dynamic';
 
 export async function PUT(request: NextRequest) {
@@ -90,19 +91,20 @@ export async function PUT(request: NextRequest) {
         .eq('status', 'Aktif');
 
       if (siswaList && siswaList.length > 0) {
-        const ids = siswaList.map((s: any) => s.id);
+        const ids = shuffleArray(siswaList.map((s: any) => s.id));
         const active = [t1, t2, t3].filter(Boolean);
         const numTeachers = active.length;
 
         if (numTeachers >= 2) {
-          const chunkSize = Math.ceil(ids.length / numTeachers);
-          const updates = active.map((teacherId, i) => {
-            const chunk = ids.slice(i * chunkSize, (i + 1) * chunkSize);
-            return chunk.length > 0
-              ? supabase.from('santri').update({ assigned_teacher_id: teacherId }).in('id', chunk)
-              : Promise.resolve({ data: null, error: null });
-          });
-          await Promise.all(updates);
+          // Interleave: selang-seling ke setiap guru setelah di-shuffle
+          await Promise.all(
+            active.map((teacherId, ti) => {
+              const chunk = ids.filter((_: string, i: number) => i % numTeachers === ti);
+              return chunk.length > 0
+                ? supabase.from('santri').update({ assigned_teacher_id: teacherId }).in('id', chunk)
+                : Promise.resolve({ data: null, error: null });
+            })
+          );
         } else {
           const assignedTeacher = active[0];
           await supabase

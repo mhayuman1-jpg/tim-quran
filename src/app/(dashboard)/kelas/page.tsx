@@ -9,7 +9,7 @@
 // - Assign guru per kelas (manual & auto)
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { Plus, Pencil, Trash2, Check, X, UserCheck, Wand2, Users, Download, Shuffle } from 'lucide-react';
+import { Plus, Pencil, Trash2, Check, X, UserCheck, Wand2, Users, Download } from 'lucide-react';
 
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -374,28 +374,6 @@ export default function KelasPage() {
     }
   };
 
-  // ── Random distribute students (acak)
-  const [randomDistLoading, setRandomDistLoading] = useState(false);
-  const handleRandomDistribute = async () => {
-    const ok = window.confirm('Acak pembagian siswa secara merata ke setiap guru di semua kelas? Perubahan ini akan menimpa pembagian sebelumnya.');
-    if (!ok) return;
-
-    setRandomDistLoading(true);
-    try {
-      const res = await fetch('/api/kelas/random-distribute', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
-      const json = await res.json();
-      if (!res.ok) {
-        toast.error(json.message ?? 'Gagal mengacak pembagian siswa.');
-        return;
-      }
-      toast.success(json.message ?? 'Pembagian siswa berhasil diacak.');
-      fetchKelas();
-    } catch {
-      toast.error('Terjadi kesalahan saat mengacak pembagian siswa.');
-    } finally {
-      setRandomDistLoading(false);
-    }
-  };
 
   // ── Assign students
   const handleOpenAssignStudent = async (kelas: Kelas) => {
@@ -490,7 +468,7 @@ export default function KelasPage() {
       const kelasList: Kelas[] = kelasJson.data ?? [];
 
       // Fetch student data (with high limit)
-      const siswaRes = await fetch('/api/siswa/list?limit=500', { credentials: 'same-origin' });
+      const siswaRes = await fetch('/api/siswa/list?limit=500&no_sort=1', { credentials: 'same-origin' });
       const siswaJson = await siswaRes.json();
       if (!siswaRes.ok) throw new Error('Gagal memuat data siswa');
       const siswaList: (Student & { assigned_teacher_id?: string | null; class_id?: string | null })[] = siswaJson.data ?? [];
@@ -569,37 +547,18 @@ export default function KelasPage() {
           doc.text('Belum ada siswa', margin, y + 4);
           y += 8;
         } else {
-          // Group by teacher
-          const byTeacher: Record<string, typeof classStudents> = {};
-          const unassigned: typeof classStudents = [];
-          for (const s of classStudents) {
-            if (s.assigned_teacher_id) {
-              if (!byTeacher[s.assigned_teacher_id]) byTeacher[s.assigned_teacher_id] = [];
-              byTeacher[s.assigned_teacher_id].push(s);
-            } else {
-              unassigned.push(s);
-            }
-          }
-
-          // Build table rows
+          // Build table rows — urut sesuai asli (interleave terlihat)
           const rows: string[][] = [];
           let no = 1;
 
-          // Students by teacher
-          const teacherEntries = Object.entries(byTeacher);
-          for (const [teacherId, tSiswa] of teacherEntries) {
-            const teacherName = kelas.teacher1?.id === teacherId ? kelas.teacher1?.name
-              : kelas.teacher2?.id === teacherId ? kelas.teacher2?.name
-              : kelas.teacher3?.id === teacherId ? kelas.teacher3?.name
-              : 'Unknown';
-            for (const s of tSiswa) {
-              rows.push([String(no++), s.nama, s.nisn, teacherName ?? '-']);
-            }
-          }
-
-          // Unassigned students
-          for (const s of unassigned) {
-            rows.push([String(no++), s.nama, s.nisn, '-']);
+          for (const s of classStudents) {
+            const teacherName = s.assigned_teacher_id
+              ? (kelas.teacher1?.id === s.assigned_teacher_id ? kelas.teacher1?.name
+                : kelas.teacher2?.id === s.assigned_teacher_id ? kelas.teacher2?.name
+                : kelas.teacher3?.id === s.assigned_teacher_id ? kelas.teacher3?.name
+                : 'Unknown')
+              : '-';
+            rows.push([String(no++), s.nama, s.nisn, teacherName ?? '-']);
           }
 
           if (rows.length > 0) {
@@ -751,15 +710,6 @@ export default function KelasPage() {
             title="Bagi rata siswa ke guru 1, 2, 3 di semua kelas"
           >
             Bagi Rata Siswa
-          </Button>
-          <Button
-            variant="ghost"
-            leftIcon={<Shuffle size={15} />}
-            onClick={handleRandomDistribute}
-            loading={randomDistLoading}
-            title="Acak pembagian siswa secara merata ke setiap guru"
-          >
-            Acak Pembagian
           </Button>
           <Button
             variant="primary"

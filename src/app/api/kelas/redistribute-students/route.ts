@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
+import { shuffleArray } from '@/lib/shuffle';
 
 export async function POST(request: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -39,7 +40,7 @@ export async function POST(request: NextRequest) {
 
       if (!siswaList || siswaList.length === 0) continue;
 
-      const ids = siswaList.map((s: any) => s.id);
+      const ids = shuffleArray(siswaList.map((s: any) => s.id));
       const distribusi: Record<string, number> = {};
 
       if (activeTeachers.length === 0) {
@@ -51,10 +52,10 @@ export async function POST(request: NextRequest) {
         await supabase.from('santri').update({ assigned_teacher_id: activeTeachers[0] }).in('id', ids);
         distribusi[activeTeachers[0]] = ids.length;
       } else {
-        // 2-3 guru: bagi rata secara merata
-        const chunkSize = Math.ceil(ids.length / activeTeachers.length);
-        const updates = activeTeachers.map((teacherId, i) => {
-          const chunk = ids.slice(i * chunkSize, (i + 1) * chunkSize);
+        // 2-3 guru: interleave selang-seling (sudah di-shuffle)
+        const numT = activeTeachers.length;
+        const updates = activeTeachers.map((teacherId, ti) => {
+          const chunk = ids.filter((_: string, i: number) => i % numT === ti);
           distribusi[teacherId] = chunk.length;
           return chunk.length > 0
             ? supabase.from('santri').update({ assigned_teacher_id: teacherId }).in('id', chunk)

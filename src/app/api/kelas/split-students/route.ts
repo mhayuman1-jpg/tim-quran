@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
+import { shuffleArray } from '@/lib/shuffle';
 
 export const dynamic = 'force-dynamic';
 
@@ -46,16 +47,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: 'Gagal mengambil data siswa.' }, { status: 500 });
     }
 
-    const ids = (siswaList ?? []).map((s: any) => s.id);
+    const ids = shuffleArray((siswaList ?? []).map((s: any) => s.id));
     if (ids.length === 0) {
       return NextResponse.json({ message: 'Tidak ada siswa di kelas ini.' }, { status: 200 });
     }
 
-    // Bagi siswa merata ke semua guru
+    // Bagi siswa selang-seling (interleave) ke semua guru
     const numTeachers = teachers.length;
-    const chunkSize = Math.ceil(ids.length / numTeachers);
-    const updates = teachers.map((teacherId, i) => {
-      const chunk = ids.slice(i * chunkSize, (i + 1) * chunkSize);
+    const updates = teachers.map((teacherId, ti) => {
+      const chunk = ids.filter((_: string, i: number) => i % numTeachers === ti);
       return chunk.length > 0
         ? supabase.from('santri').update({ assigned_teacher_id: teacherId }).in('id', chunk)
         : Promise.resolve({ data: null, error: null });
@@ -69,8 +69,8 @@ export async function POST(request: NextRequest) {
     }
 
     const counts: Record<string, number> = {};
-    teachers.forEach((t, i) => {
-      const chunk = ids.slice(i * chunkSize, (i + 1) * chunkSize);
+    teachers.forEach((t, ti) => {
+      const chunk = ids.filter((_: string, i: number) => i % numTeachers === ti);
       if (t) counts[t] = chunk.length;
     });
 

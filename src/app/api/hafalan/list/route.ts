@@ -9,6 +9,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
 import { shouldFilterByTeacher, getTeacherFilterId, getTeacherClassIds, applyTeacherSantriFilter } from '@/lib/rbac';
+import { shuffleArray } from '@/lib/shuffle';
 
 export const dynamic = 'force-dynamic';
 
@@ -55,11 +56,11 @@ export async function GET(request: NextRequest) {
         if (unassigned && unassigned.length > 0) {
           const activeTeachers = [kelas.teacher1_id, kelas.teacher2_id, kelas.teacher3_id].filter(Boolean);
           if (activeTeachers.length > 0) {
-            const ids = unassigned.map((s: any) => s.id);
-            const chunkSize = Math.ceil(ids.length / activeTeachers.length);
+            const ids = shuffleArray(unassigned.map((s: any) => s.id));
+            const numT = activeTeachers.length;
             await Promise.all(
-              activeTeachers.map((tid: string, i: number) => {
-                const chunk = ids.slice(i * chunkSize, (i + 1) * chunkSize);
+              activeTeachers.map((tid: string, ti: number) => {
+                const chunk = ids.filter((_: string, i: number) => i % numT === ti);
                 return chunk.length > 0
                   ? supabase.from('santri').update({ assigned_teacher_id: tid }).in('id', chunk)
                   : Promise.resolve({ data: null, error: null });

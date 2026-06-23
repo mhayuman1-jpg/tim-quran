@@ -8,6 +8,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
 import { shouldFilterByTeacher, getTeacherFilterId, getTeacherClassIds, applyTeacherSantriFilter } from '@/lib/rbac';
+import { shuffleArray } from '@/lib/shuffle';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,6 +27,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search')?.trim() ?? '';
     const classId = searchParams.get('class_id')?.trim() ?? '';
+    const noSort = searchParams.get('no_sort') === '1';
     const limit = Math.min(parseInt(searchParams.get('limit') ?? '100'), 500);
     const offset = parseInt(searchParams.get('offset') ?? '0');
 
@@ -57,11 +59,11 @@ export async function GET(request: NextRequest) {
             : [];
 
           if (activeTeachers.length > 0) {
-            const ids = unassigned.map((s: any) => s.id);
-            const chunkSize = Math.ceil(ids.length / activeTeachers.length);
+            const ids = shuffleArray(unassigned.map((s: any) => s.id));
+            const numT = activeTeachers.length;
             await Promise.all(
-              activeTeachers.map((tid: string, i: number) => {
-                const chunk = ids.slice(i * chunkSize, (i + 1) * chunkSize);
+              activeTeachers.map((tid: string, ti: number) => {
+                const chunk = ids.filter((_: string, i: number) => i % numT === ti);
                 return chunk.length > 0
                   ? supabase.from('santri').update({ assigned_teacher_id: tid }).in('id', chunk)
                   : Promise.resolve({ data: null, error: null });
@@ -80,9 +82,12 @@ export async function GET(request: NextRequest) {
          qr_code, photo_url, assigned_teacher_id, status, created_at, updated_at,
          classes ( id, name )`,
         { count: 'exact' }
-      )
-      .order('nama', { ascending: true })
-      .range(offset, offset + limit - 1);
+      );
+
+    if (!noSort) {
+      query = query.order('nama', { ascending: true });
+    }
+    query = query.range(offset, offset + limit - 1);
 
     // Data isolation: Tim_Quran hanya melihat siswa yang menjadi tanggung jawabnya
     // Juga berlaku untuk Kabid/Sekretaris dalam Mode Mengajar

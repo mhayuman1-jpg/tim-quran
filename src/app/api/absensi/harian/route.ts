@@ -9,6 +9,7 @@ import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
 import { normalizeAttendanceRows } from '@/lib/attendance';
 import { shouldFilterByTeacher, getTeacherFilterId, getTeacherClassIds, applyTeacherSantriFilter } from '@/lib/rbac';
+import { shuffleArray } from '@/lib/shuffle';
 
 export const dynamic = 'force-dynamic';
 
@@ -60,10 +61,10 @@ export async function GET(request: NextRequest) {
             .from('classes').select('teacher1_id, teacher2_id, teacher3_id').eq('id', cid).single();
           const activeTeachers = kelas ? [kelas.teacher1_id, kelas.teacher2_id, kelas.teacher3_id].filter(Boolean) : [];
           if (activeTeachers.length > 0) {
-            const ids = unassigned.map((s: any) => s.id);
-            const chunkSize = Math.ceil(ids.length / activeTeachers.length);
-            await Promise.all(activeTeachers.map((tid: string, i: number) => {
-              const chunk = ids.slice(i * chunkSize, (i + 1) * chunkSize);
+            const ids = shuffleArray(unassigned.map((s: any) => s.id));
+            const numT = activeTeachers.length;
+            await Promise.all(activeTeachers.map((tid: string, ti: number) => {
+              const chunk = ids.filter((_: string, i: number) => i % numT === ti);
               return chunk.length > 0
                 ? supabase.from('santri').update({ assigned_teacher_id: tid }).in('id', chunk)
                 : Promise.resolve({ data: null, error: null });
