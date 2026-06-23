@@ -9,7 +9,7 @@
 // - Assign guru per kelas (manual & auto)
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { Plus, Pencil, Trash2, Check, X, UserCheck, Wand2, Users, Download } from 'lucide-react';
+import { Plus, Pencil, Trash2, Check, X, UserCheck, Wand2, Users, Download, Shuffle } from 'lucide-react';
 
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -374,6 +374,29 @@ export default function KelasPage() {
     }
   };
 
+  // ── Random distribute students (acak)
+  const [randomDistLoading, setRandomDistLoading] = useState(false);
+  const handleRandomDistribute = async () => {
+    const ok = window.confirm('Acak pembagian siswa secara merata ke setiap guru di semua kelas? Perubahan ini akan menimpa pembagian sebelumnya.');
+    if (!ok) return;
+
+    setRandomDistLoading(true);
+    try {
+      const res = await fetch('/api/kelas/random-distribute', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+      const json = await res.json();
+      if (!res.ok) {
+        toast.error(json.message ?? 'Gagal mengacak pembagian siswa.');
+        return;
+      }
+      toast.success(json.message ?? 'Pembagian siswa berhasil diacak.');
+      fetchKelas();
+    } catch {
+      toast.error('Terjadi kesalahan saat mengacak pembagian siswa.');
+    } finally {
+      setRandomDistLoading(false);
+    }
+  };
+
   // ── Assign students
   const handleOpenAssignStudent = async (kelas: Kelas) => {
     setAssignStudentTarget(kelas);
@@ -583,7 +606,7 @@ export default function KelasPage() {
             autoTable(doc, {
               startY: y,
               margin: { left: margin, right: margin },
-              head: [['No', 'Nama Siswa', 'NISN', 'Guru Pembimbing']],
+              head: [['No', 'Nama Siswa', 'NIS/NISN', 'Guru Pembimbing']],
               body: rows,
               theme: 'grid',
               styles: { fontSize: 7, cellPadding: 1.5 },
@@ -728,6 +751,15 @@ export default function KelasPage() {
             title="Bagi rata siswa ke guru 1, 2, 3 di semua kelas"
           >
             Bagi Rata Siswa
+          </Button>
+          <Button
+            variant="ghost"
+            leftIcon={<Shuffle size={15} />}
+            onClick={handleRandomDistribute}
+            loading={randomDistLoading}
+            title="Acak pembagian siswa secara merata ke setiap guru"
+          >
+            Acak Pembagian
           </Button>
           <Button
             variant="primary"
@@ -1183,7 +1215,7 @@ export default function KelasPage() {
           {/* Search input */}
           <div className="sticky top-0 bg-white pb-2">
             <Input
-              placeholder="Cari nama siswa atau NISN..."
+              placeholder="Cari nama siswa atau NIS/NISN..."
               value={studentSearch}
               onChange={(e) => setStudentSearch(e.target.value)}
               disabled={studentLoading}
