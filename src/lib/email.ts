@@ -2,7 +2,7 @@
 import { Resend } from 'resend';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
-const FROM = process.env.RESEND_FROM_EMAIL ?? 'Tim Quran <noreply@timquran.id>';
+const FROM = process.env.RESEND_FROM_EMAIL ?? 'Tim Quran <noreply@timquran.my.id>';
 
 export async function sendWelcomeEmail(opts: {
   to: string;

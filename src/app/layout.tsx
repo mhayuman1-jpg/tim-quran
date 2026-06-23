@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, Amiri } from "next/font/google";
+import { Analytics } from "@vercel/analytics/react";
+import { SpeedInsights } from "@vercel/speed-insights/react";
 import { SessionProvider } from "./providers";
 import "./globals.css";
 import { SWRProvider } from "./swr-provider";
@@ -38,6 +40,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             {children}
           </SWRProvider>
         </SessionProvider>
+        <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );
