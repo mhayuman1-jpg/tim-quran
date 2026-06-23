@@ -5,7 +5,7 @@ export const revalidate = 60;
 import React from 'react';
 import { default as nextDynamic } from 'next/dynamic';
 import Link from 'next/link';
-import { AtSign, Globe, Mail, MapPin, Phone, PlayCircle } from 'lucide-react';
+import { AtSign, Mail, MapPin, Phone, PlayCircle } from 'lucide-react';
 import PublicNavbar from '@/components/layout/PublicNavbar';
 import { IslamicPatternBg, OrnamentalDivider, CornerOrnament } from '@/components/features/IslamicDecorations';
 import { ScrollAnimatedCard, ScrollAnimatedItem, ScrollAnimatedSection } from '@/components/features/AnimatedComponents';
@@ -568,7 +568,7 @@ export default async function LandingPage() {
                   <Link href={profil.facebook.startsWith('http') ? profil.facebook : `https://facebook.com/${String(profil.facebook).replace(/^\//, '')}`}
                     className="group flex items-center gap-3 rounded-3xl border border-amber-100 bg-white px-4 py-3 transition hover:border-amber-400/40 hover:bg-amber-50"
                     target="_blank" rel="noreferrer noopener">
-                    <Globe size={20} className="text-amber-500 transition group-hover:text-amber-600" />
+                    <svg className="text-amber-500 transition group-hover:text-amber-600" viewBox="0 0 24 24" fill="currentColor" width={20} height={20}><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
                     <div>
                       <p className="text-sm text-slate-500">Facebook</p>
                       <p className="text-slate-900">{String(profil.facebook).replace(/^https?:\/\//, '')}</p>
@@ -576,7 +576,7 @@ export default async function LandingPage() {
                   </Link>
                 ) : (
                   <div className="group flex items-center gap-3 rounded-3xl border border-amber-100 bg-white px-4 py-3 opacity-60">
-                    <Globe size={20} className="text-amber-500" />
+                    <svg className="text-amber-500" viewBox="0 0 24 24" fill="currentColor" width={20} height={20}><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
                     <div>
                       <p className="text-sm text-slate-500">Facebook</p>
                       <p className="text-slate-900">/timquran</p>
