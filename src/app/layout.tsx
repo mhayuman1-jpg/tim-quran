@@ -3,6 +3,7 @@ import { Inter, Amiri } from "next/font/google";
 import { SessionProvider } from "./providers";
 import "./globals.css";
 import { SWRProvider } from "./swr-provider";
+import { SpeedInsights } from '@vercel/speed-insights/next';
 
 const inter = Inter({
   subsets: ["latin"],
@@ -38,6 +39,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             {children}
           </SWRProvider>
         </SessionProvider>
+        <SpeedInsights />
       </body>
     </html>
   );
