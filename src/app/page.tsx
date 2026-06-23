@@ -1,6 +1,6 @@
 ﻿// src/app/page.tsx — Landing page baru Tim Qur'an
 
-export const dynamic = 'force-dynamic';
+export const revalidate = 60;
 
 import React from 'react';
 import { default as nextDynamic } from 'next/dynamic';
@@ -64,7 +64,7 @@ interface TestimonialItem {
 async function getTestimonials(): Promise<TestimonialItem[]> {
   try {
     const baseUrl = getBaseUrl();
-    const res = await fetch(`${baseUrl}/api/testimonials`, { cache: 'no-store' });
+    const res = await fetch(`${baseUrl}/api/testimonials`, { next: { revalidate: 60 } });
     if (!res.ok) return [];
     return await res.json();
   } catch {
@@ -76,7 +76,7 @@ async function getMonthlyProgressData(): Promise<MonthlyProgressPoint[]> {
   try {
     const baseUrl = getBaseUrl();
     const res = await fetch(`${baseUrl}/api/landing/monthly-progress`, {
-      cache: 'no-store',
+      next: { revalidate: 60 },
     });
 
     if (!res.ok) {
