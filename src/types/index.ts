@@ -14,6 +14,8 @@ export interface User {
   name: string;
   role: UserRole;
   status: UserStatus;
+  password_hash?: string;
+  username?: string;
   created_at: string;
   updated_at?: string;
 }

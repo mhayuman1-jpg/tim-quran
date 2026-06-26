@@ -78,7 +78,7 @@ const HARIAN_COLUMNS: ColumnDef<AbsensiHarian>[] = [
     width: '48px',
     render: (_, i) => <span className="text-slate-400">{i + 1}</span>,
   },
-  { key: 'nisn', header: 'NISN', width: '130px' },
+  { key: 'nisn', header: 'NIS/NISN', width: '130px' },
   {
     key: 'nama',
     header: 'Nama Siswa',
@@ -235,7 +235,7 @@ const BULANAN_COLUMNS: ColumnDef<AbsensiBulanan>[] = [
     width: '48px',
     render: (_, i) => <span className="text-slate-400">{i + 1}</span>,
   },
-  { key: 'nisn', header: 'NISN', width: '130px' },
+  { key: 'nisn', header: 'NIS/NISN', width: '130px' },
   {
     key: 'nama',
     header: 'Nama Siswa',

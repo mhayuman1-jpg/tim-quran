@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
     if (error) return NextResponse.json({ message: error.message }, { status: 500 });
 
     const wb = xlsx.utils.book_new();
-    const headers = ['No', 'Tanggal', 'NISN', 'Nama Siswa', 'Kelas', 'Surah/Juz', 'Halaman', 'Catatan', 'Dicatat Oleh'];
+    const headers = ['No', 'Tanggal', 'NIS/NISN', 'Nama Siswa', 'Kelas', 'Surah/Juz', 'Halaman', 'Catatan', 'Dicatat Oleh'];
     const rows = ((data ?? []) as any[]).map((r, i) => [
       i + 1,
       r.tanggal,

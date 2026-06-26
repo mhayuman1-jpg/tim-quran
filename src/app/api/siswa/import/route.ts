@@ -10,7 +10,9 @@ import { createServerClient } from '@/lib/supabase/server';
 import * as xlsx from 'xlsx';
 
 interface ExcelRow {
+  'NIS/NISN'?: unknown;
   NISN?: unknown;
+  NIS?: unknown;
   'Nama Lengkap'?: unknown;
   'Jenis Kelamin'?: unknown;
   'Tanggal Lahir'?: unknown;
@@ -95,7 +97,7 @@ export async function POST(request: NextRequest) {
       const row = rows[i];
       const rowNum = i + 2;
 
-      const nisn = String(row['NISN'] ?? '').trim();
+      const nisn = String(row['NIS/NISN'] ?? row['NISN'] ?? row['NIS'] ?? '').trim();
       const nama = String(row['Nama Lengkap'] ?? row['Nama'] ?? '').trim();
       const genderRaw = String(row['Jenis Kelamin'] ?? row['Gender'] ?? '').trim();
       const tanggalLahirRaw = row['Tanggal Lahir'];
@@ -103,7 +105,7 @@ export async function POST(request: NextRequest) {
       const juzRaw = row['Juz Saat Ini'] ?? row['Juz'];
 
       if (!nisn) {
-        results.push({ row: rowNum, status: 'gagal', alasan: 'NISN wajib diisi' });
+        results.push({ row: rowNum, status: 'gagal', alasan: 'NIS/NISN wajib diisi' });
         gagal++;
         continue;
       }
@@ -179,7 +181,7 @@ export async function POST(request: NextRequest) {
           const { error: singleError } = await supabase.from('santri').insert([item.data]);
           if (singleError) {
             let alasan = 'Gagal menyimpan ke database';
-            if (singleError.code === '23505') alasan = 'NISN sudah terdaftar';
+            if (singleError.code === '23505') alasan = 'NIS/NISN sudah terdaftar';
             results.push({ row: item.rowNum, nisn: item.nisn, nama: item.nama, status: 'gagal', alasan });
             gagal++;
           } else {

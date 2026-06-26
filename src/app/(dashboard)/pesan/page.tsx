@@ -257,7 +257,7 @@ export default function PesanPage() {
                 <div className="flex-1">
                   <p className="font-semibold text-slate-900 text-sm">{selectedMsg.santri?.nama ?? selectedMsg.sender_name}</p>
                   <p className="text-xs text-slate-400">
-                    NISN: {selectedMsg.santri?.nisn} · Kelas: {selectedMsg.santri?.classes?.name?.replace(/^\d+\s*/i, '') || "—"}
+                    NIS/NISN: {selectedMsg.santri?.nisn} · Kelas: {selectedMsg.santri?.classes?.name?.replace(/^\d+\s*/i, '') || "—"}
                   </p>
                 </div>
                 <button

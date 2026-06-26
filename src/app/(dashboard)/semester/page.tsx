@@ -500,7 +500,7 @@ export default function SemesterPage() {
               label="Cari siswa"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Nama atau NISN"
+              placeholder="Nama atau NIS/NISN"
             />
           </div>
         </div>
@@ -535,7 +535,7 @@ export default function SemesterPage() {
               <tr>
                 <th className="px-4 py-3">Pilih</th>
                 <th className="px-4 py-3">Nama</th>
-                <th className="px-4 py-3">NISN</th>
+                <th className="px-4 py-3">NIS/NISN</th>
                 <th className="px-4 py-3">Kelas Saat Ini</th>
                 <th className="px-4 py-3">Juz Terakhir</th>
               </tr>

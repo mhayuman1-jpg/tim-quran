@@ -295,7 +295,7 @@ export default function IdCardPage() {
             .filter(t => t.x >= cardLeft && t.x <= cardRight)
             .map(t => t.text);
 
-          const skipWords = ['SDIT', 'BIDANG', 'KARTU', 'SCAN', 'AKTIF', 'SANTRI', 'IDENTITAS', 'QUR\'AN', 'AL HILMI', 'AL-HILMI', 'NAMA', 'NISN', 'KELAS', 'ALAMAT', 'TTL', 'ORANG TUA'];
+          const skipWords = ['SDIT', 'BIDANG', 'KARTU', 'SCAN', 'AKTIF', 'SANTRI', 'IDENTITAS', 'QUR\'AN', 'AL HILMI', 'AL-HILMI', 'NAMA', 'NIS', 'KELAS', 'ALAMAT', 'TTL', 'ORANG TUA'];
           let foundNama = '';
           let foundNisn = '';
 
@@ -377,7 +377,7 @@ export default function IdCardPage() {
           }
         }
 
-        // Third try: match by NISN
+        // Third try: match by NIS
         if (card.nisn) {
           const nisnMatch = dbStudents.find(s => s.nisn === card.nisn);
           if (nisnMatch) {

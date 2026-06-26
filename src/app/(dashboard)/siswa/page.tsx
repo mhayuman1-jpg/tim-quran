@@ -377,7 +377,7 @@ export default function SiswaPage() {
       {(!isTeacherMode || selectedClassName) && (
         <div className="flex flex-wrap items-center gap-3">
           <div className="max-w-sm flex-1">
-            <SearchInput defaultValue={search} onSearch={handleSearch} placeholder="Cari nama atau NISN siswa..." />
+            <SearchInput defaultValue={search} onSearch={handleSearch} placeholder="Cari nama atau NIS/NISN siswa..." />
           </div>
           {isTeacherMode && selectedClassName && (
             <Button variant="ghost" leftIcon={<ArrowLeft size={15} />} onClick={handleBackToClasses}>
@@ -508,7 +508,7 @@ export default function SiswaPage() {
         onClose={() => { if (!deleteLoading) setDeleteTarget(null); }}
         onConfirm={handleConfirmDelete}
         title="Hapus Siswa"
-        message={deleteTarget ? `Hapus siswa "${deleteTarget.nama}" (NISN: ${deleteTarget.nisn})? Tindakan ini tidak dapat dibatalkan.` : ''}
+        message={deleteTarget ? `Hapus siswa "${deleteTarget.nama}" (NIS/NISN: ${deleteTarget.nisn})? Tindakan ini tidak dapat dibatalkan.` : ''}
         confirmLabel="Hapus" loading={deleteLoading}
       />
 
@@ -544,7 +544,7 @@ export default function SiswaPage() {
               </div>
               <div>
                 <p className="font-semibold text-slate-800">{printConfirmSiswa.nama}</p>
-                <p className="text-sm text-slate-500">NISN: {printConfirmSiswa.nisn}</p>
+                <p className="text-sm text-slate-500">NIS/NISN: {printConfirmSiswa.nisn}</p>
               </div>
             </div>
             <p className="text-sm text-slate-600">

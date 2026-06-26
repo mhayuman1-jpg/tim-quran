@@ -2,7 +2,7 @@
 // POST: Tambah santri baru
 // - Validasi semua field wajib
 // - Generate UUID untuk qr_code via crypto.randomUUID()
-// - Return 409 jika NISN duplikat
+// - Return 409 jika NIS/NISN duplikat
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
 
     // Validasi field wajib
     if (!nisn || typeof nisn !== 'string' || nisn.trim() === '') {
-      return NextResponse.json({ message: 'NISN wajib diisi' }, { status: 400 });
+      return NextResponse.json({ message: 'NIS/NISN wajib diisi' }, { status: 400 });
     }
     if (!nama || typeof nama !== 'string' || nama.trim() === '') {
       return NextResponse.json({ message: 'Nama wajib diisi' }, { status: 400 });
@@ -82,10 +82,10 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (error) {
-      // Kode 23505 = unique_violation (NISN duplikat)
+      // Kode 23505 = unique_violation (NIS/NISN duplikat)
       if (error.code === '23505') {
         return NextResponse.json(
-          { message: 'NISN sudah terdaftar' },
+          { message: 'NIS/NISN sudah terdaftar' },
           { status: 409 }
         );
       }

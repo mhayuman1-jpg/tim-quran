@@ -49,9 +49,9 @@ interface FormErrors {
 function validate(data: SiswaFormData): FormErrors {
   const errors: FormErrors = {};
   if (!data.nisn.trim()) {
-    errors.nisn = 'NISN wajib diisi';
+    errors.nisn = 'NIS/NISN wajib diisi';
   } else if (!/^\d+$/.test(data.nisn.trim())) {
-    errors.nisn = 'NISN harus berupa angka';
+    errors.nisn = 'NIS/NISN harus berupa angka';
   }
   if (!data.nama.trim()) {
     errors.nama = 'Nama lengkap wajib diisi';
@@ -205,9 +205,9 @@ export default function SiswaForm({
         </div>
       </div>
 
-      {/* NISN */}
+      {/* NIS/NISN */}
       <Input
-        label="NISN"
+        label="NIS/NISN"
         required
         value={form.nisn}
         onChange={(e) => set('nisn', e.target.value)}

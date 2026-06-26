@@ -184,7 +184,7 @@ export default function RaportPage() {
         ['RAPORT TAHFIDZ & TAHSIN'], [],
         ['Data Siswa'],
         ['Nama Siswa', selected.santri?.nama ?? '—'],
-        ['NISN', selected.santri?.nisn ?? '—'],
+        ['NIS/NISN', selected.santri?.nisn ?? '—'],
         ['Kelas', selected.santri?.classes?.name ?? '—'], [],
         ['Data Raport'],
         ['Periode', selected.periode ?? '—'],

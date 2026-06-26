@@ -199,7 +199,7 @@ export async function GET(request: NextRequest) {
         ['Total Tidak Hadir', rekapStats.totalTidakHadir],
         [],
         ['Detail Per Siswa'],
-        ['Nama', 'NISN', 'Hadir', '% Hadir', 'Tahfidz', 'Tahsin'],
+        ['Nama', 'NIS/NISN', 'Hadir', '% Hadir', 'Tahfidz', 'Tahsin'],
         ...rekapStats.studentRows.map((row: any) => [
           row.nama,
           row.nisn,
@@ -265,7 +265,7 @@ export async function GET(request: NextRequest) {
         doc.setFontSize(10);
         doc.setFont('helvetica', 'bold');
         doc.text('Nama', colPositions.nama, y);
-        doc.text('NISN', colPositions.nisn, y);
+        doc.text('NIS/NISN', colPositions.nisn, y);
         doc.text('Hadir', colPositions.hadir, y);
         doc.text('% Hadir', colPositions.percent, y);
         doc.text('Tahfidz', colPositions.tahfidz, y);

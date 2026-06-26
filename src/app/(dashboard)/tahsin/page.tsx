@@ -717,7 +717,7 @@ export default function TahsinPage() {
               )}
               <div>
                 <p className="text-lg font-semibold text-slate-900">{selectedStudent.nama}</p>
-                <p className="text-sm text-slate-500">NISN: {selectedStudent.nisn ?? '-'}</p>
+                <p className="text-sm text-slate-500">NIS/NISN: {selectedStudent.nisn ?? '-'}</p>
                 <p className="text-sm text-slate-500">Kelas: {selectedStudent.classes?.name ?? '-'}</p>
               </div>
             </div>

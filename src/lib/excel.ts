@@ -29,7 +29,7 @@ export interface ParseExcelResult {
 // ─── Column Aliases ───────────────────────────────────────────────────────────
 
 const COLUMN_ALIASES: Record<keyof ExcelImportRow, string[]> = {
-  nisn:         ['NISN', 'nisn', 'Nisn'],
+  nisn:         ['NIS/NISN', 'NISN', 'NIS', 'nisn', 'Nisn'],
   nama:         ['Nama Lengkap', 'Nama', 'nama', 'NAMA'],
   gender:       ['Jenis Kelamin', 'Gender', 'gender', 'L/P', 'JK'],
   tanggal_lahir:['Tanggal Lahir', 'Tgl Lahir', 'tanggal_lahir', 'TTL'],
@@ -72,9 +72,9 @@ export function parseExcelImport(buffer: Buffer): ParseExcelResult {
     const kelasRaw   = getColVal(raw, COLUMN_ALIASES.kelas);
     const juzRaw     = getColVal(raw, COLUMN_ALIASES.juz_terakhir);
 
-    if (!nisn) { errors.push({ row: rowNum, alasan: 'NISN wajib diisi' }); return; }
+    if (!nisn) { errors.push({ row: rowNum, alasan: 'NIS/NISN wajib diisi' }); return; }
     if (!nama) { errors.push({ row: rowNum, nisn, alasan: 'Nama Lengkap wajib diisi' }); return; }
-    if (!/^\d+$/.test(nisn)) { errors.push({ row: rowNum, nisn, alasan: 'NISN hanya boleh berisi angka' }); return; }
+    if (!/^\d+$/.test(nisn)) { errors.push({ row: rowNum, nisn, alasan: 'NIS/NISN hanya boleh berisi angka' }); return; }
 
     const gender = normaliseGender(genderRaw);
     if (!gender) {
@@ -111,7 +111,7 @@ export function generateExcelTemplate(kelasList: string[] = []): Buffer {
   const wb = xlsx.utils.book_new();
 
   // ── Sheet 1: Template Data ──
-  const headers = ['NISN', 'Nama Lengkap', 'Jenis Kelamin', 'Tanggal Lahir', 'Kelas', 'Juz Saat Ini'];
+  const headers = ['NIS/NISN', 'Nama Lengkap', 'Jenis Kelamin', 'Tanggal Lahir', 'Kelas', 'Juz Saat Ini'];
 
   const contohData = [
     ['1234567890', 'Ahmad Fulan bin Budi',    'Laki-laki',  '2010-05-15', kelasList[0] || '3A', 1],
@@ -155,7 +155,7 @@ export function generateExcelTemplate(kelasList: string[] = []): Buffer {
 
   // Column widths
   ws['!cols'] = [
-    { wch: 16 },  // NISN
+    { wch: 16 },  // NIS/NISN
     { wch: 28 },  // Nama Lengkap
     { wch: 16 },  // Jenis Kelamin
     { wch: 15 },  // Tanggal Lahir
@@ -180,7 +180,7 @@ export function generateExcelTemplate(kelasList: string[] = []): Buffer {
     [''],
     ['KOLOM WAJIB:'],
     ['Kolom',         'Keterangan',                                    'Format / Contoh'],
-    ['NISN',          'Nomor Induk Siswa Nasional — harus unik',       '1234567890'],
+    ['NIS/NISN',          'Nomor Induk Siswa — harus unik',                  '1234567890'],
     ['Nama Lengkap',  'Nama lengkap siswa sesuai dokumen resmi',       'Ahmad Fulan bin Budi'],
     ['Jenis Kelamin', 'Jenis kelamin siswa',                           'Laki-laki / Perempuan / L / P'],
     ['Juz Saat Ini',  'Juz Al-Quran yang sudah dikuasai (1–30)',       '15'],
@@ -198,7 +198,7 @@ export function generateExcelTemplate(kelasList: string[] = []): Buffer {
     [''],
     ['TIPS:'],
     ['• Gunakan fitur Copy-Paste dari sumber data lain jika ada'],
-    ['• Pastikan NISN tidak ada yang duplikat dalam satu file'],
+    ['• Pastikan NIS/NISN tidak ada yang duplikat dalam satu file'],
     ['• Kolom Kelas harus sama persis dengan nama kelas di sistem'],
     ['• Siswa yang gagal import tidak akan menghentikan proses; akan dilaporkan di akhir'],
   ];

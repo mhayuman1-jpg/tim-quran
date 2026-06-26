@@ -433,7 +433,7 @@ const RaportPremium = React.forwardRef<HTMLDivElement, { data: RaportPremiumData
               <div style={{ fontSize: '12px', fontWeight: 700, color: C.emeraldDark }}>{santri.nama}</div>
             </div>
             <div>
-              <div style={{ fontSize: '8px', color: C.emerald, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '1px' }}>NISN</div>
+              <div style={{ fontSize: '8px', color: C.emerald, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '1px' }}>NIS/NISN</div>
               <div style={{ fontSize: '11px', fontFamily: 'monospace', color: C.gray700 }}>{santri.nisn}</div>
             </div>
             <div>

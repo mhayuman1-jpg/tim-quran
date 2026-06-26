@@ -2,7 +2,7 @@
 
 // src/components/features/raport/RaportPrintable.tsx
 // Komponen printable raport Qur'an:
-// - Identitas siswa (nama, NISN, kelas)
+// - Identitas siswa (nama, NIS/NISN, kelas)
 // - Periode penilaian
 // - Semua aspek penilaian (Makhroj, Tajwid, Lancar)
 // - Buku/Surah, Halaman, Catatan
@@ -151,7 +151,7 @@ const PrintContent = React.forwardRef<HTMLDivElement, { raport: RaportData }>(
               <td style={{ padding: '4px 0', fontWeight: 600 }}>: {siswa?.nama ?? '—'}</td>
             </tr>
             <tr>
-              <td style={{ padding: '4px 0', color: '#6b7280' }}>NISN</td>
+              <td style={{ padding: '4px 0', color: '#6b7280' }}>NIS/NISN</td>
               <td style={{ padding: '4px 0' }}>: {siswa?.nisn ?? '—'}</td>
             </tr>
             <tr>
@@ -449,7 +449,7 @@ export default function RaportPrintable({ raport, className = '' }: RaportPrinta
       doc.setTextColor(55, 65, 81);
       const identitas: [string, string][] = [
         ['Nama Lengkap', siswa?.nama ?? '—'],
-        ['NISN', siswa?.nisn ?? '—'],
+        ['NIS/NISN', siswa?.nisn ?? '—'],
         ['Kelas', siswa?.classes?.name ?? '—'],
         ['Periode', raport.periode],
       ];
@@ -633,7 +633,7 @@ export default function RaportPrintable({ raport, className = '' }: RaportPrinta
               <p className="font-semibold text-slate-800 mt-0.5">{siswa?.nama ?? '—'}</p>
             </div>
             <div>
-              <span className="text-slate-500 text-xs uppercase tracking-wide">NISN</span>
+              <span className="text-slate-500 text-xs uppercase tracking-wide">NIS/NISN</span>
               <p className="font-mono text-slate-800 mt-0.5">{siswa?.nisn ?? '—'}</p>
             </div>
             <div>

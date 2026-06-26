@@ -76,7 +76,7 @@ export async function GET(request: NextRequest) {
     const wb = xlsx.utils.book_new();
 
     // Header row
-    const headers = ['No', 'NISN', 'Nama', 'Kelas', ...allDates.map((d: string) => d.slice(5)), 'Hadir', 'Total'];
+    const headers = ['No', 'NIS/NISN', 'Nama', 'Kelas', ...allDates.map((d: string) => d.slice(5)), 'Hadir', 'Total'];
     const rows: (string | number)[][] = [];
 
     for (let i = 0; i < santriList.length; i++) {

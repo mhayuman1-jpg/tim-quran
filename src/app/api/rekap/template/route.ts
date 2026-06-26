@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
       [],
       ['Periode (format YYYY-MM)', '2025-01'],
       [],
-      ['Nama', 'NISN', 'Hadir (jumlah)', 'Tahfidz (%)', 'Tahsin (%)'],
+      ['Nama', 'NIS/NISN', 'Hadir (jumlah)', 'Tahfidz (%)', 'Tahsin (%)'],
       // example row
       ['Ahmad', '001234', '', '', ''],
     ];

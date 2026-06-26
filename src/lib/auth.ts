@@ -68,7 +68,7 @@ export const authOptions: NextAuthOptions = {
         };
       },
     }),
-    // Provider untuk Wali Murid — login menggunakan NISN siswa tanpa password
+    // Provider untuk Wali Murid — login menggunakan NIS/NISN siswa tanpa password
     CredentialsProvider({
       id: 'wali-credentials',
       name: 'Wali Murid',
@@ -80,7 +80,7 @@ export const authOptions: NextAuthOptions = {
 
         const supabase = createServerClient();
 
-        // Cari santri berdasarkan NISN
+        // Cari santri berdasarkan NIS/NISN
         const { data: santri, error } = await supabase
           .from('santri')
           .select('id, nisn, nama')

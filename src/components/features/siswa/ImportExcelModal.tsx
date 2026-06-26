@@ -124,7 +124,7 @@ export default function ImportExcelModal({ open, onClose, onImportDone }: Import
     const { utils, write } = await import('xlsx');
     const data = gagalRows.map(r => ({
       Baris: r.row,
-      NISN: r.nisn || '',
+      'NIS/NISN': r.nisn || '',
       Nama: r.nama || '',
       Alasan: r.alasan || '',
     }));
@@ -309,7 +309,7 @@ export default function ImportExcelModal({ open, onClose, onImportDone }: Import
                   <thead className="bg-slate-50 sticky top-0 border-b border-slate-200">
                     <tr>
                       <th className="px-3 py-2 text-left text-slate-500 font-semibold">Baris</th>
-                      <th className="px-3 py-2 text-left text-slate-500 font-semibold">NISN</th>
+                      <th className="px-3 py-2 text-left text-slate-500 font-semibold">NIS/NISN</th>
                       <th className="px-3 py-2 text-left text-slate-500 font-semibold">Nama</th>
                       <th className="px-3 py-2 text-left text-slate-500 font-semibold">Status</th>
                       <th className="px-3 py-2 text-left text-slate-500 font-semibold">Keterangan</th>

@@ -345,7 +345,7 @@ const RaportTahfidzCard = React.forwardRef<HTMLDivElement, RaportTahfidzCardProp
               <td>{siswa?.classes?.name || '—'} / {raport.periode || '—'}</td>
             </tr>
             <tr>
-              <th>NISN / NIS</th>
+              <th>NIS / NISN</th>
               <td>{siswa?.nisn || '—'}</td>
               <th>Tahun Ajaran</th>
               <td>{raport.tahun_ajaran || '—'}</td>

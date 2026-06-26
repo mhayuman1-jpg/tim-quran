@@ -1,6 +1,6 @@
 -- 017_add_wali_murid.sql
 -- Tabel wali_murid: menghubungkan orang tua/wali dengan santri
--- Wali login menggunakan NIS (nomor induk wali, bisa berbeda dengan NISN santri)
+-- Wali login menggunakan NIS (nomor induk wali, bisa berbeda dengan NIS/NISN santri)
 
 CREATE TABLE IF NOT EXISTS public.wali_murid (
   id          uuid        PRIMARY KEY DEFAULT gen_random_uuid(),

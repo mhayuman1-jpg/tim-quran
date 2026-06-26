@@ -15,6 +15,7 @@ declare module 'next-auth' {
       photo_url?: string | null;
       santri_id?: string;
       wali_nis?: string;
+      username?: string;
     };
   }
 
@@ -26,6 +27,7 @@ declare module 'next-auth' {
     photo_url?: string | null;
     santri_id?: string;
     wali_nis?: string;
+    username?: string;
   }
 }
 

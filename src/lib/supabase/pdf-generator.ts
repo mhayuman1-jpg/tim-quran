@@ -10,7 +10,7 @@ export const generateRaportPDF = (student: any, hafalanData: any[], tahsinData: 
   
   doc.setFontSize(12);
   doc.text(`Nama: ${student.nama}`, 14, 30);
-  doc.text(`NISN: ${student.nisn}`, 14, 37);
+  doc.text(`NIS/NISN: ${student.nisn}`, 14, 37);
 
   // Tabel Hafalan
   doc.text("Riwayat Hafalan", 14, 50);

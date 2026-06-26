@@ -92,7 +92,7 @@ export default function SiswaTable({
     },
     {
       key: 'nisn',
-      header: 'NISN',
+      header: 'NIS/NISN',
       width: '130px',
       render: (row) => (
         <span className="font-mono text-xs text-slate-600">{row.nisn}</span>

@@ -55,7 +55,6 @@ export default function PublicNavbar({
     { label: 'Pengumuman', href: '/pengumuman' },
     { label: 'Artikel',    href: '/artikel' },
     { label: 'Agenda',     href: '/agenda' },
-    { label: 'Daftar Tasmi', href: 'https://tasmi-alquran-app.firebaseapp.com/' },
   ];
 
   const [navLinks, setNavLinks] = useState<Array<{ label: string; href: string; children?: Array<{ label: string; href: string }> }>>(defaultNavLinks);
@@ -92,7 +91,7 @@ export default function PublicNavbar({
         i.label.toLowerCase() !== 'program' && i.label.toLowerCase() !== 'galeri'
       );
       
-      // Always merge with default items to ensure critical items like 'Daftar Tasmi' are present
+      // Always merge with default items to ensure critical items are present
       if (filteredItems.length > 0) {
         const apiLabels = new Set(filteredItems.map(i => i.label.toLowerCase()));
         const missingDefaults = defaultNavLinks.filter(d => !apiLabels.has(d.label.toLowerCase()));

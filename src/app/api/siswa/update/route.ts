@@ -31,7 +31,7 @@ export async function PUT(request: NextRequest) {
 
     // Validasi field yang diberikan jika ada
     if (nisn !== undefined && (typeof nisn !== 'string' || nisn.trim() === '')) {
-      return NextResponse.json({ message: 'NISN tidak boleh kosong' }, { status: 400 });
+      return NextResponse.json({ message: 'NIS/NISN tidak boleh kosong' }, { status: 400 });
     }
     if (nama !== undefined && (typeof nama !== 'string' || nama.trim() === '')) {
       return NextResponse.json({ message: 'Nama tidak boleh kosong' }, { status: 400 });
@@ -93,10 +93,10 @@ export async function PUT(request: NextRequest) {
       .single();
 
     if (error) {
-      // Unique violation untuk NISN
+      // Unique violation untuk NIS/NISN
       if (error.code === '23505') {
         return NextResponse.json(
-          { message: 'NISN sudah terdaftar' },
+          { message: 'NIS/NISN sudah terdaftar' },
           { status: 409 }
         );
       }
