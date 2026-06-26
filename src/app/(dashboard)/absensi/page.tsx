@@ -1,4 +1,5 @@
 'use client';
+export const dynamic = 'force-dynamic';
 
 // src/app/(dashboard)/absensi/page.tsx
 // Halaman Data Absensi dengan flow berbasis kelas:

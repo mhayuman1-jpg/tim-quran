@@ -1,4 +1,5 @@
 'use client';
+export const dynamic = 'force-dynamic';
 
 // src/app/(dashboard)/pengaturan/page.tsx
 // Halaman pengaturan akun: update profil dan ganti kata sandi

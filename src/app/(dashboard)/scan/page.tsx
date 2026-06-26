@@ -1,12 +1,13 @@
 'use client';
+export const dynamic = 'force-dynamic';
 
-import dynamic from 'next/dynamic';
+import nextDynamic from 'next/dynamic';
 import { useCallback, useEffect, useState } from 'react';
 import { CheckCircle, XCircle, AlertCircle, RefreshCw, BookOpen } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 
-const QRScanner = dynamic(
+const QRScanner = nextDynamic(
   () => import('@/components/features/qr-scanner/QRScanner'),
   {
     ssr: false,
@@ -18,11 +19,11 @@ const QRScanner = dynamic(
           <span className="text-sm">Memuat scanner…</span>
         </div>
       </div>
-    ),
+    )
   }
 );
 
-const JurnalHafalanTahsinForm = dynamic(
+const JurnalHafalanTahsinForm = nextDynamic(
   () => import('@/components/features/tahsin/JurnalHafalanTahsinForm'),
   {
     ssr: false,

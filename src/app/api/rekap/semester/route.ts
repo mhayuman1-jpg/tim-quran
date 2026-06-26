@@ -96,41 +96,57 @@ export async function GET(request: NextRequest) {
 
     const studentIds = (students || []).map(s => s.id);
 
-    // Fetch hafalan data for the semester
-    const { data: hafalanData, error: hafalanError } = await supabase
-      .from('hafalan')
-      .select('student_id, id, tanggal, makhroj, tajwid, lancar')
-      .in('student_id', studentIds)
-      .gte('tanggal', dateRange.start)
-      .lte('tanggal', dateRange.end);
+    const CHUNK_SIZE = 100;
+    const chunkArray = <T,>(arr: T[]): T[][] => {
+      const chunks: T[][] = [];
+      for (let i = 0; i < arr.length; i += CHUNK_SIZE) {
+        chunks.push(arr.slice(i, i + CHUNK_SIZE));
+      }
+      return chunks;
+    };
 
-    if (hafalanError) {
-      console.error('Hafalan fetch error:', hafalanError);
+    const fetchChunked = async <T,>(
+      table: string,
+      select: string,
+      ids: string[],
+      dateField: string,
+      start: string,
+      end: string
+    ): Promise<T[]> => {
+      const results = await Promise.all(
+        chunkArray(ids).map(chunk =>
+          supabase
+            .from(table)
+            .select(select)
+            .in('student_id', chunk)
+            .gte(dateField, start)
+            .lte(dateField, end)
+            .then(({ data, error }) => {
+              if (error) console.error(`${table} chunk fetch error:`, error);
+              return (data || []) as T[];
+            })
+        )
+      );
+      return results.flat();
     }
+
+    // Fetch hafalan data for the semester
+    const hafalanData = await fetchChunked<any>(
+      'hafalan', 'student_id, id, tanggal, makhroj, tajwid, lancar',
+      studentIds, 'tanggal', dateRange.start, dateRange.end
+    );
 
     // Fetch tahsin data for the semester
-    const { data: tahsinData, error: tahsinError } = await supabase
-      .from('tahsin')
-      .select('student_id, id, tanggal, makhroj, kelancaran')
-      .in('student_id', studentIds)
-      .gte('tanggal', dateRange.start)
-      .lte('tanggal', dateRange.end);
-
-    if (tahsinError) {
-      console.error('Tahsin fetch error:', tahsinError);
-    }
+    const tahsinData = await fetchChunked<any>(
+      'tahsin', 'student_id, id, tanggal, makhroj, kelancaran',
+      studentIds, 'tanggal', dateRange.start, dateRange.end
+    );
 
     // Fetch attendance data for the semester
-    const { data: attendanceData, error: attendanceError } = await supabase
-      .from('attendances')
-      .select('student_id, status, date')
-      .in('student_id', studentIds)
-      .gte('date', dateRange.start)
-      .lte('date', dateRange.end);
-
-    if (attendanceError) {
-      console.error('Attendance fetch error:', attendanceError);
-    }
+    const attendanceData = await fetchChunked<any>(
+      'attendances', 'student_id, status, date',
+      studentIds, 'date', dateRange.start, dateRange.end
+    );
 
     // Fetch total active days in semester
     const { count: totalActiveDays } = await supabase
@@ -220,26 +236,20 @@ export async function GET(request: NextRequest) {
     if (compareWith) {
       const compareRange = getSemesterDateRange(compareWith);
       
-      const { data: compareHafalan } = await supabase
-        .from('hafalan')
-        .select('student_id, id')
-        .in('student_id', studentIds)
-        .gte('tanggal', compareRange.start)
-        .lte('tanggal', compareRange.end);
+      const compareHafalan = await fetchChunked<any>(
+        'hafalan', 'student_id, id',
+        studentIds, 'tanggal', compareRange.start, compareRange.end
+      );
 
-      const { data: compareTahsin } = await supabase
-        .from('tahsin')
-        .select('student_id, id')
-        .in('student_id', studentIds)
-        .gte('tanggal', compareRange.start)
-        .lte('tanggal', compareRange.end);
+      const compareTahsin = await fetchChunked<any>(
+        'tahsin', 'student_id, id',
+        studentIds, 'tanggal', compareRange.start, compareRange.end
+      );
 
-      const { data: compareAttendance } = await supabase
-        .from('attendances')
-        .select('student_id, status')
-        .in('student_id', studentIds)
-        .gte('date', compareRange.start)
-        .lte('date', compareRange.end);
+      const compareAttendance = await fetchChunked<any>(
+        'attendances', 'student_id, status',
+        studentIds, 'date', compareRange.start, compareRange.end
+      );
 
       const compareHadir = (compareAttendance || []).filter(a => a.status === 'Hadir').length;
       const compareTotal = (compareAttendance || []).length;

@@ -1,4 +1,5 @@
 'use client';
+export const dynamic = 'force-dynamic';
 
 // src/app/(dashboard)/hafalan/page.tsx
 // Halaman pencatatan hafalan harian

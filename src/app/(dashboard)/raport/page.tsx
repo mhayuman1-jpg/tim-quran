@@ -1,4 +1,5 @@
 'use client';
+export const dynamic = 'force-dynamic';
 
 // src/app/(dashboard)/raport/page.tsx
 // Halaman Raport — admin view (kelas → raport) + guru view (existing)

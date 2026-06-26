@@ -1,4 +1,5 @@
 'use client';
+export const dynamic = 'force-dynamic';
 
 // src/app/(dashboard)/kelas/page.tsx
 // Halaman Kelola Kelas (Kabid Only)

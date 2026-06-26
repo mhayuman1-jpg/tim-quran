@@ -1,4 +1,5 @@
 'use client';
+export const dynamic = 'force-dynamic';
 
 // src/app/(dashboard)/tahfidz/page.tsx
 // Halaman pencatatan tahfidz harian

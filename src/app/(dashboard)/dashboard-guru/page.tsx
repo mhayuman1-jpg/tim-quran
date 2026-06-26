@@ -1,4 +1,5 @@
 'use client';
+export const dynamic = 'force-dynamic';
 
 // src/app/(dashboard)/dashboard-guru/page.tsx
 // Dashboard Guru — tampilan seperti dashboard utama, tapi HANYA data siswa yang diampu

@@ -1,4 +1,5 @@
 'use client';
+export const dynamic = 'force-dynamic';
 
 // src/app/(dashboard)/laporan-masuk/page.tsx
 // Halaman Laporan Masuk untuk Kabid/Sekretaris — melihat & review laporan dari Tim Qur'an

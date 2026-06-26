@@ -1,4 +1,5 @@
 'use client';
+export const dynamic = 'force-dynamic';
 
 import React, { useCallback, useEffect, useState, lazy, Suspense } from 'react';
 import { Plus, Pencil, Trash2, Newspaper, Eye, EyeOff, ExternalLink, X, Save, Loader2, Sparkles } from 'lucide-react';

@@ -1,4 +1,5 @@
 'use client';
+export const dynamic = 'force-dynamic';
 
 // src/app/(dashboard)/absensi/monitoring/page.tsx
 // Halaman monitoring absensi dengan grafik kehadiran harian.
@@ -6,7 +7,7 @@
 // Hanya untuk Kabid — Tim_Quran akan di-redirect oleh middleware.
 
 import React, { useCallback, useEffect, useState } from 'react';
-import dynamic from 'next/dynamic';
+import nextDynamic from 'next/dynamic';
 import { RefreshCw, TrendingUp, ArrowLeft } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
@@ -16,7 +17,7 @@ import type { ChartDataPoint, DateRange } from '@/components/features/charts/Att
 
 // ─── Dynamic import — SSR dimatikan karena Recharts menggunakan browser APIs ──
 
-const AttendanceChart = dynamic(
+const AttendanceChart = nextDynamic(
   () => import('@/components/features/charts/AttendanceChart'),
   {
     ssr: false,

@@ -1,4 +1,5 @@
 'use client';
+export const dynamic = 'force-dynamic';
 
 // src/app/(dashboard)/tim/page.tsx
 // Halaman Manajemen Tim Qur'an (Kabid Only)

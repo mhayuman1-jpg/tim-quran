@@ -1,4 +1,5 @@
 'use client';
+export const dynamic = 'force-dynamic';
 
 // src/app/(dashboard)/laporan-kirim/page.tsx
 // Halaman Kirim Laporan untuk Tim Qur'an — auto-recap data siswa, lalu kirim ke Kabid/Sekretaris

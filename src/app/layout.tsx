@@ -1,14 +1,14 @@
 import type { Metadata } from "next";
-import { Inter, Amiri } from "next/font/google";
+import { Outfit, Amiri } from "next/font/google";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/react";
 import { SessionProvider } from "./providers";
 import "./globals.css";
 import { SWRProvider } from "./swr-provider";
 
-const inter = Inter({
+const outfit = Outfit({
   subsets: ["latin"],
-  variable: "--font-inter",
+  variable: "--font-outfit",
   display: "swap",
 });
 
@@ -33,7 +33,7 @@ export const viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="id" className={`${inter.variable} ${amiri.variable} light`}>
+    <html lang="id" className={`${outfit.variable} ${amiri.variable} light`}>
       <body className="antialiased">
         <SessionProvider>
           <SWRProvider>

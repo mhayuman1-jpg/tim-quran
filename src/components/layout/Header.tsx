@@ -59,15 +59,11 @@ export default function Header({ onMenuClick }: { onMenuClick?: () => void }) {
   };
 
   return (
-    <header className="h-16 md:h-14 flex items-center justify-between px-3 sm:px-4 md:px-6 shrink-0" style={{
-        borderBottom: '1px solid rgba(226,232,240,0.6)',
-        paddingTop: 'max(0px, env(safe-area-inset-top))',
-      }}>
+    <header className="h-16 md:h-14 flex items-center justify-between px-4 sm:px-5 md:px-6 shrink-0 bg-white/40 backdrop-blur-md border-b border-black/5">
       {/* Left */}
       <div className="flex items-center gap-2 md:gap-3">
         <button onClick={onMenuClick}
-          className="lg:hidden p-2 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors active:bg-slate-200"
-          style={{minWidth: '44px', minHeight: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center'}}
+          className="lg:hidden touch-target rounded-lg text-slate-400 hover:text-slate-600 hover:bg-black/5 active:bg-black/10 transition-all"
           aria-label="Buka sidebar">
           <Menu size={20} />
         </button>
@@ -79,41 +75,26 @@ export default function Header({ onMenuClick }: { onMenuClick?: () => void }) {
       {/* Right */}
       <div className="flex items-center gap-1 md:gap-2">
         <Link href="/" target="_blank" rel="noopener noreferrer"
-          className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs md:text-sm font-medium transition-all"
-          style={{color: '#6366f1', minHeight: '44px', display: 'flex', alignItems: 'center'}}
-          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(99,102,241,0.08)'; }}
-          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
-          title="Lihat halaman publik">
+          className="hidden sm:inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs md:text-sm font-medium text-indigo-500 hover:bg-indigo-50/80 active:bg-indigo-100 transition-all min-h-[44px]">
           <ExternalLink size={16} />
           <span className="hidden md:inline">Website</span>
         </Link>
         {canSwitchRole && (
-          <button
-            onClick={handleRoleSwitch}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs md:text-sm font-medium transition-colors"
-            style={{
-              minHeight: '44px',
-              display: 'flex',
-              alignItems: 'center',
-              color: isViewingAsOther ? '#d97706' : '#6366f1',
-              background: isViewingAsOther ? 'rgba(217,119,6,0.08)' : 'rgba(99,102,241,0.08)',
-            }}
-            onMouseEnter={e => {
-              (e.currentTarget as HTMLElement).style.background = isViewingAsOther ? 'rgba(217,119,6,0.15)' : 'rgba(99,102,241,0.15)';
-            }}
-            onMouseLeave={e => {
-              (e.currentTarget as HTMLElement).style.background = isViewingAsOther ? 'rgba(217,119,6,0.08)' : 'rgba(99,102,241,0.08)';
-            }}
+          <button onClick={handleRoleSwitch}
+            className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs md:text-sm font-medium transition-all min-h-[44px] ${
+              isViewingAsOther
+                ? 'text-amber-600 bg-amber-50/80 hover:bg-amber-100/80 active:bg-amber-200/50'
+                : 'text-indigo-500 bg-indigo-50/80 hover:bg-indigo-100/80 active:bg-indigo-200/50'
+            }`}
             title={isViewingAsOther ? 'Kembali ke mode asli' : 'Beralih ke mode Tim Qur\'an'}
           >
             <ArrowLeftRight size={16} />
             <span className="hidden md:inline">{isViewingAsOther ? 'Kembali' : 'Mode Guru'}</span>
           </button>
         )}
-        <div className="w-px h-5 bg-slate-200 mx-1" />
+        <div className="w-px h-5 bg-black/5 mx-1" />
         <button onClick={() => signOut({ callbackUrl: '/' })}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs md:text-sm font-medium text-slate-500 hover:text-red-600 hover:bg-red-50 transition-colors active:bg-red-100"
-          style={{minHeight: '44px', display: 'flex', alignItems: 'center'}}
+          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs md:text-sm font-medium text-slate-400 hover:text-red-500 hover:bg-red-50/80 active:bg-red-100/50 transition-all min-h-[44px]"
           aria-label="Keluar">
           <LogOut size={16} />
           <span className="hidden sm:inline">Keluar</span>

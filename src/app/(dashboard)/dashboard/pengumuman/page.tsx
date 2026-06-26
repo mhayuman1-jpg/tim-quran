@@ -1,4 +1,5 @@
 'use client';
+export const dynamic = 'force-dynamic';
 
 // src/app/(dashboard)/dashboard/pengumuman/page.tsx
 // Halaman Kelola Pengumuman (dipindahkan ke dalam /dashboard)

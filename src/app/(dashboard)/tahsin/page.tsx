@@ -1,11 +1,12 @@
 'use client';
+export const dynamic = 'force-dynamic';
 
 // src/app/(dashboard)/tahsin/page.tsx
 // Halaman jurnal hafalan & tahsin gabungan dengan ringkasan riwayat.
 // Flow: Scan QR absen → pilih siswa → isi jurnal
 
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
-import dynamic from 'next/dynamic';
+import nextDynamic from 'next/dynamic';
 import { Plus, BookOpenCheck, Users, XCircle, BookText, BookOpen, ScanLine, CheckCircle, AlertCircle, RefreshCw, ArrowLeft, Filter } from 'lucide-react';
 import Modal from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
@@ -20,7 +21,7 @@ import { useViewMode } from '@/hooks/useViewMode';
 import { useRole } from '@/hooks/useRole';
 import type { Hafalan, Tahsin } from '@/types';
 
-const QRScanner = dynamic(
+const QRScanner = nextDynamic(
   () => import('@/components/features/qr-scanner/QRScanner'),
   {
     ssr: false,

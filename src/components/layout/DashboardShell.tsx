@@ -10,11 +10,22 @@ export default function DashboardShell({ children }: { children: React.ReactNode
   return (
     <ViewModeProvider>
       <ToastProvider>
-        <div className="flex h-dvh overflow-hidden bg-slate-50 text-slate-900 dark:bg-slate-900 dark:text-slate-100" style={{paddingTop: 'max(0px, env(safe-area-inset-top))'}}>
+        <div
+          className="flex h-dvh overflow-hidden text-slate-800 selection:bg-amber-200/40"
+          style={{
+            background: '#faf8f5',
+            paddingTop: 'max(0px, env(safe-area-inset-top))',
+          }}
+        >
           <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
           <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
             <Header onMenuClick={() => setSidebarOpen(true)} />
-            <main className="flex-1 overflow-auto p-3 sm:p-4 md:p-6 lg:p-8 pb-20 md:pb-0" style={{paddingBottom: 'max(5rem, calc(env(safe-area-inset-bottom) + 5rem))'}}>{children}</main>
+            <main
+              className="flex-1 overflow-auto px-4 sm:px-5 md:px-6 lg:px-8 py-4 sm:py-5 md:py-6 lg:py-8 pb-20 md:pb-0"
+              style={{ paddingBottom: 'max(5rem, calc(env(safe-area-inset-bottom) + 5rem))' }}
+            >
+              {children}
+            </main>
           </div>
         </div>
       </ToastProvider>

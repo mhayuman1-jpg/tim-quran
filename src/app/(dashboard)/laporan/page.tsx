@@ -1,4 +1,5 @@
 'use client';
+export const dynamic = 'force-dynamic';
 
 // src/app/(dashboard)/laporan/page.tsx
 // Halaman Laporan Progres Siswa per Tim (Kabid Only)
