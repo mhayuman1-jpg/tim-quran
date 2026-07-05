@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { MessageSquareQuote, X, Send, Sparkles } from "lucide-react";
+import { MessageSquareQuote, X, Send, Sparkles, Bot } from "lucide-react";
 
 interface Message {
   id: string;
@@ -174,7 +174,7 @@ export default function AiChatbot({ variant = "floating" }: { variant?: "floatin
               style={{ background: "rgba(13,59,46,0.25)", animationDuration: "2.5s" }} />
           )}
           <span className="relative z-10 text-white">
-            {isOpen ? <X size={22} /> : <Sparkles size={22} />}
+            {isOpen ? <X size={22} /> : <Bot size={22} />}
           </span>
         </button>
       </div>

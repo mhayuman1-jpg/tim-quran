@@ -165,7 +165,7 @@ export default function TestimonialBubble() {
               style={{ background: "rgba(184,146,47,0.25)", animationDuration: "2.5s" }} />
           )}
           <span className="relative z-10 text-white">
-            {isOpen ? <X size={22} /> : <MessageSquareQuote size={22} />}
+            {isOpen ? <X size={22} /> : <Star size={22} />}
           </span>
         </button>
       </div>
