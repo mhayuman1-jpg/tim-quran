@@ -136,7 +136,7 @@ export default function AiChatbot({ variant = "floating" }: { variant?: "floatin
   return (
     <>
       {/* Floating Bubble — left of TestimonialBubble */}
-      <div className="fixed bottom-6 right-[72px] z-50 flex items-center gap-2">
+      <div className="fixed bottom-[76px] right-6 z-50 flex items-center gap-2">
         {/* Hover Tooltip */}
         <div
           className={`px-3 py-1.5 rounded-lg text-xs font-semibold text-white whitespace-nowrap transition-all duration-300 pointer-events-none ${
@@ -174,7 +174,7 @@ export default function AiChatbot({ variant = "floating" }: { variant?: "floatin
               style={{ background: "rgba(13,59,46,0.25)", animationDuration: "2.5s" }} />
           )}
           <span className="relative z-10 text-white">
-            {isOpen ? <X size={22} /> : <MessageSquareQuote size={22} />}
+            {isOpen ? <X size={22} /> : <Sparkles size={22} />}
           </span>
         </button>
       </div>
@@ -182,7 +182,7 @@ export default function AiChatbot({ variant = "floating" }: { variant?: "floatin
       {/* Chat Window */}
       {isOpen && (
         <div
-          className="fixed bottom-24 right-[72px] z-50 w-[380px] max-w-[calc(100vw-2rem)] rounded-2xl overflow-hidden flex flex-col"
+          className="fixed bottom-[152px] right-6 z-50 w-[380px] max-w-[calc(100vw-2rem)] rounded-2xl overflow-hidden flex flex-col"
           style={{
             boxShadow: "0 25px 60px rgba(0,0,0,0.18), 0 8px 20px rgba(0,0,0,0.1)",
             background: "white",
