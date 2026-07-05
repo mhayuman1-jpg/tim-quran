@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Star, MessageSquareQuote, X, Send, User } from "lucide-react";
+import { Star, MessageSquareQuote, X, Send, Heart } from "lucide-react";
 
 interface Testimonial {
   id: string;
@@ -15,6 +15,7 @@ interface Testimonial {
 
 export default function TestimonialBubble() {
   const [isOpen, setIsOpen] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
   const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
@@ -125,26 +126,49 @@ export default function TestimonialBubble() {
 
   return (
     <>
-      {/* Floating Bubble Button */}
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full flex items-center justify-center shadow-lg transition-all hover:scale-110"
-        style={{
-          background: isOpen
-            ? "linear-gradient(135deg, #6b7280, #4b5563)"
-            : "linear-gradient(135deg, #d4a843, #b8922f)",
-          boxShadow: isOpen
-            ? "0 4px 20px rgba(107,114,128,0.4)"
-            : "0 4px 20px rgba(212,168,67,0.4)",
-        }}
-        title={isOpen ? "Tutup" : "Testimoni Alumni"}
-      >
-        {isOpen ? (
-          <X size={22} className="text-white" />
-        ) : (
-          <MessageSquareQuote size={22} className="text-white" />
-        )}
-      </button>
+      {/* Floating Bubble — rightmost */}
+      <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2">
+        {/* Hover Tooltip */}
+        <div
+          className={`px-3 py-1.5 rounded-lg text-xs font-semibold text-white whitespace-nowrap transition-all duration-300 pointer-events-none ${
+            isHovered && !isOpen ? "opacity-100 translate-x-0" : "opacity-0 translate-x-2"
+          }`}
+          style={{
+            background: "linear-gradient(135deg, #b8922f, #d4a843)",
+            boxShadow: "0 4px 12px rgba(184,146,47,0.3)",
+          }}
+        >
+          ⭐ Testimoni
+          <div className="absolute -right-1 top-1/2 -translate-y-1/2 w-2 h-2 rotate-45"
+            style={{ background: "#b8922f" }} />
+        </div>
+
+        {/* Bubble */}
+        <button
+          onClick={() => setIsOpen(!isOpen)}
+          onMouseEnter={() => setIsHovered(true)}
+          onMouseLeave={() => setIsHovered(false)}
+          className="relative w-14 h-14 rounded-full flex items-center justify-center transition-all duration-300 hover:scale-110 active:scale-95"
+          style={{
+            background: isOpen
+              ? "linear-gradient(135deg, #4b5563, #374151)"
+              : "linear-gradient(135deg, #b8922f, #d4a843)",
+            boxShadow: isOpen
+              ? "0 4px 20px rgba(75,85,99,0.4)"
+              : "0 6px 32px rgba(184,146,47,0.5), 0 0 0 4px rgba(184,146,47,0.12)",
+          }}
+          title={isOpen ? "Tutup" : "Testimoni Alumni"}
+        >
+          {/* Pulse ring */}
+          {!isOpen && (
+            <span className="absolute inset-0 rounded-full animate-ping"
+              style={{ background: "rgba(184,146,47,0.25)", animationDuration: "2.5s" }} />
+          )}
+          <span className="relative z-10 text-white">
+            {isOpen ? <X size={22} /> : <MessageSquareQuote size={22} />}
+          </span>
+        </button>
+      </div>
 
       {/* Panel */}
       {isOpen && (
@@ -152,22 +176,24 @@ export default function TestimonialBubble() {
           ref={panelRef}
           className="fixed bottom-24 right-6 z-50 w-[380px] max-w-[calc(100vw-2rem)] rounded-2xl overflow-hidden flex flex-col"
           style={{
-            boxShadow: "0 8px 40px rgba(0,0,0,0.15)",
+            boxShadow: "0 25px 60px rgba(0,0,0,0.18), 0 8px 20px rgba(0,0,0,0.1)",
             background: "white",
             height: "min(520px, calc(100vh - 140px))",
           }}
         >
-          {/* Header - fixed */}
+          {/* Header */}
           <div
             className="px-5 py-4 flex items-center gap-3 shrink-0"
             style={{ background: "linear-gradient(135deg, #0d3b2e, #1a6b4f)" }}
           >
-            <MessageSquareQuote size={20} className="text-amber-300" />
+            <div className="w-10 h-10 rounded-full flex items-center justify-center bg-white/15 backdrop-blur-sm">
+              <Heart size={18} className="text-amber-300" />
+            </div>
             <div className="flex-1">
               <h3 className="text-white font-bold text-sm">Testimoni Alumni</h3>
               <p className="text-emerald-200 text-xs">Cerita dari Wali Murid</p>
             </div>
-            <button onClick={() => setShowForm(false)} className="text-emerald-200 hover:text-white">
+            <button onClick={() => setShowForm(false)} className="text-emerald-200 hover:text-white transition-colors">
               <X size={18} />
             </button>
           </div>
@@ -194,7 +220,6 @@ export default function TestimonialBubble() {
               </div>
             ) : (
               <>
-                {/* Testimoni List */}
                 {testimonials.map((t) => (
                   <div
                     key={t.id}
@@ -206,7 +231,7 @@ export default function TestimonialBubble() {
                         className="w-9 h-9 rounded-full flex items-center justify-center shrink-0"
                         style={{ background: "linear-gradient(135deg, #0d3b2e, #1a6b4f)" }}
                       >
-                        <User size={14} className="text-white" />
+                        <Heart size={14} className="text-white" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between">
@@ -218,7 +243,7 @@ export default function TestimonialBubble() {
                           {t.batch && ` · Angkatan ${t.batch}`}
                         </p>
                         <div className="flex items-center gap-0.5 mb-2">{renderStars(t.rating)}</div>
-                        <p className="text-xs text-slate-600 leading-relaxed">{t.message}</p>
+                        <p className="text-xs text-slate-600 leading-relaxed italic">"{t.message}"</p>
                       </div>
                     </div>
                   </div>
@@ -245,7 +270,7 @@ export default function TestimonialBubble() {
                         value={form.parent_name}
                         onChange={(e) => setForm((f) => ({ ...f, parent_name: e.target.value }))}
                         placeholder="Contoh: Budi Santoso"
-                        className="w-full text-sm px-3 py-2 rounded-lg outline-none border border-slate-200 focus:border-emerald-400 bg-white"
+                        className="w-full text-sm px-3 py-2 rounded-lg outline-none border border-slate-200 focus:border-emerald-400 bg-white transition-all focus:shadow-md"
                       />
                     </div>
 
@@ -255,7 +280,7 @@ export default function TestimonialBubble() {
                         value={form.child_name}
                         onChange={(e) => setForm((f) => ({ ...f, child_name: e.target.value }))}
                         placeholder="Contoh: Muhammad Rizki"
-                        className="w-full text-sm px-3 py-2 rounded-lg outline-none border border-slate-200 focus:border-emerald-400 bg-white"
+                        className="w-full text-sm px-3 py-2 rounded-lg outline-none border border-slate-200 focus:border-emerald-400 bg-white transition-all focus:shadow-md"
                       />
                     </div>
 
@@ -265,7 +290,7 @@ export default function TestimonialBubble() {
                         value={form.batch}
                         onChange={(e) => setForm((f) => ({ ...f, batch: e.target.value }))}
                         placeholder="Contoh: 2024"
-                        className="w-full text-sm px-3 py-2 rounded-lg outline-none border border-slate-200 focus:border-emerald-400 bg-white"
+                        className="w-full text-sm px-3 py-2 rounded-lg outline-none border border-slate-200 focus:border-emerald-400 bg-white transition-all focus:shadow-md"
                       />
                     </div>
 
@@ -276,18 +301,21 @@ export default function TestimonialBubble() {
                         onChange={(e) => setForm((f) => ({ ...f, message: e.target.value }))}
                         placeholder="Ceritakan pengalaman Anda..."
                         rows={3}
-                        className="w-full text-sm px-3 py-2 rounded-lg outline-none border border-slate-200 focus:border-emerald-400 resize-none bg-white"
+                        className="w-full text-sm px-3 py-2 rounded-lg outline-none border border-slate-200 focus:border-emerald-400 resize-none bg-white transition-all focus:shadow-md"
                       />
                     </div>
 
                     <button
                       onClick={handleSubmit}
                       disabled={submitting}
-                      className="w-full py-2.5 rounded-xl text-sm font-semibold text-white flex items-center justify-center gap-2 transition-opacity disabled:opacity-50"
+                      className="w-full py-2.5 rounded-xl text-sm font-semibold text-white flex items-center justify-center gap-2 transition-all hover:shadow-lg disabled:opacity-50"
                       style={{ background: "linear-gradient(135deg, #0d3b2e, #1a6b4f)" }}
                     >
                       {submitting ? (
-                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        <svg className="w-4 h-4 animate-spin text-white" viewBox="0 0 24 24" fill="none">
+                          <circle className="opacity-30" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" fill="currentColor" />
+                        </svg>
                       ) : (
                         <>
                           <Send size={14} />
@@ -301,13 +329,13 @@ export default function TestimonialBubble() {
             )}
           </div>
 
-          {/* Footer - fixed button */}
+          {/* Footer */}
           {!showForm && (
             <div className="px-4 py-3 border-t border-slate-100 shrink-0">
               <button
                 onClick={() => setShowForm(true)}
-                className="w-full py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90"
-                style={{ background: "linear-gradient(135deg, #d4a843, #b8922f)" }}
+                className="w-full py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]"
+                style={{ background: "linear-gradient(135deg, #b8922f, #d4a843)" }}
               >
                 ✍️ Kirim Testimoni Anda
               </button>
