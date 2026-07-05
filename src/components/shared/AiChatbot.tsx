@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { BookOpen, Send, MessageCircle } from "lucide-react";
+import { MessageSquareQuote, X, Send, User, Star } from "lucide-react";
 
 interface Message {
   id: string;
@@ -103,15 +103,10 @@ export default function AiChatbot({ variant = 'floating' }: { variant?: 'floatin
 
         {/* Header */}
         <div className="flex items-center gap-3 px-5 py-4" style={{ background: "linear-gradient(135deg, #0d3b2e, #1a6b4f)" }}>
-          <div className="w-10 h-10 rounded-full flex items-center justify-center bg-white/15">
-            <BookOpen size={18} className="text-amber-400" />
-          </div>
+          <MessageSquareQuote size={20} className="text-amber-300" />
           <div className="flex-1">
-            <p className="text-white font-semibold text-sm">Tanya Asisten AI</p>
-            <div className="flex items-center gap-1.5">
-              <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <p className="text-emerald-200 text-xs">Online • Siap membantu</p>
-            </div>
+            <p className="text-white font-bold text-sm">Tanya Asisten AI</p>
+            <p className="text-emerald-200 text-xs">Online • Siap membantu</p>
           </div>
         </div>
 
@@ -198,50 +193,48 @@ export default function AiChatbot({ variant = 'floating' }: { variant?: 'floatin
       {/* Floating Bubble */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full flex items-center justify-center shadow-lg transition-all duration-300 hover:scale-110"
+        className="fixed bottom-6 right-24 z-50 w-14 h-14 rounded-full flex items-center justify-center shadow-lg transition-all duration-300 hover:scale-110"
         style={{
-          background: "linear-gradient(135deg, #0d3b2e, #1a6b4f)",
-          boxShadow: "0 4px 20px rgba(13,59,46,0.35)",
+          background: isOpen
+            ? "linear-gradient(135deg, #6b7280, #4b5563)"
+            : "linear-gradient(135deg, #d4a843, #b8922f)",
+          boxShadow: isOpen
+            ? "0 4px 20px rgba(107,114,128,0.4)"
+            : "0 4px 20px rgba(212,168,67,0.4)",
         }}
-        aria-label={isOpen ? "Tutup chat" : "Buka chat"}
+        title={isOpen ? "Tutup" : "Tanya Asisten AI"}
       >
         {isOpen ? (
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round">
-            <path d="M18 6L6 18M6 6l12 12" />
-          </svg>
+          <X size={22} className="text-white" />
         ) : (
-          <MessageCircle size={24} className="text-white" />
+          <MessageSquareQuote size={22} className="text-white" />
         )}
       </button>
 
       {/* Chat Window */}
       {isOpen && (
         <div
-          className="fixed bottom-24 right-6 z-50 flex flex-col overflow-hidden"
+          className="fixed bottom-24 right-24 z-50 w-[380px] max-w-[calc(100vw-2rem)] rounded-2xl overflow-hidden flex flex-col"
           style={{
-            width: "380px",
-            height: "520px",
-            borderRadius: "16px",
-            boxShadow: "0 20px 60px rgba(0,0,0,0.2), 0 4px 16px rgba(0,0,0,0.1)",
-            fontFamily: "'Inter', 'Segoe UI', sans-serif",
+            boxShadow: "0 8px 40px rgba(0,0,0,0.15)",
+            background: "white",
+            height: "min(520px, calc(100vh - 140px))",
           }}
         >
-          {/* Header */}
-          <div className="flex items-center gap-3 px-4 py-3" style={{ background: "linear-gradient(135deg, #0d3b2e, #1a6b4f)" }}>
-            <div className="w-9 h-9 rounded-full flex items-center justify-center bg-white/15">
-              <BookOpen size={18} className="text-amber-400" />
-            </div>
+          {/* Header - fixed */}
+          <div
+            className="px-5 py-4 flex items-center gap-3 shrink-0"
+            style={{ background: "linear-gradient(135deg, #0d3b2e, #1a6b4f)" }}
+          >
+            <MessageSquareQuote size={20} className="text-amber-300" />
             <div className="flex-1">
-              <p className="text-white font-semibold text-sm">Asisten AI Tim Qur'an</p>
-              <div className="flex items-center gap-1.5">
-                <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                <p className="text-emerald-200 text-xs">Online</p>
-              </div>
+              <h3 className="text-white font-bold text-sm">Tanya Asisten AI</h3>
+              <p className="text-emerald-200 text-xs">Online • Siap membantu</p>
             </div>
           </div>
 
           {/* Messages */}
-          <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3" style={{ background: "#f8faf8" }}>
+          <div className="flex-1 overflow-y-auto p-4 space-y-3">
             {messages.map((msg) => (
               <div key={msg.id} className={`flex ${msg.isUser ? "justify-end" : "justify-start"}`}>
                 <div

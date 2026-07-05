@@ -557,20 +557,6 @@ export default async function LandingPage() {
           </div>
         </section>
 
-        {/* ─── TANYA ASISTEN AI ─── */}
-        <section className="py-12 sm:py-16 bg-gradient-to-br from-emerald-50/50 to-white">
-          <div className="mx-auto max-w-3xl px-5 sm:px-6">
-            <h3 className="text-xl sm:text-2xl font-bold text-slate-900 mb-3">
-              Tanyakan Sekarang
-            </h3>
-            <p className="text-sm sm:text-base text-slate-500 mb-6">
-              Butuh bantuan tentang program Tahfidz, Tahsin, login wali murid, atau
-              penjelasan tentang sistem penilaian kami?
-            </p>
-            <AiChatbot variant="inline" />
-          </div>
-        </section>
-
         {/* ─── CTA ─── */}
         <section className="relative overflow-hidden py-16 sm:py-28">
           <div className="absolute inset-0 bg-gradient-to-br from-amber-50/80 via-white to-emerald-50/60" />
@@ -700,6 +686,7 @@ export default async function LandingPage() {
           </div>
         </div>
       </footer>
+      <AiChatbot />
       <TestimonialBubble />
     </div>
   );
