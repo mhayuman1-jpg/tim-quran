@@ -28,11 +28,6 @@ const StudentProgressChart = nextDynamic(
   { ssr: false }
 );
 
-const AiChatbot = nextDynamic(
-  () => import('@/components/shared/AiChatbot'),
-  { ssr: false }
-);
-
 const TestimonialBubble = nextDynamic(
   () => import('@/components/shared/TestimonialBubble'),
   { ssr: false }
@@ -686,7 +681,6 @@ export default async function LandingPage() {
           </div>
         </div>
       </footer>
-      <AiChatbot />
       <TestimonialBubble />
     </div>
   );
