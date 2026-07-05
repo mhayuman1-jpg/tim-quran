@@ -126,55 +126,37 @@ export default function TestimonialBubble() {
 
   return (
     <>
-      {/* Floating Bubble — rightmost */}
-      <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2">
-        {/* Hover Tooltip */}
-        <div
-          className={`px-3 py-1.5 rounded-lg text-xs font-semibold text-white whitespace-nowrap transition-all duration-300 pointer-events-none ${
-            isHovered && !isOpen ? "opacity-100 translate-x-0" : "opacity-0 translate-x-2"
-          }`}
-          style={{
-            background: "linear-gradient(135deg, #b8922f, #d4a843)",
-            boxShadow: "0 4px 12px rgba(184,146,47,0.3)",
-          }}
-        >
-          ⭐ Testimoni
-          <div className="absolute -right-1 top-1/2 -translate-y-1/2 w-2 h-2 rotate-45"
-            style={{ background: "#b8922f" }} />
-        </div>
-
-        {/* Bubble */}
-        <button
-          onClick={() => setIsOpen(!isOpen)}
-          onMouseEnter={() => setIsHovered(true)}
-          onMouseLeave={() => setIsHovered(false)}
-          className="relative w-14 h-14 rounded-full flex items-center justify-center transition-all duration-300 hover:scale-110 active:scale-95"
-          style={{
-            background: isOpen
-              ? "linear-gradient(135deg, #4b5563, #374151)"
-              : "linear-gradient(135deg, #b8922f, #d4a843)",
-            boxShadow: isOpen
-              ? "0 4px 20px rgba(75,85,99,0.4)"
-              : "0 6px 32px rgba(184,146,47,0.5), 0 0 0 4px rgba(184,146,47,0.12)",
-          }}
-          title={isOpen ? "Tutup" : "Testimoni Alumni"}
-        >
-          {/* Pulse ring */}
-          {!isOpen && (
-            <span className="absolute inset-0 rounded-full animate-ping"
-              style={{ background: "rgba(184,146,47,0.25)", animationDuration: "2.5s" }} />
-          )}
-          <span className="relative z-10 text-white">
-            {isOpen ? <X size={22} /> : <MessageSquareQuote size={22} />}
-          </span>
-        </button>
-      </div>
+      {/* Floating Bubble — stacked below AiChatbot */}
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full flex items-center justify-center transition-all duration-300 hover:scale-110 active:scale-95"
+        style={{
+          background: isOpen
+            ? "linear-gradient(135deg, #4b5563, #374151)"
+            : "linear-gradient(135deg, #b8922f, #d4a843)",
+          boxShadow: isOpen
+            ? "0 4px 20px rgba(75,85,99,0.4)"
+            : "0 6px 32px rgba(184,146,47,0.5), 0 0 0 4px rgba(184,146,47,0.12)",
+        }}
+        title={isOpen ? "Tutup" : "Testimoni Alumni"}
+      >
+        {/* Pulse ring */}
+        {!isOpen && (
+          <span className="absolute inset-0 rounded-full animate-ping"
+            style={{ background: "rgba(184,146,47,0.25)", animationDuration: "2.5s" }} />
+        )}
+        <span className="relative z-10 text-white">
+          {isOpen ? <X size={22} /> : <MessageSquareQuote size={22} />}
+        </span>
+      </button>
 
       {/* Panel */}
       {isOpen && (
         <div
           ref={panelRef}
-          className="fixed bottom-24 right-6 z-50 w-[380px] max-w-[calc(100vw-2rem)] rounded-2xl overflow-hidden flex flex-col"
+          className="fixed bottom-[148px] right-6 z-50 w-[380px] max-w-[calc(100vw-2rem)] rounded-2xl overflow-hidden flex flex-col"
           style={{
             boxShadow: "0 25px 60px rgba(0,0,0,0.18), 0 8px 20px rgba(0,0,0,0.1)",
             background: "white",
