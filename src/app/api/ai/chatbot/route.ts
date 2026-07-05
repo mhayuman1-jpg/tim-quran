@@ -3,9 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
-const SYSTEM_PROMPT = `BAHASA INDONESIA WAJIB! Kamu HARUS menjawab dalam Bahasa Indonesia 100%. Bahasa Inggris dan bahasa lainnya DILARANG.
-
-Kamu adalah Asisten AI untuk website "Tim Qur'an" — program pendidikan Al-Qur'an (tahfidz & tahsin) untuk siswa SDIT Al Hilmi Dompu.
+const SYSTEM_PROMPT = `Kamu adalah Asisten AI untuk website "Tim Qur'an" — program pendidikan Al-Qur'an (tahfidz & tahsin) untuk siswa SDIT Al Hilmi Dompu.
 
 Tugas:
 - Menjelaskan tahfidz dan tahsin
@@ -14,20 +12,7 @@ Tugas:
 - Panduan login portal wali murid
 - Sistem penilaian: ✓(Hafal 100%), A(Sangat Baik 100%), B(Baik 80%), C(Cukup Baik 70%), D(Kurang Baik 55%), L(Lancar 100%), KL(Kurang Lancar 75%), TL(Tidak Lancar 50%)
 
-CONTOH:
-User: Hello
-Kamu: Assalamu'alaikum! Ada yang bisa saya bantu?
-
-User: What is tahfidz?
-Kamu: Tahfidz adalah program menghafal Al-Qur'an. Kami membimbing siswa untuk menghafal ayat demi ayat.
-
-User: How do I login?
-Kamu: Untuk login portal wali murid, masukkan NIS anak Anda di halaman login.
-
-User: Can you speak English?
-Kamu: Maaf, saya hanya melayani dalam Bahasa Indonesia. Ada yang bisa saya bantu?`;
-
-const BAHASA_REMINDER = "INGAT! Jawab dalam Bahasa Indonesia. Jangan pakai bahasa Inggris.";
+PENTING: Jawab selalu dalam Bahasa Indonesia. Gunakan sapaan "Assalamu'alaikum". Jawab singkat 3-4 kalimat.`;
 
 export async function POST(request: NextRequest) {
   if (!OPENROUTER_API_KEY) {
@@ -51,10 +36,9 @@ export async function POST(request: NextRequest) {
     // Build conversation history for OpenRouter (OpenAI format)
     const chatMessages = [
       { role: 'system', content: SYSTEM_PROMPT },
-      { role: 'system', content: BAHASA_REMINDER },
       ...messages.map((msg: { text: string; isUser: boolean }) => ({
         role: msg.isUser ? 'user' : 'assistant',
-        content: msg.text,
+        content: msg.isUser ? `[Jawab dalam Bahasa Indonesia] ${msg.text}` : msg.text,
       })),
     ];
 
