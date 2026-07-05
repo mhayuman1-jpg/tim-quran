@@ -1,6 +1,6 @@
-﻿// src/app/page.tsx — Landing page Tim Qur'an (Premium Redesign)
-
-export const revalidate = 60;
+// src/app/page.tsx — Landing page Tim Qur'an (Premium Redesign)
+export const dynamic = 'force-dynamic';
+export const fetchCache = 'force-no-store';
 
 import type { Metadata } from 'next';
 import React from 'react';
