@@ -335,7 +335,7 @@ async function callOpenRouter(
       'X-Title': 'Tim Quran - Catatan Raport',
     },
     body: JSON.stringify({
-      model: 'nvidia/nemotron-3-super-120b-a12b:free',
+      model: 'qwen/qwen-2-7b-instruct:free',
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },

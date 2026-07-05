@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
         'X-Title': 'Tim Quran Chatbot',
       },
       body: JSON.stringify({
-        model: 'nvidia/nemotron-3-super-120b-a12b:free',
+        model: 'qwen/qwen-2-7b-instruct:free',
         messages: chatMessages,
         temperature: 0.7,
         max_tokens: 256,
