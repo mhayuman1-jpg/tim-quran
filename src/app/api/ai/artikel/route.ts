@@ -102,7 +102,7 @@ function buildUserPrompt(action: string, text: string): string {
 
 // ─── OpenRouter ───────────────────────────────────────────────────────────────────
 
-const OPENROUTER_MODEL = 'google/gemma-2-9b-it:free';
+const OPENROUTER_MODEL = 'nvidia/nemotron-3-super-120b-a12b:free';
 
 async function callOpenRouter(
   systemPrompt: string,
@@ -122,7 +122,7 @@ async function callOpenRouter(
         'X-Title': 'Tim Quran - Artikel',
       },
       body: JSON.stringify({
-        model: OPENROUTER_MODEL,
+        model: 'nvidia/nemotron-3-super-120b-a12b:free',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user',   content: userPrompt },

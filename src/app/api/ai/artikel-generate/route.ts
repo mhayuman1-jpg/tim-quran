@@ -126,7 +126,7 @@ async function callOpenRouter(
       'X-Title': 'Tim Quran - Artikel',
     },
     body: JSON.stringify({
-      model: 'google/gemini-2.0-flash-001',
+      model: 'nvidia/nemotron-3-super-120b-a12b:free',
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
