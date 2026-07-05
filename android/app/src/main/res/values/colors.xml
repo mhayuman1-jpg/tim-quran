@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Tim Qur'an brand colors -->
+    <color name="colorPrimary">#D97706</color>
+    <color name="colorPrimaryDark">#B45309</color>
+    <color name="colorOnPrimary">#FFFFFF</color>
+    <color name="colorSecondary">#6366F1</color>
+    <color name="colorSecondaryDark">#4F46E5</color>
+    <color name="colorOnSecondary">#FFFFFF</color>
+    <color name="splashBackground">#FFFBEB</color>
+</resources>

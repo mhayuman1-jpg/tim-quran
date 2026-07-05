@@ -1,6 +1,7 @@
 // src/app/artikel/[slug]/page.tsx
 // Halaman detail artikel publik
 
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import Image from 'next/image';
 import { notFound } from 'next/navigation';
@@ -9,6 +10,12 @@ import { createServerClient } from '@/lib/supabase/server';
 import { toImageUrl } from '@/lib/storage/urls';
 
 export const dynamic = 'force-dynamic';
+
+function getBaseUrl(): string {
+  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
+  if (process.env.NEXTAUTH_URL) return process.env.NEXTAUTH_URL;
+  return 'http://localhost:3000';
+}
 
 interface ArtikelDetail {
   id: string;
@@ -50,6 +57,42 @@ async function getArtikelBySlug(slug: string): Promise<ArtikelDetail | null> {
     console.error('[ArtikelDetailPage] Fetch error:', error);
     return null;
   }
+}
+
+function stripHtml(html: string): string {
+  return html.replace(/<[^>]+>/g, '').trim();
+}
+
+export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
+  const artikel = await getArtikelBySlug(params.slug);
+  if (!artikel) return { title: 'Artikel Tidak Ditemukan' };
+
+  const excerpt = stripHtml(artikel.konten).slice(0, 160);
+  const url = `${getBaseUrl()}/artikel/${artikel.slug}`;
+  const ogImage = artikel.cover_url ? toImageUrl(artikel.cover_url) : undefined;
+
+  return {
+    title: artikel.judul,
+    description: excerpt,
+    openGraph: {
+      type: 'article',
+      title: artikel.judul,
+      description: excerpt,
+      url,
+      siteName: "Tim Qur'an",
+      ...(artikel.published_at && { publishedTime: artikel.published_at }),
+      ...(ogImage && { images: [{ url: ogImage, width: 1200, height: 630 }] }),
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: artikel.judul,
+      description: excerpt,
+      ...(ogImage && { images: [ogImage] }),
+    },
+    alternates: {
+      canonical: url,
+    },
+  };
 }
 
 function formatDate(iso: string | null): string {
@@ -119,6 +162,23 @@ export default async function ArtikelDetailPage({ params }: { params: { slug: st
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            '@context': 'https://schema.org',
+            '@type': 'Article',
+            headline: artikel.judul,
+            author: { '@type': 'Organization', name: authorName ?? "Tim Qur'an" },
+            publisher: { '@type': 'Organization', name: "Tim Qur'an" },
+            datePublished: artikel.published_at ?? artikel.created_at,
+            dateModified: artikel.published_at ?? artikel.created_at,
+            description: stripHtml(artikel.konten).slice(0, 300),
+            ...(artikel.cover_url && { image: toImageUrl(artikel.cover_url) }),
+            mainEntityOfPage: { '@type': 'WebPage', '@id': `${getBaseUrl()}/artikel/${artikel.slug}` },
+          }),
+        }}
+      />
       <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <Link href="/artikel"
           className="inline-flex items-center gap-2 rounded-2xl border border-amber-100 bg-white px-4 py-2 text-sm text-slate-700 transition hover:border-amber-400/40 hover:text-slate-900">

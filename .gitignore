@@ -1,3 +1,7 @@
+# ========================
+# Tim Qur'an — Root .gitignore
+# ========================
+
 # dependencies
 /node_modules
 /.pnp
@@ -8,6 +12,8 @@
 
 # next.js
 /.next/
+
+# Capacitor web assets (generated from web build)
 /out/
 
 # production
@@ -17,12 +23,12 @@
 .DS_Store
 *.pem
 
-# debug
+# debug logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# local env files
+# local env files — keep .env.example but ignore actual .env
 .env*.local
 .env
 
@@ -35,3 +41,15 @@ next-env.d.ts
 
 # kiro
 .kiro/
+
+# ========================
+# Android specific (root level)
+# ========================
+local.properties
+
+# keystore — NEVER commit secrets
+*.keystore
+*.jks
+
+# build logs
+build.log

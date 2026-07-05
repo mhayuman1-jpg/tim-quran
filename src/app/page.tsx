@@ -2,6 +2,7 @@
 
 export const revalidate = 60;
 
+import type { Metadata } from 'next';
 import React from 'react';
 import { default as nextDynamic } from 'next/dynamic';
 import Link from 'next/link';
@@ -9,6 +10,18 @@ import { AtSign, Mail, MapPin, Phone, PlayCircle, ArrowUpRight, BookOpen, Star, 
 import PublicNavbar from '@/components/layout/PublicNavbar';
 import { IslamicPatternBg, CornerOrnament } from '@/components/features/IslamicDecorations';
 import { createServerClient } from '@/lib/supabase/server';
+
+export const metadata: Metadata = {
+  title: "Tim Qur'an — Platform Tahfidz & Tahsin Modern",
+  description:
+    "Platform digital untuk mengelola program Tahfidz & Tahsin Al-Qur'an. Pantau hafalan, tajwid, dan perkembangan santri secara real-time.",
+  openGraph: {
+    title: "Tim Qur'an — Platform Tahfidz & Tahsin Modern",
+    description:
+      "Platform digital untuk mengelola program Tahfidz & Tahsin Al-Qur'an. Pantau hafalan, tajwid, dan perkembangan santri secara real-time.",
+    type: 'website',
+  },
+};
 
 const StudentProgressChart = nextDynamic(
   () => import('@/components/features/charts/StudentProgressChart'),

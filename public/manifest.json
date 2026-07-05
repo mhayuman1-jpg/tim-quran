@@ -1,0 +1,27 @@
+{
+  "name": "Tim Qur'an — Sistem Manajemen Tahfidz & Tahsin",
+  "short_name": "Tim Qur'an",
+  "description": "Platform digital untuk mengelola program Tahfidz & Tahsin Al-Qur'an. Pantau hafalan, tajwid, dan perkembangan santri secara real-time.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#faf8f5",
+  "theme_color": "#d97706",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "lang": "id",
+  "categories": ["education", "religion"],
+  "icons": [
+    {
+      "src": "/favicon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/favicon.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Splash icon for Android 12+ splash screen -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="96dp"
+    android:height="96dp"
+    android:viewportWidth="96"
+    android:viewportHeight="96">
+    <!-- Background circle with gradient -->
+    <path
+        android:fillColor="#D97706"
+        android:pathData="M48,0C74.5,0 96,21.5 96,48C96,74.5 74.5,96 48,96C21.5,96 0,74.5 0,48C0,21.5 21.5,0 48,0Z" />
+    <!-- Book icon representing Al-Qur'an -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M28,30h40v36l-6,-4l-6,4l-6,-4l-6,4l-6,-4l-6,4l-4,-36Z"
+        android:strokeWidth="0" />
+    <!-- Book spine -->
+    <path
+        android:fillColor="#B45309"
+        android:pathData="M46,28h4v36h-4z" />
+    <!-- Text lines representing verses -->
+    <path
+        android:fillColor="#92400E"
+        android:pathData="M34,36h20v1h-20z" />
+    <path
+        android:fillColor="#92400E"
+        android:pathData="M34,40h20v1h-20z" />
+    <path
+        android:fillColor="#92400E"
+        android:pathData="M34,44h16v1h-16z" />
+    <path
+        android:fillColor="#92400E"
+        android:pathData="M42,48h12v1h-12z" />
+    <path
+        android:fillColor="#92400E"
+        android:pathData="M42,52h12v1h-12z" />
+    <!-- Star decoration -->
+    <path
+        android:fillColor="#FDE68A"
+        android:pathData="M62,34l2,4l4,2l-4,2l-2,4l-2,-4l-4,-2l4,-2z" />
+</vector>

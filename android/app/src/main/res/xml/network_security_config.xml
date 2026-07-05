@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Network Security Configuration untuk Tim Qur'an APK
+  Memastikan hanya koneksi HTTPS yang diizinkan ke domain yang terpercaya.
+-->
+<network-security-config>
+    <!-- Konfigurasi untuk production traffic -->
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">timquran.my.id</domain>
+        <domain includeSubdomains="true">supabase.co</domain>
+        <domain includeSubdomains="true">*.supabase.co</domain>
+    </domain-config>
+
+    <!-- Localhost untuk development (Cleartext diizinkan) -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">localhost</domain>
+        <domain includeSubdomains="true">10.0.2.2</domain> <!-- Android emulator -->
+        <domain includeSubdomains="true">192.168.0.0/16</domain>
+    </domain-config>
+</network-security-config>

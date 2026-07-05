@@ -342,3 +342,182 @@ body {
   from { opacity: 0; transform: translateY(-12px); }
   to   { opacity: 1; transform: translateY(0); }
 }
+
+/* ════════════════════════════════════════════════════════ */
+/* ANDROID / MOBILE WEBVIEW OPTIMIZATIONS                 */
+/* ════════════════════════════════════════════════════════ */
+
+/* ── Prevent overscroll/elastic banding in WebView ─── */
+html, body {
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ── Disable text selection everywhere for app-like feel ─ */
+* {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+input, textarea, [contenteditable] {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+/* ── Android status bar integration ──────────────────── */
+:root {
+  --sat: env(safe-area-inset-top);
+  --sar: env(safe-area-inset-right);
+  --sab: env(safe-area-inset-bottom);
+  --sal: env(safe-area-inset-left);
+}
+
+/* ── Keyboard handling - visual viewport ─────────────── */
+/* Prevent page zoom on input focus in mobile */
+@media screen and (max-width: 768px) {
+  input, textarea, select {
+    font-size: 16px !important;
+  }
+}
+
+/* ── Smooth 60fps scrolling hint ────────────────────── */
+.scroll-container {
+  -webkit-overflow-scrolling: touch;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+}
+
+/* ── Android ripple effect (minimal) ─────────────────── */
+.android-ripple {
+  position: relative;
+  overflow: hidden;
+}
+.android-ripple::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at var(--x, 50%) var(--y, 50%), rgba(0,0,0,0.08) 0%, transparent 60%);
+  opacity: 0;
+  transition: opacity 0.3s;
+  pointer-events: none;
+}
+.android-ripple:active::after {
+  opacity: 1;
+}
+
+/* ── Bottom navigation bar (mobile dashboard) ────────── */
+.mobile-bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 40;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  height: calc(64px + env(safe-area-inset-bottom, 0px));
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.06);
+}
+.mobile-bottom-nav .nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-width: 48px;
+  min-height: 48px;
+  padding: 4px 12px;
+  border-radius: 12px;
+  transition: all 0.2s ease;
+  color: #94a3b8;
+  text-decoration: none;
+}
+.mobile-bottom-nav .nav-item.active {
+  color: #d97706;
+}
+.mobile-bottom-nav .nav-item:active {
+  background: rgba(0, 0, 0, 0.04);
+  transform: scale(0.95);
+}
+.mobile-bottom-nav .nav-item svg {
+  width: 22px;
+  height: 22px;
+}
+.mobile-bottom-nav .nav-item span {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+/* ── Pull to refresh visual indicator ───────────────── */
+.ptr-indicator {
+  position: absolute;
+  top: -60px;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 60px;
+  color: #d97706;
+  font-size: 13px;
+  font-weight: 500;
+  transition: opacity 0.2s;
+}
+
+/* ── Full-height smooth container for Capacitor ──────── */
+.capacitor-fit {
+  min-height: 100vh;
+  min-height: -webkit-fill-available;
+  padding-top: max(env(safe-area-inset-top), 0px);
+  padding-bottom: max(env(safe-area-inset-bottom), 0px);
+}
+
+/* ── Native-feeling page transitions ─────────────────── */
+@keyframes pageEnter {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.page-enter {
+  animation: pageEnter 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ── Prevent 300ms tap delay on modern browsers ────── */
+a, button, input, textarea, select {
+  touch-action: manipulation;
+}
+
+/* ── Loading skeleton pulse for mobile ───────────────── */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.shimmer-mobile {
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+/* ── Toast notification slide-in for mobile ──────────── */
+@keyframes toastSlideUp {
+  from { transform: translateY(100px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+.toast-mobile {
+  animation: toastSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ── Active state for all touchable elements ─────────── */
+@media (hover: none) and (pointer: coarse) {
+  a:active,
+  button:active,
+  [role="button"]:active {
+    transform: scale(0.97);
+  }
+}
