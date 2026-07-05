@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
         'X-Title': 'Tim Quran Chatbot',
       },
       body: JSON.stringify({
-        model: 'openrouter/free',
+        model: 'nvidia/nemotron-3-super-120b-a12b:free',
         messages: chatMessages,
         temperature: 0.7,
         max_tokens: 256,
