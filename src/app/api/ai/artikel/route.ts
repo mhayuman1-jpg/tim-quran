@@ -1,5 +1,5 @@
 // src/app/api/ai/artikel/route.ts
-// POST: Proses teks artikel menggunakan Groq AI (llama3-8b-8192)
+// POST: Proses teks artikel menggunakan OpenRouter AI
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
@@ -24,12 +24,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: 'Tindakan AI wajib dipilih.' }, { status: 400 });
     }
 
-    const groqKey = process.env.GROQ_API_KEY;
-    const openaiKey = process.env.OPENAI_API_KEY;
+    const openRouterKey = process.env.OPENROUTER_API_KEY;
 
-    if (!groqKey && !openaiKey) {
+    if (!openRouterKey) {
       return NextResponse.json(
-        { message: 'API key AI belum dikonfigurasi.' },
+        { message: 'API key OpenRouter belum dikonfigurasi.' },
         { status: 500 }
       );
     }
@@ -37,12 +36,7 @@ export async function POST(request: NextRequest) {
     const systemPrompt = buildSystemPrompt(action);
     const userPrompt   = buildUserPrompt(action, text);
 
-    let result: string;
-    if (openaiKey) {
-      result = await callOpenAI(systemPrompt, userPrompt, openaiKey);
-    } else {
-      result = await callGroq(systemPrompt, userPrompt, groqKey!);
-    }
+    const result = await callOpenRouter(systemPrompt, userPrompt, openRouterKey);
 
     // Konversi markdown ke HTML Tiptap-friendly
     const html = markdownToHtml(result);
@@ -106,93 +100,62 @@ function buildUserPrompt(action: string, text: string): string {
   return actions[action] ?? `Perbaiki tulisan berikut:\n\n${text}`;
 }
 
-// ─── Groq ─────────────────────────────────────────────────────────────────────
+// ─── OpenRouter ───────────────────────────────────────────────────────────────────
 
-const GROQ_MODELS = ['llama-3.1-8b-instant', 'gemma2-9b-it', 'llama3-8b-8192'];
+const OPENROUTER_MODEL = 'google/gemma-2-9b-it:free';
 
-async function callGroq(
+async function callOpenRouter(
   systemPrompt: string,
   userPrompt: string,
   apiKey: string
 ): Promise<string> {
-  for (let attempt = 0; attempt < GROQ_MODELS.length; attempt++) {
-    const model = GROQ_MODELS[attempt];
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 25000);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 30000);
 
-    try {
-      const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          model,
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user',   content: userPrompt },
-          ],
-          max_tokens: 2048,
-          temperature: 0.7,
-        }),
-        signal: controller.signal,
-      });
+  try {
+    const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+        'HTTP-Referer': 'https://timquran.my.id',
+        'X-Title': 'Tim Quran - Artikel',
+      },
+      body: JSON.stringify({
+        model: OPENROUTER_MODEL,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user',   content: userPrompt },
+        ],
+        max_tokens: 2048,
+        temperature: 0.7,
+      }),
+      signal: controller.signal,
+    });
 
-      clearTimeout(timeout);
+    clearTimeout(timeout);
 
-      if (res.status === 429) {
-        const waitMs = (attempt + 1) * 3000;
-        await new Promise(r => setTimeout(r, waitMs));
-        continue;
-      }
-
-      if (!res.ok) {
-        const errBody = await res.text().catch(() => '');
-        console.error('[callGroq] HTTP', res.status, errBody.slice(0, 300));
-        throw new Error(`Groq API error ${res.status}: ${errBody.slice(0, 100)}`);
-      }
-
-      const data = await res.json();
-      const content = data?.choices?.[0]?.message?.content;
-      if (!content) throw new Error('Groq tidak menghasilkan konten.');
-      return content.trim();
-
-    } finally {
-      clearTimeout(timeout);
+    if (res.status === 429) {
+      const retryAfter = res.headers.get('Retry-After');
+      const waitMs = retryAfter ? parseInt(retryAfter, 10) * 1000 : 5000;
+      await new Promise(r => setTimeout(r, waitMs));
+      throw new Error('OpenRouter rate limit. Silakan coba lagi.');
     }
+
+    if (!res.ok) {
+      const errBody = await res.text().catch(() => '');
+      console.error('[callOpenRouter] HTTP', res.status, errBody.slice(0, 300));
+      throw new Error(`OpenRouter API error ${res.status}: ${errBody.slice(0, 100)}`);
+    }
+
+    const data = await res.json();
+    const content = data?.choices?.[0]?.message?.content;
+    if (!content) throw new Error('OpenRouter tidak menghasilkan konten.');
+    return content.trim();
+
+  } finally {
+    clearTimeout(timeout);
   }
-
-  throw new Error('Semua model Groq mencapai rate limit. Coba lagi dalam beberapa saat.');
-}
-
-// ─── OpenAI ───────────────────────────────────────────────────────────────────
-
-async function callOpenAI(
-  systemPrompt: string,
-  userPrompt: string,
-  apiKey: string
-): Promise<string> {
-  const res = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: 'gpt-3.5-turbo',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user',   content: userPrompt },
-      ],
-      max_tokens: 2048,
-      temperature: 0.7,
-    }),
-  });
-
-  if (!res.ok) throw new Error(`OpenAI API error ${res.status}`);
-  const data = await res.json();
-  return data?.choices?.[0]?.message?.content?.trim() ?? '';
 }
 
 // ─── Markdown → HTML (untuk Tiptap) ─────────────────────────────────────────

@@ -52,12 +52,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: 'student_id wajib diisi.' }, { status: 400 });
     }
 
-    const groqKey = process.env.GROQ_API_KEY;
-    const openaiKey = process.env.OPENAI_API_KEY;
+    const openrouterKey = process.env.OPENROUTER_API_KEY;
 
-    if (!groqKey && !openaiKey) {
+    if (!openrouterKey) {
       return NextResponse.json(
-        { message: 'API key AI belum dikonfigurasi. Set GROQ_API_KEY atau OPENAI_API_KEY di environment.' },
+        { message: 'API key AI belum dikonfigurasi. Set OPENROUTER_API_KEY di environment.' },
         { status: 500 }
       );
     }
@@ -224,13 +223,8 @@ export async function POST(request: NextRequest) {
       juzTerakhir: gradedHafalan[0]?.surah_juz ?? '-',
     });
 
-    // ── Panggil AI ──────────────────────────────────────────────────────
-    let catatan: string;
-    if (openaiKey) {
-      catatan = await callOpenAI(systemPrompt, userPrompt, openaiKey);
-    } else {
-      catatan = await callGroq(systemPrompt, userPrompt, groqKey!);
-    }
+    // ── Panggil OpenRouter ───────────────────────────────────────────────
+    const catatan = await callOpenRouter(systemPrompt, userPrompt, openrouterKey);
 
     return NextResponse.json({
       catatan,
@@ -322,83 +316,26 @@ Tidak Hadir/Alfa: ${data.alfa}
 ${data.semuaCatatan || 'Tidak ada catatan tambahan'}
 
 Tulis catatan ustadz/ah untuk "${data.panggilan}" ini dalam 3-5 kalimat narasi.
-Fokus pada capaian yang SUDAH DINILAI saja, jangan sebutkan yang belum ada nilainya.`;
+  Fokus pada capaian yang SUDAH DINILAI saja, jangan sebutkan yang belum ada nilainya.`;
 }
 
-// ─── Groq API Call ─────────────────────────────────────────────────────────
+// ─── OpenRouter API Call ─────────────────────────────────────────────────────
 
-const GROQ_MODELS = ['llama-3.1-8b-instant', 'gemma2-9b-it', 'llama3-8b-8192'];
-
-async function callGroq(
+async function callOpenRouter(
   systemPrompt: string,
   userPrompt: string,
   apiKey: string
 ): Promise<string> {
-  for (let attempt = 0; attempt < GROQ_MODELS.length; attempt++) {
-    const model = GROQ_MODELS[attempt];
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 30000);
-
-    try {
-      const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          model,
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: userPrompt },
-          ],
-          max_tokens: 512,
-          temperature: 0.7,
-        }),
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeout);
-
-      if (res.status === 429) {
-        const waitMs = (attempt + 1) * 3000;
-        await new Promise(r => setTimeout(r, waitMs));
-        continue;
-      }
-
-      if (!res.ok) {
-        const errBody = await res.text().catch(() => '');
-        throw new Error(`Groq API error ${res.status}: ${errBody.slice(0, 100)}`);
-      }
-
-      const data = await res.json();
-      const content = data?.choices?.[0]?.message?.content;
-      if (!content) throw new Error('Groq tidak menghasilkan konten.');
-      return content.trim();
-
-    } finally {
-      clearTimeout(timeout);
-    }
-  }
-
-  throw new Error('Semua model Groq mencapai rate limit. Coba lagi dalam beberapa saat.');
-}
-
-// ─── OpenAI API Call ───────────────────────────────────────────────────────
-
-async function callOpenAI(
-  systemPrompt: string,
-  userPrompt: string,
-  apiKey: string
-): Promise<string> {
-  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+  const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${apiKey}`,
+      'HTTP-Referer': 'https://timquran.my.id',
+      'X-Title': 'Tim Quran - Catatan Raport',
     },
     body: JSON.stringify({
-      model: 'gpt-3.5-turbo',
+      model: 'openrouter/auto',
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
@@ -408,7 +345,13 @@ async function callOpenAI(
     }),
   });
 
-  if (!res.ok) throw new Error(`OpenAI API error ${res.status}`);
+  if (!res.ok) {
+    const errBody = await res.text().catch(() => '');
+    throw new Error(`OpenRouter API error ${res.status}: ${errBody.slice(0, 200)}`);
+  }
+
   const data = await res.json();
-  return data?.choices?.[0]?.message?.content?.trim() ?? '';
+  const content = data?.choices?.[0]?.message?.content;
+  if (!content) throw new Error('OpenRouter tidak menghasilkan konten.');
+  return content.trim();
 }

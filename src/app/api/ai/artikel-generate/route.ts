@@ -21,10 +21,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: 'Topik artikel wajib diisi.' }, { status: 400 });
     }
 
-    const groqKey = process.env.GROQ_API_KEY;
-    const openaiKey = process.env.OPENAI_API_KEY;
+    const openrouterKey = process.env.OPENROUTER_API_KEY;
 
-    if (!groqKey && !openaiKey) {
+    if (!openrouterKey) {
       return NextResponse.json(
         { message: 'API key AI belum dikonfigurasi.' },
         { status: 500 }
@@ -34,12 +33,7 @@ export async function POST(request: NextRequest) {
     const systemPrompt = buildSystemPrompt(gaya, panjang);
     const userPrompt = buildUserPrompt(topik, instruksi);
 
-    let result: string;
-    if (openaiKey) {
-      result = await callOpenAI(systemPrompt, userPrompt, openaiKey);
-    } else {
-      result = await callGroq(systemPrompt, userPrompt, groqKey!);
-    }
+    const result = await callOpenRouter(systemPrompt, userPrompt, openrouterKey);
 
     const html = markdownToHtml(result);
 
@@ -116,81 +110,23 @@ Topik: ${topik}`;
   return prompt;
 }
 
-// ─── Groq API Call ─────────────────────────────────────────────────────────
+// ─── OpenRouter API Call ───────────────────────────────────────────────────
 
-const GROQ_MODELS = ['llama-3.1-8b-instant', 'gemma2-9b-it', 'llama3-8b-8192'];
-
-async function callGroq(
+async function callOpenRouter(
   systemPrompt: string,
   userPrompt: string,
   apiKey: string
 ): Promise<string> {
-  for (let attempt = 0; attempt < GROQ_MODELS.length; attempt++) {
-    const model = GROQ_MODELS[attempt];
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 60000);
-
-    try {
-      const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          model,
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: userPrompt },
-          ],
-          max_tokens: 4096,
-          temperature: 0.7,
-        }),
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeout);
-
-      if (res.status === 429) {
-        // Rate limit — coba model berikutnya
-        const waitMs = (attempt + 1) * 3000;
-        await new Promise(r => setTimeout(r, waitMs));
-        continue;
-      }
-
-      if (!res.ok) {
-        const errBody = await res.text().catch(() => '');
-        throw new Error(`Groq API error ${res.status}: ${errBody.slice(0, 100)}`);
-      }
-
-      const data = await res.json();
-      const content = data?.choices?.[0]?.message?.content;
-      if (!content) throw new Error('Groq tidak menghasilkan konten.');
-      return content.trim();
-
-    } finally {
-      clearTimeout(timeout);
-    }
-  }
-
-  throw new Error('Semua model Groq mencapai rate limit. Coba lagi dalam beberapa saat.');
-}
-
-// ─── OpenAI API Call ───────────────────────────────────────────────────────
-
-async function callOpenAI(
-  systemPrompt: string,
-  userPrompt: string,
-  apiKey: string
-): Promise<string> {
-  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+  const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${apiKey}`,
+      'HTTP-Referer': 'https://timquran.my.id',
+      'X-Title': 'Tim Quran - Artikel',
     },
     body: JSON.stringify({
-      model: 'gpt-3.5-turbo',
+      model: 'google/gemini-2.0-flash-001',
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
@@ -200,9 +136,15 @@ async function callOpenAI(
     }),
   });
 
-  if (!res.ok) throw new Error(`OpenAI API error ${res.status}`);
+  if (!res.ok) {
+    const errBody = await res.text().catch(() => '');
+    throw new Error(`OpenRouter API error ${res.status}: ${errBody.slice(0, 100)}`);
+  }
+
   const data = await res.json();
-  return data?.choices?.[0]?.message?.content?.trim() ?? '';
+  const content = data?.choices?.[0]?.message?.content;
+  if (!content) throw new Error('OpenRouter tidak menghasilkan konten.');
+  return content.trim();
 }
 
 // ─── Markdown → HTML (untuk Tiptap) ─────────────────────────────────────────

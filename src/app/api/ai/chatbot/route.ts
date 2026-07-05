@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const OPENROUTER_API_KEY = process.env.GEMINI_API_KEY;
+const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
 const SYSTEM_PROMPT = `Kamu adalah Asisten AI untuk website "Tim Qur'an" — sebuah program pendidikan Al-Qur'an (tahfidz & tahsin) untuk siswa SDIT Al Hilmi Dompu.
