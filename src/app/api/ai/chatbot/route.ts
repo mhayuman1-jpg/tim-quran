@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
-        'HTTP-Referer': 'https://tim-quran.vercel.app',
+        'HTTP-Referer': 'https://timquran.my.id',
         'X-Title': 'Tim Quran Chatbot',
       },
       body: JSON.stringify({
