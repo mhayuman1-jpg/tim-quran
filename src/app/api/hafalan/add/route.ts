@@ -9,6 +9,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
 import { requireActiveSemester } from '@/lib/semester';
+import { requireNoHoliday } from '@/lib/holiday';
 
 export const dynamic = 'force-dynamic';
 
@@ -65,6 +66,10 @@ export async function POST(request: NextRequest) {
     // Cek semester aktif
     const semesterCheck = await requireActiveSemester(supabase);
     if (semesterCheck.error) return semesterCheck.error;
+
+    // Cek hari libur — tolak input jika tanggal libur
+    const holidayCheck = await requireNoHoliday(supabase, tanggal);
+    if (holidayCheck.error) return holidayCheck.error;
 
     if (!teacherId) {
       return NextResponse.json(
@@ -140,7 +145,7 @@ export async function POST(request: NextRequest) {
       .select(
         `id, student_id, teacher_id, tanggal, surah_juz, halaman, catatan, created_at,
          santri ( id, nama ),
-         users ( id, name )`
+         users!hafalan_teacher_id_fkey ( id, name )`
       )
       .single();
 

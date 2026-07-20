@@ -194,10 +194,10 @@ export default function TimPage() {
         body: JSON.stringify({ id: resetTarget.id }),
       });
       const json = await res.json();
-      if (!res.ok) { toast.error(json.message ?? 'Gagal mengirim reset password.'); return; }
-      toast.success(json.message ?? 'Email reset password berhasil dikirim.');
+      if (!res.ok) { toast.error(json.message ?? 'Gagal mereset password.'); return; }
+      toast.success(json.message ?? `Password ${resetTarget.name} berhasil direset ke 123456.`);
       setResetTarget(null);
-    } catch { toast.error('Terjadi kesalahan saat mengirim reset password.'); }
+    } catch { toast.error('Terjadi kesalahan saat mereset password.'); }
     finally  { setResetLoading(false); }
   };
 
@@ -516,10 +516,10 @@ export default function TimPage() {
         title="Reset Password"
         message={
           resetTarget
-            ? `Kirim email reset password ke "${resetTarget.name}" (${resetTarget.email})?`
+            ? `Reset password "${resetTarget.name}" ke default (123456)? Pengajar dapat langsung login dengan password tersebut.`
             : ''
         }
-        confirmLabel="Kirim Email"
+        confirmLabel="Reset ke 123456"
         loading={resetLoading}
       />
 

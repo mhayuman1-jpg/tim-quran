@@ -4,16 +4,10 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
 import bcrypt from 'bcryptjs';
-import { sendResetPasswordEmail } from '@/lib/email';
 
 export const dynamic = 'force-dynamic';
 
-function generatePassword(length = 10): string {
-  const chars = 'abcdefghijkmnpqrstuvwxyz23456789';
-  let pw = '';
-  for (let i = 0; i < length; i++) pw += chars[Math.floor(Math.random() * chars.length)];
-  return pw;
-}
+const DEFAULT_PASSWORD = '123456';
 
 export async function POST(request: NextRequest) {
   try {
@@ -60,9 +54,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Generate dan hash password baru
-    const newPassword = generatePassword();
-    const passwordHash = await bcrypt.hash(newPassword, 10);
+    // Hash password default 123456
+    const passwordHash = await bcrypt.hash(DEFAULT_PASSWORD, 10);
 
     const { error: updateError } = await supabase
       .from('users')
@@ -76,22 +69,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Kirim email password baru (non-blocking)
-    const loginUrl = `${process.env.NEXTAUTH_URL ?? 'http://localhost:3000'}/login`;
-    try {
-      await sendResetPasswordEmail({
-        to: user.email,
-        name: user.name,
-        newPassword,
-        loginUrl,
-      });
-    } catch (emailErr) {
-      console.error('[reset-password] Gagal kirim email:', emailErr);
-    }
-
     return NextResponse.json(
       {
-        message: `Password baru telah dikirim ke ${user.email}.`,
+        message: `Password ${user.name} berhasil direset ke ${DEFAULT_PASSWORD}.`,
         data: { id: user.id, email: user.email, name: user.name },
       },
       { status: 200 }

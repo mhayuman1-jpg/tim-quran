@@ -44,10 +44,6 @@ const config: CapacitorConfig = {
       resizeOnFullScreen: true,
     },
   },
-  experimental: {
-    // Faster builds
-    workerWorkers: 2,
-  },
 };
 
 export default config;

@@ -3,9 +3,8 @@ import type { Metadata } from "next";
 import { Outfit, Amiri } from "next/font/google";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/react";
-import { SessionProvider } from "./providers";
+import { ConditionalProviders } from "./conditional-providers";
 import "./globals.css";
-import { SWRProvider } from "./swr-provider";
 
 const outfit = Outfit({
   subsets: ["latin"],
@@ -118,11 +117,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             }),
           }}
         />
-        <SessionProvider>
-          <SWRProvider>
-            {children}
-          </SWRProvider>
-        </SessionProvider>
+        <ConditionalProviders>
+          {children}
+        </ConditionalProviders>
         <Analytics />
         <SpeedInsights />
       </body>

@@ -2,13 +2,14 @@
 
 // src/components/features/hafalan/HafalanHistory.tsx
 // Tabel riwayat hafalan dengan filter tanggal
-// Kolom: Tanggal, Nama Siswa, Surah/Juz, Halaman, Catatan, (tombol edit)
+// Tabel terpisah per Juz (slide-like)
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { CalendarDays, Pencil, RotateCcw, Trash2 } from 'lucide-react';
 import DataTable, { type ColumnDef } from '@/components/shared/DataTable';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
+import { SURAH_PER_JUZ } from '@/lib/surahData';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -82,6 +83,85 @@ function formatEditTimestamp(isoStr: string): string {
 
 function EditIndicator({ editedFields, field }: { editedFields?: Record<string, string> | null; field: string }) {
   return null;
+}
+
+// ─── Juz reverse mapping ──────────────────────────────────────────────────────
+
+// surah name -> possible juz numbers
+const SURAH_TO_JUZ: Record<string, number[]> = {};
+for (const [juzStr, surahs] of Object.entries(SURAH_PER_JUZ)) {
+  const juz = Number(juzStr);
+  for (const s of surahs) {
+    if (!SURAH_TO_JUZ[s.nama]) SURAH_TO_JUZ[s.nama] = [];
+    if (!SURAH_TO_JUZ[s.nama].includes(juz)) SURAH_TO_JUZ[s.nama].push(juz);
+  }
+}
+
+/**
+ * Group hafalan rows by juz.
+ * Uses co-occurrence within each date to disambiguate surahs that appear in multiple juz.
+ * Returns a sorted Map of juz -> rows, plus an array of ungroupable rows.
+ */
+function groupDataByJuz(rows: HafalanRow[]): { juzGroups: Map<number, HafalanRow[]>; ungrouped: HafalanRow[] } {
+  // Step 1: group by date (use plain object to avoid ES5 Map iteration issues)
+  const byDate: Record<string, HafalanRow[]> = {};
+  for (const row of rows) {
+    if (!byDate[row.tanggal]) byDate[row.tanggal] = [];
+    byDate[row.tanggal].push(row);
+  }
+
+  // Step 2: for each date, determine juz per row using co-occurrence
+  const juzGroups = new Map<number, HafalanRow[]>();
+  const ungrouped: HafalanRow[] = [];
+
+  const dateKeys = Object.keys(byDate);
+  for (let di = 0; di < dateKeys.length; di++) {
+    const dateRows = byDate[dateKeys[di]];
+    // For each possible juz, count how many rows in this date group could belong to it
+    const juzHitCount = new Map<number, number>();
+    const rowPossibleJuz = new Map<string, number[]>();
+
+    for (const row of dateRows) {
+      const possible = SURAH_TO_JUZ[row.surah_juz];
+      if (possible && possible.length > 0) {
+        rowPossibleJuz.set(row.id, possible);
+        for (const j of possible) {
+          juzHitCount.set(j, (juzHitCount.get(j) ?? 0) + 1);
+        }
+      }
+    }
+
+    // Assign each row to its best juz
+    for (const row of dateRows) {
+      const possible = rowPossibleJuz.get(row.id);
+      if (!possible || possible.length === 0) {
+        ungrouped.push(row);
+        continue;
+      }
+      if (possible.length === 1) {
+        const juz = possible[0];
+        const existing = juzGroups.get(juz) ?? [];
+        existing.push(row);
+        juzGroups.set(juz, existing);
+      } else {
+        // Pick the juz with the most hits in this date group; prefer higher juz on tie
+        let bestJuz = possible[0];
+        let bestCount = juzHitCount.get(bestJuz) ?? 0;
+        for (const j of possible) {
+          const c = juzHitCount.get(j) ?? 0;
+          if (c > bestCount || (c === bestCount && j > bestJuz)) {
+            bestJuz = j;
+            bestCount = c;
+          }
+        }
+        const existing = juzGroups.get(bestJuz) ?? [];
+        existing.push(row);
+        juzGroups.set(bestJuz, existing);
+      }
+    }
+  }
+
+  return { juzGroups, ungrouped };
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -164,7 +244,6 @@ export default function HafalanHistory({
         alert(json.message ?? 'Gagal mereset jurnal.');
         return;
       }
-
       alert(json.message ?? 'Jurnal berhasil direset.');
       fetchHafalan();
       onReset?.();
@@ -313,6 +392,14 @@ export default function HafalanHistory({
     });
   }
 
+  // ── Group data by juz ──
+  const { juzGroups, ungrouped } = useMemo(() => {
+    if (data.length === 0) return { juzGroups: new Map<number, HafalanRow[]>(), ungrouped: [] };
+    return groupDataByJuz(data);
+  }, [data]);
+
+  const sortedJuz = useMemo(() => Array.from(juzGroups.keys()).sort((a, b) => a - b), [juzGroups]);
+
   return (
     <div className="space-y-4">
       {/* Filter tanggal */}
@@ -374,20 +461,69 @@ export default function HafalanHistory({
         </div>
       )}
 
-      {/* Tabel */}
-      <DataTable
-        columns={columns}
-        data={data}
-        rowKey={(row) => row.id}
-        loading={loading}
-        skeletonRows={5}
-        emptyMessage="Belum ada catatan hafalan."
-      />
+      {/* Tabel grouped by Juz */}
+      {loading ? (
+        <DataTable
+          columns={columns}
+          data={[]}
+          rowKey={(row) => row.id}
+          loading={true}
+          skeletonRows={5}
+          emptyMessage="Memuat data..."
+        />
+      ) : data.length === 0 ? (
+        <DataTable
+          columns={columns}
+          data={[]}
+          rowKey={(row) => row.id}
+          loading={false}
+          emptyMessage="Belum ada catatan hafalan."
+        />
+      ) : (
+        <>
+          {/* Per-juz sections */}
+          {sortedJuz.map((juz) => {
+            const rows = juzGroups.get(juz)!;
+            return (
+              <div key={juz} className="rounded-xl border border-amber-200 overflow-hidden">
+                <div className="bg-amber-700 px-4 py-2.5 flex items-center gap-2">
+                  <span className="text-white font-bold text-sm">Juz {juz}</span>
+                  <span className="text-amber-200 text-xs">{rows.length} baris</span>
+                </div>
+                <DataTable
+                  columns={columns}
+                  data={rows}
+                  rowKey={(row) => row.id}
+                  loading={false}
+                  emptyMessage={`Tidak ada data untuk Juz ${juz}.`}
+                />
+              </div>
+            );
+          })}
+
+          {/* Ungrouped rows */}
+          {ungrouped.length > 0 && (
+            <div className="rounded-xl border border-slate-200 overflow-hidden">
+              <div className="bg-slate-600 px-4 py-2.5 flex items-center gap-2">
+                <span className="text-white font-bold text-sm">Lainnya</span>
+                <span className="text-slate-300 text-xs">{ungrouped.length} baris</span>
+              </div>
+              <DataTable
+                columns={columns}
+                data={ungrouped}
+                rowKey={(row) => row.id}
+                loading={false}
+                emptyMessage="Tidak ada data."
+              />
+            </div>
+          )}
+        </>
+      )}
 
       {/* Info jumlah data */}
       {!loading && data.length > 0 && (
         <p className="text-xs text-slate-400 text-right">
-          Menampilkan {data.length} catatan
+          Menampilkan {data.length} catatan{sortedJuz.length > 0 ? ` dalam ${sortedJuz.length} Juz` : ''}
         </p>
       )}
     </div>

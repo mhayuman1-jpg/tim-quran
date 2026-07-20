@@ -19,12 +19,12 @@ export const RAPORT_PAGE_SIZE = {
 } as const;
 
 /** Get margin berdasarkan juz */
-export function getRaportMargin(juz?: number | null): { top: string; right: string; bottom: string; left: string } {
+export function getRaportMargin(juz?: number | string | null): { top: string; right: string; bottom: string; left: string } {
   return isJuz30Raport(juz) ? MARGIN_JUZ_30 : MARGIN_JUZ_1_TO_29;
 }
 
 /** Get CSS margin string berdasarkan juz */
-export function getRaportMarginCSS(juz?: number | null): string {
+export function getRaportMarginCSS(juz?: number | string | null): string {
   const m = getRaportMargin(juz);
   return `${m.top} ${m.right} ${m.bottom} ${m.left}`;
 }
@@ -32,7 +32,7 @@ export function getRaportMarginCSS(juz?: number | null): string {
 /** Tinggi area cetak satu halaman F4 setelah margin */
 export const RAPORT_PRINTABLE_HEIGHT = '312.7mm';
 
-export function getRaportPdfOptions(juz?: number | null) {
+export function getRaportPdfOptions(juz?: number | string | null) {
   const margin = getRaportMargin(juz);
   return {
     format: 'A4' as const,
@@ -45,7 +45,7 @@ export function getRaportPdfOptions(juz?: number | null) {
 }
 
 /** CSS tambahan untuk react-to-print (browser) */
-export function getRaportBrowserPrintStyle(juz?: number | null): string {
+export function getRaportBrowserPrintStyle(juz?: number | string | null): string {
   const marginCSS = getRaportMarginCSS(juz);
   return `
   @page {
@@ -119,7 +119,7 @@ export function raportReadySelector(raportId: string): string {
 }
 
 /** Juz 30 punya banyak surah — cetak multi-halaman tanpa min-height paksa */
-export function isJuz30Raport(juz?: number | null): boolean {
+export function isJuz30Raport(juz?: number | string | null): boolean {
   return Number(juz) === 30;
 }
 
@@ -138,6 +138,6 @@ export const JUZ1_TEMPLATE = [
   { nama_surah: 'Al Baqarah 127-141', urutan: 11 },
 ] as const;
 
-export function isJuz1Raport(juz?: number | null): boolean {
+export function isJuz1Raport(juz?: number | string | null): boolean {
   return Number(juz) === 1;
 }

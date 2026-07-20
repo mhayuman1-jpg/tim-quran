@@ -13,7 +13,7 @@ export interface RaportTahfidzData {
   id: string;
   periode: string;
   tahun_ajaran: string;
-  juz?: number | null;
+  juz?: number | string | null;
   catatan?: string | null;
   catatan_ai?: string | null;
   nama_guru_kelas?: string | null;

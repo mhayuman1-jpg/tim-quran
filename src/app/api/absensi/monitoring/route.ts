@@ -9,6 +9,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
 import { normalizeAttendanceRows } from '@/lib/attendance';
+import { isHoliday } from '@/lib/holiday';
 
 export const dynamic = 'force-dynamic';
 
@@ -135,9 +136,17 @@ export async function GET(request: NextRequest) {
 
     // Generate semua hari dalam range, isi dengan count (0 jika tidak ada)
     const allDates = generateDateRange(from, to);
+
+    // Cek hari libur untuk chart
+    const holidayDates = new Set<string>();
+    for (const d of allDates) {
+      if (await isHoliday(supabase, d)) holidayDates.add(d);
+    }
+
     const data = allDates.map((date) => ({
       date,
       count: countByDate[date] ? countByDate[date].size : 0,
+      isHoliday: holidayDates.has(date),
     }));
 
     return NextResponse.json({ data, from, to }, { status: 200 });

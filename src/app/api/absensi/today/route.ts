@@ -8,6 +8,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
 import { normalizeAttendanceRows } from '@/lib/attendance';
+import { getTeacherClassIds } from '@/lib/rbac';
 
 export async function GET(_request: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -41,13 +42,26 @@ export async function GET(_request: NextRequest) {
     const rawIds = normalized.map((r: any) => r.santri_id).filter(Boolean);
     const santriIds = Array.from(new Set(rawIds));
     let namaMap: Record<string, string> = {};
+    let allowedIds: Set<string> | null = null;
     if (santriIds.length > 0) {
       const { data: santriData } = await supabase
-        .from('santri').select('id, nama').in('id', santriIds);
+        .from('santri').select('id, nama, assigned_teacher_id, class_id').in('id', santriIds);
       for (const s of santriData ?? []) namaMap[s.id] = s.nama;
+
+      // Filter untuk Tim_Quran: hanya tampilkan siswa binaan
+      if (session.user.role === 'Tim_Quran') {
+        const teacherClassIds = await getTeacherClassIds(supabase, session.user.id);
+        allowedIds = new Set(
+          (santriData ?? [])
+            .filter((s: any) => s.assigned_teacher_id === session.user.id || teacherClassIds.includes(s.class_id))
+            .map((s: any) => s.id)
+        );
+      }
     }
 
-    const list = normalized.map((row: any) => ({
+    const filtered = allowedIds ? normalized.filter((r: any) => allowedIds!.has(r.santri_id)) : normalized;
+
+    const list = filtered.map((row: any) => ({
       student_id: row.santri_id,
       nama: namaMap[row.santri_id] ?? 'Tidak diketahui',
       scanned_at: new Date(row.created_at).toLocaleTimeString('id-ID', {

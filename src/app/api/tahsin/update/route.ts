@@ -157,7 +157,7 @@ export async function PUT(request: NextRequest) {
       .select(
         `id, student_id, teacher_id, tanggal, metode, buku, halaman, makhroj, kelancaran, adab, catatan, created_at, edited_fields,
          santri ( id, nama ),
-         users ( id, name )`
+         users!tahsin_teacher_id_fkey ( id, name )`
       )
       .single();
 

@@ -8,7 +8,7 @@ import {
   LayoutDashboard, Users, BookOpen,
   FileText, BarChart2, Repeat, TrendingUp,
   School, UserCheck, Megaphone, Newspaper, Settings, Globe, X, Eye,
-  CalendarDays, MessageCircle, MessageSquareQuote,
+  CalendarDays, MessageCircle, MessageSquareQuote, CalendarOff, UserX,
 } from 'lucide-react';
 import { useSession } from '@/hooks/useSession';
 import { useRole } from '@/hooks/useRole';
@@ -38,10 +38,12 @@ const menuItems: MenuItem[] = [
   { label: 'Raport',         href: '/raport',             icon: <FileText size={16} />,        group: 'Akademik', roles: ['Kabid', 'Tim_Quran', 'Sekretaris'] },
   { label: 'Absensi',        href: '/absensi',            icon: <BarChart2 size={16} />,       group: 'Kehadiran', roles: ['Kabid', 'Tim_Quran', 'Sekretaris'] },
   { label: 'Monitoring',     href: '/absensi/monitoring', icon: <TrendingUp size={16} />,      group: 'Kehadiran', roles: ['Kabid'] },
+  { label: 'Tandai Hadir',   href: '/absensi/kabid-mark', icon: <UserX size={16} />,          group: 'Kehadiran', roles: ['Kabid'] },
   { label: 'Pesan',              href: '/pesan',              icon: <MessageCircle size={16} />,    group: 'Manajemen', roles: ['Kabid', 'Sekretaris'] },
   { label: 'Rekap Tahfidz & Tahsin', href: '/rekap',              icon: <Repeat size={16} />,          group: 'Manajemen', roles: ['Kabid', 'Sekretaris'] },
   { label: 'Laporan Progres', href: '/laporan',           icon: <TrendingUp size={16} />,      group: 'Manajemen', roles: ['Kabid', 'Sekretaris'] },
   { label: 'Semester',       href: '/semester',           icon: <CalendarDays size={16} />,    group: 'Manajemen', roles: ['Kabid'] },
+  { label: 'Kalender Libur',  href: '/kalender-libur',     icon: <CalendarOff size={16} />,     group: 'Manajemen', roles: ['Kabid'] },
   { label: 'Kelas',          href: '/kelas',              icon: <School size={16} />,          group: 'Manajemen', roles: ['Kabid'] },
   { label: "Tim Qur'an",     href: '/tim',                icon: <UserCheck size={16} />,       group: 'Manajemen', roles: ['Kabid'] },
   { label: 'Kelola Pengumuman', href: '/dashboard/pengumuman', icon: <Megaphone size={16} />,       group: 'Konten', roles: ['Kabid', 'Sekretaris', 'Bendahara'] },

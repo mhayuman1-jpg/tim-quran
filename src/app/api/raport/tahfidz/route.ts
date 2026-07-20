@@ -109,7 +109,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: 'Detail surah wajib diisi.' }, { status: 400 });
     }
 
-    const parsedJuz = typeof juz === 'string' ? (juz.trim() === '' ? null : Number(juz)) : juz;
+    // juz bisa berupa angka (single juz) atau teks (multi-juz seperti "29 & 30")
+    const parsedJuz = typeof juz === 'string' ? (juz.trim() === '' ? null : juz.trim()) : juz;
     const supabase = createServerClient();
 
     // RBAC check
@@ -121,13 +122,18 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Cek duplikat
-    const { data: existing } = await supabase
+    // Cek duplikat — berdasarkan student_id + periode + juz
+    let dupQuery = supabase
       .from('raport_tahfidz')
       .select('id')
       .eq('student_id', student_id.trim())
-      .eq('periode', periode.trim())
-      .maybeSingle();
+      .eq('periode', periode.trim());
+    if (parsedJuz === null) {
+      dupQuery = dupQuery.is('juz', null);
+    } else {
+      dupQuery = dupQuery.eq('juz', parsedJuz);
+    }
+    const { data: existing } = await dupQuery.maybeSingle();
 
     if (existing) {
       return NextResponse.json(
@@ -217,7 +223,8 @@ export async function PUT(request: NextRequest) {
 
     if (!id) return NextResponse.json({ message: 'id raport wajib.' }, { status: 400 });
 
-    const parsedJuz = typeof juz === 'string' ? (juz.trim() === '' ? null : Number(juz)) : juz;
+    // juz bisa berupa angka (single juz) atau teks (multi-juz seperti "29 & 30")
+    const parsedJuz = typeof juz === 'string' ? (juz.trim() === '' ? null : juz.trim()) : juz;
     const supabase = createServerClient();
 
     // Cek akses

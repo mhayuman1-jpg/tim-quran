@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
       .select(
         `id, student_id, teacher_id, tanggal, metode, makhroj, kelancaran, adab, buku, halaman, catatan, created_at, edited_fields,
          santri ( id, nama, assigned_teacher_id ),
-         users ( id, name )`,
+         users!tahsin_teacher_id_fkey ( id, name )`,
         { count: 'exact' }
       )
       .order('tanggal', { ascending: false })

@@ -105,11 +105,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: 'Gagal membuat semester baru.', error: insertError.message }, { status: 500 });
     }
 
-    // 9. Reset juz_terakhir semua santri aktif ke 1
+    // 9. Reset juz_terakhir santri aktif yang BELUM ditugaskan ke pengajar
     const { data: resetData, error: resetError } = await supabase
       .from('santri')
       .update({ juz_terakhir: 1, updated_at: new Date().toISOString() })
       .eq('status', 'Aktif')
+      .is('assigned_teacher_id', null)
       .select('id');
     if (resetError) {
       console.error('Reset juz error:', resetError);

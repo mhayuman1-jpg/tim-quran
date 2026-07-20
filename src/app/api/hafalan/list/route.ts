@@ -78,7 +78,7 @@ export async function GET(request: NextRequest) {
       .select(
         `id, student_id, teacher_id, tanggal, surah_juz, halaman, makhroj, tajwid, lancar, catatan, buku, created_at, edited_fields, sort_order,
          santri ( id, nama, assigned_teacher_id ),
-         users ( id, name )`,
+         users!hafalan_teacher_id_fkey ( id, name )`,
         { count: 'exact' }
       )
       .order('sort_order', { ascending: true })

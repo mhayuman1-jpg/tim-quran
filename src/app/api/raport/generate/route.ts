@@ -6,12 +6,25 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
-import { SURAH_PER_JUZ } from '@/lib/surahData';
+import { SURAH_PER_JUZ, type SurahTemplate } from '@/lib/surahData';
 
 export const dynamic = 'force-dynamic';
 
 function sanitizeSurahName(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+// Normalize ejaan berbeda untuk nama surah yang sama di template berbeda
+// Contoh: "Al Qolam" (Juz 29) → "Al Qalam" (Juz 24), "Ad Dhuha" → "Ad Duha"
+function normalizeSurahName(name: string): string {
+  let n = sanitizeSurahName(name);
+  // Normalize known spelling variations between juz templates
+  n = n.replace(/qolam/g, 'qalam');
+  n = n.replace(/dhuha/g, 'duha');
+  n = n.replace(/naas/g, 'nas');
+  n = n.replace(/takatsur/g, 'takasur');
+  n = n.replace(/shaff/g, 'saff');
+  return n;
 }
 
 export async function GET(request: NextRequest) {
@@ -56,9 +69,10 @@ export async function GET(request: NextRequest) {
     }
 
     // ── 1. Ambil data hafalan siswa ────────────────────────────────────────
+    const hasSemesterRange = !!(startDate && endDate);
     let hafalanQuery = supabase
       .from('hafalan')
-      .select('id, tanggal, surah_juz, halaman, makhroj, tajwid, lancar, catatan, teacher_id, users(name)')
+      .select('id, tanggal, surah_juz, halaman, makhroj, tajwid, lancar, catatan, teacher_id, users!hafalan_teacher_id_fkey(name)')
       .eq('student_id', studentId);
 
     if (startDate) {
@@ -68,14 +82,24 @@ export async function GET(request: NextRequest) {
       hafalanQuery = hafalanQuery.lte('tanggal', endDate);
     }
 
-    const { data: hafalanData, error: hErr } = await hafalanQuery.order('tanggal', { ascending: false });
+    let { data: hafalanData, error: hErr } = await hafalanQuery.order('tanggal', { ascending: false });
 
     if (hErr) return NextResponse.json({ message: hErr.message }, { status: 500 });
+
+    // Fallback: jika filter semester menghasilkan 0 data, ambil tanpa filter tanggal
+    if (hasSemesterRange && (!hafalanData || hafalanData.length === 0)) {
+      const { data: fallback } = await supabase
+        .from('hafalan')
+        .select('id, tanggal, surah_juz, halaman, makhroj, tajwid, lancar, catatan, teacher_id, users!hafalan_teacher_id_fkey(name)')
+        .eq('student_id', studentId)
+        .order('tanggal', { ascending: false });
+      hafalanData = fallback;
+    }
 
     // ── 2. Ambil data tahsin siswa ─────────────────────────────────────────
     let tahsinQuery = supabase
       .from('tahsin')
-      .select('id, tanggal, metode, makhroj, kelancaran, adab, buku, halaman, catatan, teacher_id, updated_at, users(name)')
+      .select('id, tanggal, metode, makhroj, kelancaran, adab, buku, halaman, catatan, teacher_id, updated_at, users!tahsin_teacher_id_fkey(name)')
       .eq('student_id', studentId);
 
     if (startDate) {
@@ -85,9 +109,19 @@ export async function GET(request: NextRequest) {
       tahsinQuery = tahsinQuery.lte('tanggal', endDate);
     }
 
-    const { data: tahsinData, error: tErr } = await tahsinQuery.order('updated_at', { ascending: false });
+    let { data: tahsinData, error: tErr } = await tahsinQuery.order('updated_at', { ascending: false });
 
     if (tErr) return NextResponse.json({ message: tErr.message }, { status: 500 });
+
+    // Fallback: jika filter semester menghasilkan 0 data, ambil tanpa filter tanggal
+    if (hasSemesterRange && (!tahsinData || tahsinData.length === 0)) {
+      const { data: fallback } = await supabase
+        .from('tahsin')
+        .select('id, tanggal, metode, makhroj, kelancaran, adab, buku, halaman, catatan, teacher_id, updated_at, users!tahsin_teacher_id_fkey(name)')
+        .eq('student_id', studentId)
+        .order('updated_at', { ascending: false });
+      tahsinData = fallback;
+    }
 
     // ── 3. Ambil data absensi siswa ────────────────────────────────────────
     let attendanceQuery = supabase
@@ -102,9 +136,18 @@ export async function GET(request: NextRequest) {
       attendanceQuery = attendanceQuery.lte('date', endDate);
     }
 
-    const { data: attendanceData, error: aErr } = await attendanceQuery;
+    let { data: attendanceData, error: aErr } = await attendanceQuery;
 
     if (aErr) return NextResponse.json({ message: aErr.message }, { status: 500 });
+
+    // Fallback: jika filter semester menghasilkan 0 data, ambil tanpa filter tanggal
+    if (hasSemesterRange && (!attendanceData || attendanceData.length === 0)) {
+      const { data: fallback } = await supabase
+        .from('attendances')
+        .select('status')
+        .eq('student_id', studentId);
+      attendanceData = fallback;
+    }
 
     // ── 3. Susun detail surah dari hafalan ─────────────────────────────────
     // Group by nama surah, ambil yang terbaru
@@ -154,15 +197,15 @@ export async function GET(request: NextRequest) {
     for (let j = 1; j <= 30; j++) {
       const surahsInJuz = SURAH_PER_JUZ[j] ?? [];
       for (let idx = 0; idx < surahsInJuz.length; idx++) {
-        const key = sanitizeSurahName(surahsInJuz[idx].nama);
+        const key = normalizeSurahName(surahsInJuz[idx].nama);
         if (!surahOrderMap.has(key)) {
           surahOrderMap.set(key, j * 1000 + idx);
         }
       }
     }
     surahEntries.sort((a, b) => {
-      const orderA = surahOrderMap.get(sanitizeSurahName(a.nama_surah)) ?? 999999;
-      const orderB = surahOrderMap.get(sanitizeSurahName(b.nama_surah)) ?? 999999;
+      const orderA = surahOrderMap.get(normalizeSurahName(a.nama_surah)) ?? 999999;
+      const orderB = surahOrderMap.get(normalizeSurahName(b.nama_surah)) ?? 999999;
       return orderA - orderB;
     });
 
@@ -189,27 +232,83 @@ export async function GET(request: NextRequest) {
     }] : [];
 
     // ── 6. Deteksi Juz Otomatis dari Jurnal ────────────────────────────────
-    const studentSurahs = new Set<string>();
+    // Kumpulkan surah siswa (normalized) — map normalized → original
+    const studentSurahNormToOriginal = new Map<string, string>();
     for (const h of (hafalanData ?? [])) {
       if (h.surah_juz) {
-        studentSurahs.add(sanitizeSurahName(h.surah_juz));
+        const norm = normalizeSurahName(h.surah_juz);
+        if (!studentSurahNormToOriginal.has(norm)) {
+          studentSurahNormToOriginal.set(norm, h.surah_juz.trim());
+        }
       }
     }
 
-    let detectedJuz: number | null = null;
-    let maxMatches = 0;
-
+    // Detect ALL juz with matches using normalized names
+    const juzMatchCounts: { juz: number; matches: number }[] = [];
     for (let j = 1; j <= 30; j++) {
       const surahsInJuz = SURAH_PER_JUZ[j] ?? [];
       let matches = 0;
       for (const s of surahsInJuz) {
-        if (studentSurahs.has(sanitizeSurahName(s.nama))) {
+        if (studentSurahNormToOriginal.has(normalizeSurahName(s.nama))) {
           matches++;
         }
       }
-      if (matches > maxMatches) {
-        maxMatches = matches;
-        detectedJuz = j;
+      if (matches > 0) {
+        juzMatchCounts.push({ juz: j, matches });
+      }
+    }
+    // Sort by matches descending
+    juzMatchCounts.sort((a, b) => b.matches - a.matches);
+
+    let detectedJuz: number | null = null;
+    let maxMatches = 0;
+    for (const jc of juzMatchCounts) {
+      if (jc.matches > maxMatches) {
+        maxMatches = jc.matches;
+        detectedJuz = jc.juz;
+      }
+    }
+
+    // Build juz_groups using greedy exclusive assignment:
+    // Each surah is assigned to exactly ONE juz (the best match),
+    // preventing false-positive juz groups from overlapping surah names.
+    // Uses normalized names to handle spelling variations between juz templates.
+    const juzGroups: { juz: number; detail: typeof detailSurah; matches: number }[] = [];
+    const assignedSurahs = new Set<string>(); // track normalized surah keys already assigned
+
+    for (const jc of juzMatchCounts) {
+      const surahsInJuz: SurahTemplate[] = SURAH_PER_JUZ[jc.juz] ?? [];
+      const juzNormKeys = new Set(surahsInJuz.map((sj: SurahTemplate) => normalizeSurahName(sj.nama)));
+      // Only include surahs that belong to this juz AND haven't been assigned yet
+      const groupDetail = detailSurah.filter((s) => {
+        const key = normalizeSurahName(s.nama_surah);
+        if (assignedSurahs.has(key)) return false;
+        return juzNormKeys.has(key);
+      });
+      if (groupDetail.length > 0) {
+        // Mark these surahs as assigned
+        for (const s of groupDetail) {
+          assignedSurahs.add(normalizeSurahName(s.nama_surah));
+        }
+        juzGroups.push({
+          juz: jc.juz,
+          detail: groupDetail.map((d, i) => ({ ...d, urutan: i + 1 })),
+          matches: groupDetail.length,
+        });
+      }
+    }
+
+    // Filter phantom juz groups: jika ada group yang terlalu kecil dibanding
+    // group terbesar, kemungkinan itu false positive dari template overlap.
+    // Threshold: group harus minimal 2 surah ATAU minimal 25% dari group terbesar.
+    if (juzGroups.length > 1) {
+      const maxGroupSize = Math.max(...juzGroups.map(g => g.detail.length));
+      const minThreshold = Math.max(2, Math.ceil(maxGroupSize * 0.25));
+      const filteredGroups = juzGroups.filter(g => g.detail.length >= minThreshold);
+      // Hanya gunakan hasil filter jika masih ada group tersisa
+      if (filteredGroups.length > 0) {
+        juzGroups.length = 0;
+        for (const g of filteredGroups) juzGroups.push(g);
       }
     }
 
@@ -221,7 +320,25 @@ export async function GET(request: NextRequest) {
         .eq('id', studentId)
         .maybeSingle();
       if (santri?.juz_terakhir) {
-        detectedJuz = santri.juz_terakhir;
+        detectedJuz = Number(santri.juz_terakhir);
+        // Add as single juz group (only unassigned surahs)
+        const surahsInJuz: SurahTemplate[] = SURAH_PER_JUZ[detectedJuz] ?? [];
+        const fallbackNormKeys = new Set(surahsInJuz.map((sj: SurahTemplate) => normalizeSurahName(sj.nama)));
+        const groupDetail = detailSurah.filter((s) => {
+          const key = normalizeSurahName(s.nama_surah);
+          if (assignedSurahs.has(key)) return false;
+          return fallbackNormKeys.has(key);
+        });
+        if (groupDetail.length > 0) {
+          for (const s of groupDetail) {
+            assignedSurahs.add(normalizeSurahName(s.nama_surah));
+          }
+          juzGroups.push({
+            juz: detectedJuz,
+            detail: groupDetail.map((d, i) => ({ ...d, urutan: i + 1 })),
+            matches: groupDetail.length,
+          });
+        }
       }
     }
 
@@ -289,6 +406,7 @@ export async function GET(request: NextRequest) {
         catatan_terbaru: latestCatatan,
         tahsin_summary: tahsinSummary,
         juz: detectedJuz,
+        juz_groups: juzGroups,
         kehadiran_summary: attendanceSummary,
         nama_guru_kelas: namaGuruKelas,
         niy_guru_kelas: niyGuruKelas,

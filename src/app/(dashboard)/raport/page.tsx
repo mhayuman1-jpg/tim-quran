@@ -90,6 +90,8 @@ export default function RaportPage() {
   const [selectedLoading, setSelectedLoading] = useState(false);
   const [inlineEdit, setInlineEdit] = useState(false);
   const [inlineDraft, setInlineDraft] = useState<Partial<RaportTahfidzData> & { detail?: DetailSurahData[] }>({});
+  // Sibling raports (same student+period, different juz) for multi-juz print
+  const [siblingRaports, setSiblingRaports] = useState<RaportTahfidzData[]>([]);
 
   // Form modal
   const [formOpen, setFormOpen] = useState(false);
@@ -126,29 +128,62 @@ export default function RaportPage() {
     pageStyle: getRaportBrowserPrintStyle(selected?.juz),
   });
 
-  // ── Download PDF ──────────────────────────────────────────────────────
-  const handleDownloadPdf = () => {
+  // ── Download PDF — native download, tahan IDM/adblock ──────────────────
+  // fetch() HANYA untuk cek status (dengan redirect:'manual' supaya tidak
+  // follow redirect ke storage URL — IDM tidak blok karena tidak ada body read).
+  // Setelah status OK, trigger download native via <a> click.
+  const handleDownloadPdf = async () => {
     if (!selected || downloadingLockRef.current || downloadingFormat) return;
     const filename = sanitizePdfFilename(
       `Raport_${selected.santri?.nama ?? 'Siswa'}_${selected.periode ?? 'Undated'}.pdf`
     );
+    const pdfUrl = `/api/raport/render-pdf?raportId=${selected.id}&filename=${encodeURIComponent(filename)}`;
     downloadingLockRef.current = true;
     setDownloadingFormat('pdf');
     try {
-      triggerRaportPdfDownload(selected.id, filename);
-    } catch (error) {
-      console.error('Error downloading PDF:', error);
-      alert(`Gagal mengunduh PDF: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      downloadingLockRef.current = false;
-      setDownloadingFormat(null);
-      return;
-    }
-    const estimatedMs = selected.pdf_path ? 4000 : 18000;
-    window.setTimeout(() => {
-      downloadingLockRef.current = false;
-      setDownloadingFormat(null);
+      // Cek status saja — jangan follow redirect, jangan baca body
+      const res = await fetch(pdfUrl, { redirect: 'manual' });
+
+      // opaqueredirect = 302 (PDF ready, redirect ke signed URL)
+      // res.ok = 200 (PDF returned directly — rare fallback)
+      const isReady = res.type === 'opaqueredirect' || res.ok;
+
+      if (!isReady) {
+        let message = 'Gagal mengunduh PDF.';
+        try {
+          const json = await res.json();
+          message = json.message || message;
+        } catch { /* response bukan JSON */ }
+
+        if (res.status === 401) message = 'Sesi telah berakhir. Silakan login kembali.';
+        else if (res.status === 403) message = 'Anda tidak memiliki akses ke raport ini.';
+        else if (res.status === 404) message = 'Raport tidak ditemukan.';
+        else if (res.status >= 500) message = 'Server sedang bermasalah. Silakan coba lagi.';
+
+        alert(message);
+        return;
+      }
+
+      // Trigger native download — browser handle, IDM intercept di level browser
+      const a = document.createElement('a');
+      a.href = pdfUrl;
+      a.download = filename;
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+
+      // Refresh raport data untuk update status cache
       if (!selected.pdf_path) handleSelect(selected);
-    }, estimatedMs);
+    } catch (error) {
+      // Catch di sini hanya untuk fetch error BUKAN dari IDM
+      // (IDM tidak melempar error ke JavaScript saat native download)
+      console.error('Error checking PDF render:', error);
+      alert(`Gagal memproses PDF: ${error instanceof Error ? error.message : 'Terjadi kesalahan.'}`);
+    } finally {
+      downloadingLockRef.current = false;
+      setDownloadingFormat(null);
+    }
   };
 
   // ── Download Word ─────────────────────────────────────────────────────
@@ -331,10 +366,35 @@ export default function RaportPage() {
       setSelected(json.data ?? row);
       setInlineDraft({});
       setInlineEdit(false);
+
+      // Fetch sibling raports (same student+period, different juz) for multi-juz print
+      const fullData = json.data ?? row;
+      if (fullData.student_id && fullData.periode) {
+        try {
+          const sibRes = await fetch(`/api/raport/tahfidz?student_id=${fullData.student_id}&periode=${encodeURIComponent(fullData.periode)}`);
+          const sibJson = await sibRes.json();
+          const siblingHeaders = (sibJson.data ?? []).filter((r: RaportRow) => r.id !== row.id);
+          // Fetch full detail for each sibling
+          const fullSiblings: RaportTahfidzData[] = [];
+          for (const sib of siblingHeaders) {
+            try {
+              const detailRes = await fetch(`/api/raport/tahfidz?id=${sib.id}`);
+              const detailJson = await detailRes.json();
+              if (detailJson.data) fullSiblings.push(detailJson.data);
+            } catch { /* skip */ }
+          }
+          setSiblingRaports(fullSiblings);
+        } catch {
+          setSiblingRaports([]);
+        }
+      } else {
+        setSiblingRaports([]);
+      }
     } catch {
       setSelected(row);
       setInlineDraft({});
       setInlineEdit(false);
+      setSiblingRaports([]);
     } finally {
       setSelectedLoading(false);
     }
@@ -722,6 +782,7 @@ export default function RaportPage() {
                       onInlineDetailChange={handleInlineDetailChange}
                       onInlineAddRow={handleInlineAddRow}
                       onInlineRemoveRow={handleInlineRemoveRow}
+                      siblingRaports={siblingRaports}
                     />
                   ) : null}
                 </div>
@@ -962,6 +1023,7 @@ export default function RaportPage() {
                       onInlineDetailChange={handleInlineDetailChange}
                       onInlineAddRow={handleInlineAddRow}
                       onInlineRemoveRow={handleInlineRemoveRow}
+                      siblingRaports={siblingRaports}
                     />
                   ) : null}
                 </div>

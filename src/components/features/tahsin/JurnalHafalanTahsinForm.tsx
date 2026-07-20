@@ -24,6 +24,13 @@ export interface JurnalDetailRow {
   halaman: string;
 }
 
+// ── Slide: each slide = one juz with its own rows ──
+export interface JurnalSlide {
+  id: number;
+  juz: number | '';
+  rows: JurnalDetailRow[];
+}
+
 export interface JurnalHafalanTahsinFormData {
   student_id: string;
   tanggal: string;
@@ -130,6 +137,13 @@ const emptyRow = (): JurnalDetailRow => ({
   halaman: '',
 });
 
+let nextSlideId = 1;
+const newSlide = (juz: number | '' = '', rows: JurnalDetailRow[] = [emptyRow()]): JurnalSlide => ({
+  id: nextSlideId++,
+  juz,
+  rows,
+});
+
 const EMPTY_FORM: JurnalHafalanTahsinFormData = {
   student_id: '',
   tanggal: new Date().toISOString().split('T')[0],
@@ -145,10 +159,13 @@ const EMPTY_FORM: JurnalHafalanTahsinFormData = {
 
 export default function JurnalHafalanTahsinForm({ loading = false, mode = 'both', selectedStudentId, onSubmit, onCancel }: Props) {
   const [form, setForm] = useState<JurnalHafalanTahsinFormData>(EMPTY_FORM);
-  const [selectedTemplateJuz, setSelectedTemplateJuz] = useState<number | ''>('');
   const [students, setStudents] = useState<StudentOption[]>([]);
   const [studentsLoading, setStudentsLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // ── Slide state ──
+  const [slides, setSlides] = useState<JurnalSlide[]>([newSlide()]);
+  const [activeSlideIndex, setActiveSlideIndex] = useState(0);
 
   // Cek apakah jurnal sudah ada pada tanggal ini untuk siswa terpilih
   const [isCheckingJournal, setIsCheckingJournal] = useState(false);
@@ -228,6 +245,17 @@ export default function JurnalHafalanTahsinForm({ loading = false, mode = 'both'
             tahsin_adab: data.tahsin?.adab || '',
             tahsin_catatan: data.tahsin?.catatan || '',
           }));
+          // When editing existing, put all rows into a single slide (no juz known)
+          const loadedRows: JurnalDetailRow[] = data.hafalan.map((h: any) => ({
+            nama_surah: h.surah_juz || '',
+            makhroj: h.makhroj || '',
+            tajwid: h.tajwid || '',
+            lancar: h.lancar || '',
+            buku: h.buku || '',
+            halaman: h.halaman ?? '',
+          }));
+          setSlides([newSlide('', loadedRows.length > 0 ? loadedRows : [emptyRow()])]);
+          setActiveSlideIndex(0);
         } else {
           // Tidak ada data harian -> Reset input ke default (Mode Baru)
           setIsEditingExisting(false);
@@ -242,6 +270,8 @@ export default function JurnalHafalanTahsinForm({ loading = false, mode = 'both'
             tahsin_catatan: '',
             detail: [emptyRow()],
           }));
+          setSlides([newSlide()]);
+          setActiveSlideIndex(0);
         }
       })
       .catch(() => {
@@ -261,8 +291,24 @@ export default function JurnalHafalanTahsinForm({ loading = false, mode = 'both'
     setErrors((prev) => ({ ...prev, [key]: '' }));
   };
 
-  const fillTemplateFromJuz = (juz: number) => {
-    const templateRows: JurnalDetailRow[] = (SURAH_PER_JUZ[juz] ?? []).map((item) => ({
+  // ── Slide helpers ──
+
+  const addSlide = () => {
+    setSlides((prev) => [...prev, newSlide()]);
+    setActiveSlideIndex(slides.length); // switch to the new slide
+  };
+
+  const removeSlide = (index: number) => {
+    if (slides.length <= 1) return;
+    setSlides((prev) => prev.filter((_, i) => i !== index));
+    setActiveSlideIndex((prev) => {
+      if (prev >= slides.length - 1) return Math.max(0, slides.length - 2);
+      return prev > index ? prev - 1 : prev;
+    });
+  };
+
+  const setSlideJuz = (slideIndex: number, juz: number) => {
+    const rows: JurnalDetailRow[] = (SURAH_PER_JUZ[juz] ?? []).map((item) => ({
       nama_surah: item.nama,
       makhroj: '',
       tajwid: '',
@@ -270,27 +316,36 @@ export default function JurnalHafalanTahsinForm({ loading = false, mode = 'both'
       buku: '',
       halaman: '',
     }));
+    if (rows.length === 0) return;
 
-    if (templateRows.length === 0) return;
-
-    setSelectedTemplateJuz(juz);
-    setForm((prev) => ({ ...prev, detail: templateRows }));
+    setSlides((prev) => prev.map((s, i) => i === slideIndex ? { ...s, juz, rows } : s));
     setErrors((prev) => ({ ...prev, detail: '' }));
   };
 
-  const updateRow = (index: number, field: keyof JurnalDetailRow, value: string | number) => {
-    setForm((prev) => {
-      const next = [...prev.detail];
-      next[index] = { ...next[index], [field]: value } as JurnalDetailRow;
-      return { ...prev, detail: next };
-    });
+  const updateSlideRow = (slideIndex: number, rowIndex: number, field: keyof JurnalDetailRow, value: string | number) => {
+    setSlides((prev) => prev.map((s, i) => {
+      if (i !== slideIndex) return s;
+      const nextRows = [...s.rows];
+      nextRows[rowIndex] = { ...nextRows[rowIndex], [field]: value } as JurnalDetailRow;
+      return { ...s, rows: nextRows };
+    }));
   };
 
-  const addRow = () => setForm((prev) => ({ ...prev, detail: [...prev.detail, emptyRow()] }));
-  const removeRow = (index: number) => setForm((prev) => ({
-    ...prev,
-    detail: prev.detail.filter((_, i) => i !== index),
-  }));
+  const addSlideRow = (slideIndex: number) => {
+    setSlides((prev) => prev.map((s, i) => i === slideIndex ? { ...s, rows: [...s.rows, emptyRow()] } : s));
+  };
+
+  const removeSlideRow = (slideIndex: number, rowIndex: number) => {
+    setSlides((prev) => prev.map((s, i) => {
+      if (i !== slideIndex) return s;
+      return { ...s, rows: s.rows.filter((_, ri) => ri !== rowIndex) };
+    }));
+  };
+
+  // ── Flatten slides into detail[] for submit ──
+  const flattenSlidesToDetail = (): JurnalDetailRow[] => {
+    return slides.flatMap((s) => s.rows);
+  };
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
@@ -309,10 +364,11 @@ export default function JurnalHafalanTahsinForm({ loading = false, mode = 'both'
 
     // Validate hafalan fields only if mode includes hafalan
     if (mode === 'both' || mode === 'hafalan') {
-      if (form.detail.length === 0) {
+      const allRows = flattenSlidesToDetail();
+      if (allRows.length === 0) {
         nextErrors.detail = 'Minimal satu baris hafalan harus diisi.';
       } else {
-        form.detail.forEach((row) => {
+        allRows.forEach((row) => {
           if (!row.nama_surah.trim()) {
             nextErrors.detail = 'Nama surah di setiap baris tidak boleh kosong.';
           }
@@ -325,7 +381,8 @@ export default function JurnalHafalanTahsinForm({ loading = false, mode = 'both'
       return;
     }
 
-    onSubmit(form);
+    // Flatten slides into detail for backward-compatible submission
+    onSubmit({ ...form, detail: flattenSlidesToDetail() });
   };
 
   return (
@@ -410,118 +467,157 @@ export default function JurnalHafalanTahsinForm({ loading = false, mode = 'both'
       </div>
 
       {(mode === 'both' || mode === 'hafalan') && (
-      <div className="rounded-xl border border-amber-200 overflow-hidden">
-        <div className="bg-amber-700 px-4 py-3 text-white font-semibold">Penilaian Hafalan</div>
-        <div className="p-4 space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium text-slate-700">Template Juz</label>
-              <select
-                value={selectedTemplateJuz === '' ? '' : String(selectedTemplateJuz)}
-                onChange={(e) => {
-                  const value = e.target.value ? Number(e.target.value) : '';
-                  if (value) {
-                    fillTemplateFromJuz(value);
-                  } else {
-                    setSelectedTemplateJuz('');
-                  }
-                }}
-                disabled={loading}
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:bg-slate-100"
-              >
-                <option value="">— Pilih Template Juz —</option>
-                {JUZ_TERSEDIA.length === 0 ? (
-                  <option value="" disabled>Tidak ada template Juz tersedia</option>
-                ) : (
-                  JUZ_TERSEDIA.map((juz) => (
-                    <option key={juz} value={String(juz)}>
-                      Juz {juz}
-                    </option>
-                  ))
-                )}
-              </select>
-            </div>
-            {selectedTemplateJuz !== '' && (
-              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
-                Template Juz {selectedTemplateJuz} telah dimuat dengan {form.detail.length} baris.
-              </div>
-            )}
-          </div>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-slate-50 text-xs font-semibold text-slate-600 uppercase tracking-wide border-b border-slate-200">
-                <th className="px-3 py-2 text-left w-8">No</th>
-                <th className="px-3 py-2 text-left min-w-[130px]">Surah</th>
-                <th className="px-3 py-2 text-center w-14">Makhroj</th>
-                <th className="px-3 py-2 text-center w-14">Tajwid</th>
-                <th className="px-3 py-2 text-center w-14">Lancar</th>
-                <th className="px-3 py-2 text-center min-w-[80px]">Ayat</th>
-                <th className="px-3 py-2 w-8" />
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {form.detail.map((row, index) => (
-                <tr key={index} className="hover:bg-slate-50">
-                  <td className="px-3 py-2 text-slate-400 text-xs">{index + 1}</td>
-                  <td className="px-3 py-2">
-                    <input
-                      type="text"
-                      value={row.nama_surah}
-                      onChange={(e) => updateRow(index, 'nama_surah', e.target.value)}
-                      disabled={loading}
-                      placeholder="Nama surah..."
-                      className="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:bg-slate-50"
-                    />
-                  </td>
-                  <td className="px-3 py-2 text-center">
-                    <NilaiSelect value={row.makhroj} onChange={(value) => updateRow(index, 'makhroj', value)} disabled={loading} />
-                  </td>
-                  <td className="px-3 py-2 text-center">
-                    <NilaiSelect value={row.tajwid} onChange={(value) => updateRow(index, 'tajwid', value)} disabled={loading} />
-                  </td>
-                  <td className="px-3 py-2 text-center">
-                    <NilaiSelect value={row.lancar} onChange={(value) => updateRow(index, 'lancar', value)} disabled={loading} options={NILAI_LANCAR_OPTS} />
-                  </td>
-                  <td className="px-3 py-2">
-                    <input
-                      type="text"
-                      value={row.halaman}
-                      onChange={(e) => updateRow(index, 'halaman', e.target.value)}
-                      disabled={loading}
-                      placeholder="Ayat..."
-                      className="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:bg-slate-50"
-                    />
-                  </td>
-                  <td className="px-3 py-2">
-                    <button
-                      type="button"
-                      onClick={() => removeRow(index)}
-                      disabled={loading || form.detail.length <= 1}
-                      className="p-1 rounded text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors disabled:opacity-30"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        {errors.detail && (
-          <p className="px-4 py-2 text-xs text-red-600 border-t border-red-100 bg-red-50">{errors.detail}</p>
-        )}
-        <div className="px-4 py-3 border-t border-slate-100 bg-white">
+      <div className="space-y-4">
+        {/* ── Section Header ── */}
+        <div className="flex items-center justify-between">
+          <h3 className="text-base font-bold text-slate-800">Penilaian Hafalan</h3>
           <button
             type="button"
-            onClick={addRow}
+            onClick={addSlide}
             disabled={loading}
-            className="flex items-center gap-2 text-sm text-amber-600 hover:text-amber-700 font-medium transition-colors disabled:opacity-50"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-amber-700 border border-dashed border-amber-300 hover:bg-amber-50 transition-colors disabled:opacity-50"
           >
-            <Plus size={15} /> Tambah Baris Surah
+            <Plus size={14} /> Tambah Slide Juz
           </button>
         </div>
+
+        {/* ── Each slide = its own independent section with table ── */}
+        {slides.map((slide, slideIdx) => {
+          const juzLabel = slide.juz ? `Juz ${slide.juz}` : `Slide ${slideIdx + 1}`;
+          return (
+            <div key={slide.id} className="rounded-xl border border-amber-200 overflow-hidden">
+              {/* Slide header banner */}
+              <div className="bg-amber-700 px-4 py-3 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <span className="text-white font-bold text-sm">
+                    {slide.juz ? `Juz ${slide.juz}` : `Slide ${slideIdx + 1}`}
+                  </span>
+                  {slide.juz && (
+                    <span className="text-amber-200 text-xs">{slide.rows.length} baris</span>
+                  )}
+                  {slides.length > 1 && (
+                    <span className="text-amber-300 text-xs font-medium">#{slideIdx + 1}</span>
+                  )}
+                </div>
+                {slides.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => removeSlide(slideIdx)}
+                    disabled={loading || slides.length <= 1}
+                    className="text-amber-200 hover:text-white transition-colors disabled:opacity-30"
+                    title="Hapus slide ini"
+                  >
+                    <Trash2 size={15} />
+                  </button>
+                )}
+              </div>
+
+              <div className="p-4 space-y-3">
+                {/* Juz selector per slide */}
+                <div className="flex items-center gap-3">
+                  <div className="flex flex-col gap-1 flex-1">
+                    <label className="text-xs font-medium text-slate-600 uppercase tracking-wide">Template Juz</label>
+                    <select
+                      value={slide.juz === '' ? '' : String(slide.juz)}
+                      onChange={(e) => {
+                        const value = e.target.value ? Number(e.target.value) : 0;
+                        if (value) setSlideJuz(slideIdx, value);
+                      }}
+                      disabled={loading}
+                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:bg-slate-100"
+                    >
+                      <option value="">— Pilih Template Juz —</option>
+                      {JUZ_TERSEDIA.map((juz) => (
+                        <option key={juz} value={String(juz)}>
+                          Juz {juz}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Table for this slide */}
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-slate-50 text-xs font-semibold text-slate-600 uppercase tracking-wide border-b border-slate-200">
+                      <th className="px-3 py-2 text-left w-8">No</th>
+                      <th className="px-3 py-2 text-left min-w-[130px]">Surah</th>
+                      <th className="px-3 py-2 text-center w-14">Makhroj</th>
+                      <th className="px-3 py-2 text-center w-14">Tajwid</th>
+                      <th className="px-3 py-2 text-center w-14">Lancar</th>
+                      <th className="px-3 py-2 text-center min-w-[80px]">Ayat</th>
+                      <th className="px-3 py-2 w-8" />
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {slide.rows.map((row, rowIndex) => (
+                      <tr key={rowIndex} className="hover:bg-slate-50">
+                        <td className="px-3 py-2 text-slate-400 text-xs">{rowIndex + 1}</td>
+                        <td className="px-3 py-2">
+                          <input
+                            type="text"
+                            value={row.nama_surah}
+                            onChange={(e) => updateSlideRow(slideIdx, rowIndex, 'nama_surah', e.target.value)}
+                            disabled={loading}
+                            placeholder="Nama surah..."
+                            className="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:bg-slate-50"
+                          />
+                        </td>
+                        <td className="px-3 py-2 text-center">
+                          <NilaiSelect value={row.makhroj} onChange={(value) => updateSlideRow(slideIdx, rowIndex, 'makhroj', value)} disabled={loading} />
+                        </td>
+                        <td className="px-3 py-2 text-center">
+                          <NilaiSelect value={row.tajwid} onChange={(value) => updateSlideRow(slideIdx, rowIndex, 'tajwid', value)} disabled={loading} />
+                        </td>
+                        <td className="px-3 py-2 text-center">
+                          <NilaiSelect value={row.lancar} onChange={(value) => updateSlideRow(slideIdx, rowIndex, 'lancar', value)} disabled={loading} options={NILAI_LANCAR_OPTS} />
+                        </td>
+                        <td className="px-3 py-2">
+                          <input
+                            type="text"
+                            value={row.halaman}
+                            onChange={(e) => updateSlideRow(slideIdx, rowIndex, 'halaman', e.target.value)}
+                            disabled={loading}
+                            placeholder="Ayat..."
+                            className="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:bg-slate-50"
+                          />
+                        </td>
+                        <td className="px-3 py-2">
+                          <button
+                            type="button"
+                            onClick={() => removeSlideRow(slideIdx, rowIndex)}
+                            disabled={loading || slide.rows.length <= 1}
+                            className="p-1 rounded text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors disabled:opacity-30"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Footer: tambah baris per slide */}
+              <div className="px-4 py-2.5 border-t border-slate-100 bg-white">
+                <button
+                  type="button"
+                  onClick={() => addSlideRow(slideIdx)}
+                  disabled={loading}
+                  className="flex items-center gap-2 text-sm text-amber-600 hover:text-amber-700 font-medium transition-colors disabled:opacity-50"
+                >
+                  <Plus size={15} /> Tambah Baris Surah
+                </button>
+              </div>
+            </div>
+          );
+        })}
+
+        {errors.detail && (
+          <p className="px-4 py-2 text-xs text-red-600 border border-red-200 rounded-lg bg-red-50">{errors.detail}</p>
+        )}
       </div>
       )}
 

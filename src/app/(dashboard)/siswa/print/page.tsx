@@ -1,11 +1,12 @@
 "use client";
 export const dynamic = 'force-dynamic';
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useReactToPrint } from "react-to-print";
 import { Printer, ArrowLeft, Loader2, CreditCard, CheckCircle2, Download } from "lucide-react";
 import { StudentIDCard, type IDCardStudent } from "@/components/shared/StudentIDCard";
+import { useViewMode } from "@/hooks/useViewMode";
 
 interface ProfilWebsite {
   nama_lembaga?: string;
@@ -27,14 +28,48 @@ export default function PrintIDCardPage() {
 
   const rawIds = searchParams.get("ids") ?? "";
   const selectedIds = rawIds.split(",").map(s => s.trim()).filter(Boolean);
+  const { viewAsRole, viewAsTeacherId } = useViewMode();
 
-  // Fetch profil + siswa paralel
+  const viewHeaders = useMemo(() => {
+    const h: Record<string, string> = {};
+    if (viewAsRole === 'Tim_Quran') {
+      h['x-view-mode'] = 'teaching';
+      if (viewAsTeacherId) h['x-view-as-teacher-id'] = viewAsTeacherId;
+    }
+    return h;
+  }, [viewAsRole, viewAsTeacherId]);
+
+  // Fetch profil + siswa paralel (dengan pagination untuk memastikan semua siswa terambil)
   useEffect(() => {
     const fetchAll = async () => {
       setLoading(true);
       try {
-        const [siswaRes, profilRes] = await Promise.all([
-          fetch("/api/siswa/list"),
+        // Paginated fetch — ambil semua siswa dari API (limit per-page = 500)
+        const fetchAllSiswa = async (): Promise<IDCardStudent[]> => {
+          const allStudents: IDCardStudent[] = [];
+          let offset = 0;
+          const pageSize = 500;
+          let hasMore = true;
+
+          while (hasMore) {
+            const params = new URLSearchParams({ limit: String(pageSize), offset: String(offset) });
+            const res = await fetch(`/api/siswa/list?${params.toString()}`, { headers: viewHeaders });
+            if (!res.ok) {
+              const j = await res.json().catch(() => ({}));
+              throw new Error(j.message ?? "Gagal mengambil data siswa.");
+            }
+            const json = await res.json();
+            const page: IDCardStudent[] = json.data ?? [];
+            allStudents.push(...page);
+            hasMore = json.pagination?.hasMore ?? false;
+            offset += pageSize;
+            if (page.length === 0) break;
+          }
+          return allStudents;
+        };
+
+        const [all, profilRes] = await Promise.all([
+          fetchAllSiswa(),
           fetch("/api/website/profil").catch(() => null),
         ]);
 
@@ -43,12 +78,6 @@ export default function PrintIDCardPage() {
           if (pj.data) setProfil(pj.data);
         }
 
-        if (!siswaRes.ok) {
-          const j = await siswaRes.json().catch(() => ({}));
-          throw new Error(j.message ?? "Gagal mengambil data siswa.");
-        }
-        const json = await siswaRes.json();
-        const all: IDCardStudent[] = json.data ?? [];
         const idSet = new Set(selectedIds);
         setStudents(all.filter(s => idSet.has(s.id)));
       } catch (err) {
@@ -59,7 +88,7 @@ export default function PrintIDCardPage() {
     };
     fetchAll();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rawIds]);
+  }, [rawIds, viewHeaders]);
 
   const handleDownloadCard = async (student: IDCardStudent) => {
     const cardEl = document.getElementById(`id-card-${student.id}`);
@@ -94,6 +123,20 @@ export default function PrintIDCardPage() {
       const { toPng } = await import('html-to-image');
       const { default: jsPDF } = await import('jspdf');
 
+      // Tunggu semua kartu DOM muncul (tidak perlu cek QR — ada placeholder jika QR kosong)
+      const waitForCards = async (maxWaitMs = 8000, pollMs = 200) => {
+        const start = Date.now();
+        while (Date.now() - start < maxWaitMs) {
+          const allExist = students.every(s =>
+            document.getElementById(`id-card-${s.id}`)
+          );
+          if (allExist) return true;
+          await new Promise(r => setTimeout(r, pollMs));
+        }
+        return false;
+      };
+      await waitForCards();
+
       // A4 Landscape: 297mm x 210mm
       // Card: 85mm x 55mm → fit 3 cols x 3 rows = 9 cards/page
       const CARD_W_MM = 85;
@@ -113,38 +156,52 @@ export default function PrintIDCardPage() {
         format: 'a4',
       });
 
-      // Process cards in batches of CARDS_PER_PAGE
+      const skipped: string[] = [];
+
       for (let i = 0; i < students.length; i++) {
         const student = students[i];
-        const cardEl = document.getElementById(`id-card-${student.id}`);
-        if (!cardEl) continue;
+        let cardEl = document.getElementById(`id-card-${student.id}`);
 
-        // Add new page for every card except the first one on page 1
+        if (!cardEl) {
+          await new Promise(r => setTimeout(r, 500));
+          cardEl = document.getElementById(`id-card-${student.id}`);
+        }
+        if (!cardEl) {
+          skipped.push(student.nama);
+          continue;
+        }
+
         if (i > 0 && i % CARDS_PER_PAGE === 0) {
           pdf.addPage();
         }
 
-        // Capture card as PNG
-        const dataUrl = await toPng(cardEl, {
-          pixelRatio: 3,
-          skipAutoScale: false,
-          cacheBust: true,
-        });
+        // Capture card — individual error handling agar 1 kartu gagal tidak membatalkan sisanya
+        try {
+          const dataUrl = await toPng(cardEl, {
+            pixelRatio: 3,
+            skipAutoScale: false,
+            cacheBust: true,
+          });
 
-        // Calculate position on PDF page
-        const posOnPage = i % CARDS_PER_PAGE;
-        const col = posOnPage % COLS;
-        const row = Math.floor(posOnPage / COLS);
-        const x = MARGIN_X + col * (CARD_W_MM + GAP);
-        const y = MARGIN_Y + row * (CARD_H_MM + GAP);
+          const posOnPage = i % CARDS_PER_PAGE;
+          const col = posOnPage % COLS;
+          const row = Math.floor(posOnPage / COLS);
+          const x = MARGIN_X + col * (CARD_W_MM + GAP);
+          const y = MARGIN_Y + row * (CARD_H_MM + GAP);
 
-        // Add image to PDF
-        pdf.addImage(dataUrl, 'PNG', x, y, CARD_W_MM, CARD_H_MM);
+          pdf.addImage(dataUrl, 'PNG', x, y, CARD_W_MM, CARD_H_MM);
+        } catch (captureErr) {
+          console.error(`Gagal capture kartu ${student.nama}:`, captureErr);
+          skipped.push(student.nama);
+        }
       }
 
-      // Generate filename
       const timestamp = new Date().toISOString().slice(0, 10);
       pdf.save(`IDCard_Santri_${timestamp}.pdf`);
+
+      if (skipped.length > 0) {
+        alert(`Peringatan: ${skipped.length} kartu gagal diunduh: ${skipped.join(', ')}. Silakan coba cetak ulang untuk siswa tersebut.`);
+      }
     } catch (err) {
       console.error('Gagal download all PDF:', err);
       alert('Gagal mengunduh PDF. Silakan coba lagi atau gunakan tombol Cetak.');

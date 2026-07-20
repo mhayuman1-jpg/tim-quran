@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
 // - Assign guru per kelas (manual & auto)
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { Plus, Pencil, Trash2, Check, X, UserCheck, Wand2, Users, Download } from 'lucide-react';
+import { Plus, Pencil, Trash2, Check, X, UserCheck, Wand2, Users, Download, UserPlus } from 'lucide-react';
 
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -100,6 +100,15 @@ export default function KelasPage() {
   const [studentSearch, setStudentSearch] = useState('');
   // ── Split students loading state (class id)
   const [splitLoadingId, setSplitLoadingId] = useState<string | null>(null);
+
+  // ── Manual assign students to teachers modal
+  const [manualAssignTarget, setManualAssignTarget] = useState<Kelas | null>(null);
+  const [manualStudents, setManualStudents] = useState<(Student & { assigned_teacher_id?: string | null })[]>([]);
+  const [manualLoading, setManualLoading] = useState(false);
+  const [manualSaving, setManualSaving] = useState(false);
+  const [manualSearch, setManualSearch] = useState('');
+  const [manualAssignments, setManualAssignments] = useState<Record<string, string>>({}); // studentId -> teacherId
+  const [manualError, setManualError] = useState('');
 
   // ── Download arsip pembagian tugas
   const [downloadingArsip, setDownloadingArsip] = useState(false);
@@ -468,11 +477,21 @@ export default function KelasPage() {
       if (!kelasRes.ok) throw new Error('Gagal memuat data kelas');
       const kelasList: Kelas[] = kelasJson.data ?? [];
 
-      // Fetch student data (with high limit)
-      const siswaRes = await fetch('/api/siswa/list?limit=500&no_sort=1', { credentials: 'same-origin' });
-      const siswaJson = await siswaRes.json();
-      if (!siswaRes.ok) throw new Error('Gagal memuat data siswa');
-      const siswaList: (Student & { assigned_teacher_id?: string | null; class_id?: string | null })[] = siswaJson.data ?? [];
+      // Fetch ALL student data with pagination (avoid 500 limit)
+      const siswaList: (Student & { assigned_teacher_id?: string | null; class_id?: string | null })[] = [];
+      {
+        const pageSize = 500;
+        let offset = 0;
+        while (true) {
+          const siswaRes = await fetch(`/api/siswa/list?limit=${pageSize}&offset=${offset}&no_sort=1`, { credentials: 'same-origin' });
+          const siswaJson = await siswaRes.json();
+          if (!siswaRes.ok) throw new Error('Gagal memuat data siswa');
+          const batch: typeof siswaList = siswaJson.data ?? [];
+          siswaList.push(...batch);
+          if (batch.length < pageSize || !siswaJson.pagination?.hasMore) break;
+          offset += pageSize;
+        }
+      }
 
       // Group students by class
       const studentsByClass: Record<string, typeof siswaList> = {};
@@ -609,6 +628,120 @@ export default function KelasPage() {
       setDownloadingArsip(false);
     }
   };
+
+  // ── Manual assign students to teachers
+  const handleOpenManualAssign = async (kelas: Kelas) => {
+    setManualAssignTarget(kelas);
+    setManualSearch('');
+    setManualAssignments({});
+    setManualError('');
+    setManualLoading(true);
+
+    try {
+      const res = await fetch(`/api/siswa/list?class_id=${kelas.id}&limit=500`);
+      const json = await res.json();
+      if (res.ok) {
+        const list = (json.data ?? []).map((s: any) => ({
+          id: s.id,
+          nama: s.nama,
+          nisn: s.nisn,
+          class_id: s.class_id,
+          assigned_teacher_id: s.assigned_teacher_id ?? null,
+        }));
+        setManualStudents(list);
+
+        // Pre-fill assignments with current assigned_teacher_id
+        const prefill: Record<string, string> = {};
+        list.forEach((s: any) => {
+          if (s.assigned_teacher_id) prefill[s.id] = s.assigned_teacher_id;
+        });
+        setManualAssignments(prefill);
+      } else {
+        toast.error('Gagal memuat daftar siswa.');
+        setManualAssignTarget(null);
+      }
+    } catch {
+      toast.error('Gagal memuat daftar siswa.');
+      setManualAssignTarget(null);
+    } finally {
+      setManualLoading(false);
+    }
+  };
+
+  const handleManualAssignmentChange = (studentId: string, teacherId: string) => {
+    setManualAssignments(prev => {
+      const updated = { ...prev };
+      if (teacherId === '') {
+        delete updated[studentId];
+      } else {
+        updated[studentId] = teacherId;
+      }
+      return updated;
+    });
+    setManualError('');
+  };
+
+  const handleSaveManualAssign = async () => {
+    if (!manualAssignTarget) return;
+
+    const assignments = Object.entries(manualAssignments).map(([student_id, teacher_id]) => ({
+      student_id,
+      teacher_id,
+    }));
+
+    if (assignments.length === 0) {
+      setManualError('Pilih minimal satu siswa untuk diassign ke guru.');
+      return;
+    }
+
+    setManualSaving(true);
+    setManualError('');
+    try {
+      const res = await fetch('/api/kelas/manual-assign-batch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          class_id: manualAssignTarget.id,
+          assignments,
+        }),
+      });
+      const json = await res.json();
+
+      if (!res.ok) {
+        setManualError(json.message ?? 'Gagal mengassign siswa.');
+        return;
+      }
+
+      toast.success(json.message ?? 'Siswa berhasil diassign ke guru.');
+      setManualAssignTarget(null);
+      fetchKelas();
+    } catch {
+      setManualError('Terjadi kesalahan saat mengassign siswa.');
+    } finally {
+      setManualSaving(false);
+    }
+  };
+
+  const manualTeachers = manualAssignTarget
+    ? ([
+        manualAssignTarget.teacher1 ? { id: manualAssignTarget.teacher1_id!, name: manualAssignTarget.teacher1.name } : null,
+        manualAssignTarget.teacher2 ? { id: manualAssignTarget.teacher2_id!, name: manualAssignTarget.teacher2.name } : null,
+        manualAssignTarget.teacher3 ? { id: manualAssignTarget.teacher3_id!, name: manualAssignTarget.teacher3.name } : null,
+      ] as ({ id: string; name: string } | null)[]).filter(
+        (t): t is { id: string; name: string } => t !== null
+      )
+    : [];
+
+  const filteredManualStudents = manualStudents.filter((s) =>
+    s.nama.toLowerCase().includes(manualSearch.toLowerCase()) ||
+    s.nisn.includes(manualSearch)
+  );
+
+  // Count assignments per teacher
+  const manualCountsByTeacher: Record<string, number> = {};
+  Object.values(manualAssignments).forEach(tid => {
+    manualCountsByTeacher[tid] = (manualCountsByTeacher[tid] || 0) + 1;
+  });
 
   const filteredStudents = students.filter((s) =>
     s.nama.toLowerCase().includes(studentSearch.toLowerCase()) ||
@@ -908,6 +1041,15 @@ export default function KelasPage() {
                             title="Bagi siswa ke Guru 1 & Guru 2"
                           >
                             Split Siswa
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            leftIcon={<UserPlus size={14} />}
+                            onClick={() => handleOpenManualAssign(kelas)}
+                            title="Assign manual siswa ke guru"
+                          >
+                            Assign Manual
                           </Button>
                           <Button
                             variant="ghost"
@@ -1233,6 +1375,107 @@ export default function KelasPage() {
               disabled={selectedStudents.size === 0}
             >
               Simpan ({selectedStudents.size})
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* ── Manual assign students to teachers modal */}
+      <Modal
+        open={Boolean(manualAssignTarget)}
+        onClose={() => { if (!manualSaving) setManualAssignTarget(null); }}
+        title={`Assign Manual — ${manualAssignTarget?.name ?? ''}`}
+        size="lg"
+        closeOnBackdrop={!manualSaving}
+      >
+        <div className="space-y-4">
+          {/* Teacher legend */}
+          <div className="flex flex-wrap gap-2">
+            {manualTeachers.map((t) => (
+              <span
+                key={t.id}
+                className="text-xs bg-amber-50 text-amber-700 px-2 py-1 rounded-full border border-amber-200"
+              >
+                {t.name}
+                {manualCountsByTeacher[t.id] ? ` (${manualCountsByTeacher[t.id]})` : ''}
+              </span>
+            ))}
+            {manualTeachers.length === 0 && (
+              <span className="text-xs text-slate-400">
+                Belum ada guru yang ditetapkan untuk kelas ini.
+              </span>
+            )}
+          </div>
+
+          {/* Search */}
+          <Input
+            placeholder="Cari nama siswa atau NIS/NISN..."
+            value={manualSearch}
+            onChange={(e) => setManualSearch(e.target.value)}
+            disabled={manualLoading || manualSaving}
+          />
+
+          {/* Student list */}
+          {manualLoading ? (
+            <div className="flex items-center justify-center py-8 text-slate-400">
+              Memuat daftar siswa...
+            </div>
+          ) : filteredManualStudents.length === 0 ? (
+            <div className="py-8 text-center text-sm text-slate-400">
+              {manualSearch ? 'Tidak ada siswa yang cocok.' : 'Tidak ada siswa di kelas ini.'}
+            </div>
+          ) : (
+            <div className="space-y-1 max-h-80 overflow-y-auto pr-1">
+              {filteredManualStudents.map((s) => (
+                <div
+                  key={s.id}
+                  className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50"
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-slate-800 truncate">{s.nama}</p>
+                    <p className="text-xs text-slate-400">{s.nisn}</p>
+                  </div>
+                  <select
+                    value={manualAssignments[s.id] ?? ''}
+                    onChange={(e) => handleManualAssignmentChange(s.id, e.target.value)}
+                    disabled={manualSaving || manualTeachers.length === 0}
+                    className="rounded-md border border-slate-300 px-2 py-1 text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  >
+                    <option value="">-- Belum diassign --</option>
+                    {manualTeachers.map((t) => (
+                      <option key={t.id} value={t.id}>{t.name}</option>
+                    ))}
+                  </select>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Error */}
+          {manualError && (
+            <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">
+              {manualError}
+            </p>
+          )}
+
+          {/* Actions */}
+          <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setManualAssignTarget(null)}
+              disabled={manualSaving}
+            >
+              Batal
+            </Button>
+            <Button
+              type="button"
+              variant="primary"
+              loading={manualSaving}
+              onClick={handleSaveManualAssign}
+              disabled={Object.keys(manualAssignments).length === 0 || manualTeachers.length === 0}
+            >
+              Simpan ({Object.keys(manualAssignments).length})
             </Button>
           </div>
         </div>

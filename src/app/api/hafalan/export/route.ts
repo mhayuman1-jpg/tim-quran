@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
 
     let q = supabase
       .from('hafalan')
-      .select('id, tanggal, surah_juz, halaman, catatan, santri(nama, nisn, classes(name)), users(name)')
+      .select('id, tanggal, surah_juz, halaman, catatan, santri(nama, nisn, classes(name)), users!hafalan_teacher_id_fkey(name)')
       .order('tanggal', { ascending: false });
 
     if (month) {

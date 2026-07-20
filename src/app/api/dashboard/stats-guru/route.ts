@@ -5,7 +5,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
-import { shouldFilterByTeacher, getTeacherFilterId, getTeacherClassIds, applyTeacherSantriFilter } from '@/lib/rbac';
+import { shouldFilterByTeacher, getTeacherFilterId } from '@/lib/rbac';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,10 +25,9 @@ export async function GET(request: NextRequest) {
       timeZone: 'Asia/Makassar',
     }).format(new Date());
 
-    // Ambil siswa yang diampu — gunakan shouldFilterByTeacher agar konsisten
+    // Ambil siswa yang diampu — hanya assigned_teacher_id yang cocok
     // Tim_Quran: selalu filter by assigned_teacher_id
     // Kabid/Sekretaris: hanya filter jika dalam Mode Mengajar
-    // Filter via assigned_teacher_id ATAU via kelas yang diampu (teacher1/2/3_id)
     let santriQuery = supabase
       .from('santri')
       .select('id, nama, nisn, gender, juz_terakhir, assigned_teacher_id, classes(name)')
@@ -36,8 +35,7 @@ export async function GET(request: NextRequest) {
       .order('nama', { ascending: true });
 
     if (shouldFilterByTeacher(role, request)) {
-      const classIds = await getTeacherClassIds(supabase, teacherId);
-      santriQuery = applyTeacherSantriFilter(santriQuery, teacherId, classIds);
+      santriQuery = santriQuery.eq('assigned_teacher_id', teacherId);
     }
 
     const { data: students, error: sErr } = await santriQuery;

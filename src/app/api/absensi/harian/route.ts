@@ -8,6 +8,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
 import { normalizeAttendanceRows } from '@/lib/attendance';
+import { isHoliday } from '@/lib/holiday';
 import { shouldFilterByTeacher, getTeacherFilterId, getTeacherClassIds, applyTeacherSantriFilter } from '@/lib/rbac';
 import { shuffleArray } from '@/lib/shuffle';
 
@@ -112,7 +113,10 @@ export async function GET(request: NextRequest) {
 
     const normalizedAttendances = normalizeAttendanceRows(attendances);
 
-    // 3. Buat map santri_id → status hadir
+    // 3. Cek apakah tanggal ini hari libur
+    const tanggalLibur = await isHoliday(supabase, date);
+
+    // 4. Buat map santri_id → status hadir
     const hadir = new Set<string>();
     for (const attendance of normalizedAttendances) {
       if (!attendance.santri_id) continue;
@@ -122,14 +126,14 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // 4. Gabungkan: setiap santri dengan status hadir/tidak hadir
+    // 5. Gabungkan: setiap santri dengan status hadir/libur/tidak hadir
     const result = (santriList as any[]).map((s) => ({
       id: s.id,
       nisn: s.nisn,
       nama: s.nama,
       gender: s.gender,
-      kelas: s.classes?.name ?? 'â€”',
-      status: hadir.has(s.id) ? 'Hadir' : 'Tidak Hadir',
+      kelas: s.classes?.name ?? '—',
+      status: tanggalLibur ? 'Libur' : (hadir.has(s.id) ? 'Hadir' : 'Tidak Hadir'),
     }));
 
     return NextResponse.json({ data: result, date }, { status: 200 });

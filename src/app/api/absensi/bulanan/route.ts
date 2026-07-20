@@ -11,6 +11,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
 import { normalizeAttendanceRows } from '@/lib/attendance';
+import { getHolidaysInRange } from '@/lib/holiday';
 import { shouldFilterByTeacher, getTeacherFilterId, getTeacherClassIds, applyTeacherSantriFilter } from '@/lib/rbac';
 
 export async function GET(request: NextRequest) {
@@ -112,11 +113,19 @@ export async function GET(request: NextRequest) {
       (attendance: any) => attendance.santri_id && santriIds.includes(attendance.santri_id)
     );
 
-    // 3. Hitung total hari aktif = distinct dates yang punya SETIDAKNYA satu record
-    const uniqueDates = new Set(records.map((r) => r.date));
-    const totalHariAktif = uniqueDates.size;
+    // 3. Ambil daftar hari libur dalam rentang ini
+    const holidaysInRange = await getHolidaysInRange(supabase, dateFrom, dateTo);
+    const holidaySet = new Set(holidaysInRange);
 
-    // 4. Hitung jumlah hadir per santri
+    // 4. Hitung total hari aktif = distinct dates yang punya SETIDAKNYA satu record, dikurangi hari libur
+    const uniqueDates = new Set(records.map((r) => r.date));
+    // Hanya hitung hari yang bukan libur
+    let totalHariAktif = 0;
+    for (const d of Array.from(uniqueDates)) {
+      if (!holidaySet.has(d)) totalHariAktif++;
+    }
+
+    // 5. Hitung jumlah hadir per santri
     const hadiMap: Record<string, number> = {};
     for (const r of records) {
       hadiMap[r.santri_id] = (hadiMap[r.santri_id] ?? 0) + 1;

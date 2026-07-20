@@ -9,6 +9,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
 import { requireActiveSemester } from '@/lib/semester';
+import { requireNoHoliday } from '@/lib/holiday';
 import type { TahsinMetode } from '@/types';
 import type { NilaiTahfidz } from '@/lib/surahData';
 
@@ -146,6 +147,10 @@ export async function POST(request: NextRequest) {
     // Cek semester aktif
     const semesterCheck = await requireActiveSemester(supabase);
     if (semesterCheck.error) return semesterCheck.error;
+
+    // Cek hari libur — tolak input jika tanggal libur
+    const holidayCheck = await requireNoHoliday(supabase, tanggal);
+    if (holidayCheck.error) return holidayCheck.error;
 
     if (session.user.role === 'Tim_Quran') {
       const { data: assigned, error: assignedError } = await supabase

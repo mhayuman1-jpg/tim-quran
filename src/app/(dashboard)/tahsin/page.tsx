@@ -109,7 +109,7 @@ export default function TahsinPage() {
   const [studentLoading, setStudentLoading] = useState(false);
   const [studentError, setStudentError] = useState<string | null>(null);
   const [selectedStudent, setSelectedStudent] = useState<StudentOption | null>(null);
-  const [studentModalOpen, setStudentModalOpen] = useState(false);
+
 
   // Edit hafalan state
   const [editHafalanOpen, setEditHafalanOpen] = useState(false);
@@ -362,7 +362,6 @@ export default function TahsinPage() {
 
   const openStudentDetail = (student: StudentOption) => {
     setSelectedStudent(student);
-    setStudentModalOpen(true);
   };
 
   const clearSelectedStudent = () => {
@@ -698,60 +697,6 @@ export default function TahsinPage() {
           )}
         </div>
       </div>
-
-      <Modal
-        open={studentModalOpen}
-        onClose={() => setStudentModalOpen(false)}
-        title={selectedStudent ? `Detail Siswa: ${selectedStudent.nama}` : 'Detail Siswa'}
-        size="md"
-        closeOnBackdrop
-      >
-        {selectedStudent ? (
-          <div className="space-y-4">
-            <div className="flex items-center gap-4">
-              {selectedStudent.photo_url ? (
-                <img src={toImageUrl(selectedStudent.photo_url, 'timquran-profile-photos') || ''} alt={selectedStudent.nama} className="h-20 w-20 rounded-2xl object-cover" />
-              ) : (
-                <div className="h-20 w-20 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-400">
-                  Siswa
-                </div>
-              )}
-              <div>
-                <p className="text-lg font-semibold text-slate-900">{selectedStudent.nama}</p>
-                <p className="text-sm text-slate-500">NIS/NISN: {selectedStudent.nisn ?? '-'}</p>
-                <p className="text-sm text-slate-500">Kelas: {selectedStudent.classes?.name ?? '-'}</p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4 text-sm text-slate-600">
-              <div>
-                <p className="font-medium text-slate-800">Jenis Kelamin</p>
-                <p>{selectedStudent.gender ?? '-'}</p>
-              </div>
-              <div>
-                <p className="font-medium text-slate-800">Tanggal Lahir</p>
-                <p>{selectedStudent.tanggal_lahir ?? '-'}</p>
-              </div>
-              <div>
-                <p className="font-medium text-slate-800">Status</p>
-                <p>{selectedStudent.status ?? '-'}</p>
-              </div>
-              <div>
-                <p className="font-medium text-slate-800">Juz Terakhir</p>
-                <p>{selectedStudent.juz_terakhir ?? '-'}</p>
-              </div>
-            </div>
-
-            <div className="text-right">
-              <Button variant="secondary" onClick={() => setStudentModalOpen(false)}>
-                Tutup
-              </Button>
-            </div>
-          </div>
-        ) : (
-          <p className="text-sm text-slate-500">Pilih siswa terlebih dahulu untuk melihat detail.</p>
-        )}
-      </Modal>
 
       {/* Modal Tambah Jurnal */}
       <Modal

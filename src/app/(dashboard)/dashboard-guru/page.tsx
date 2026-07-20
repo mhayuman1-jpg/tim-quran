@@ -4,12 +4,13 @@ export const dynamic = 'force-dynamic';
 // src/app/(dashboard)/dashboard-guru/page.tsx
 // Dashboard Guru — tampilan seperti dashboard utama, tapi HANYA data siswa yang diampu
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { Users, CheckCircle, BookOpen, Activity, FileText, CreditCard, FileImage, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 import StaffIDCard from '@/components/shared/StaffIDCard';
 import { useToast } from '@/lib/toast';
+import { useViewMode } from '@/hooks/useViewMode';
 
 interface JuzSummary { juz: number; count: number; }
 
@@ -177,6 +178,13 @@ function JuzChart({ data, loading }: { data: JuzSummary[]; loading: boolean }) {
 
 export default function DashboardGuruPage() {
   const { data: session } = useSession();
+  const { getEffectiveRole, viewAsRole, viewAsTeacherId } = useViewMode();
+  const viewHeaders = useMemo(() => {
+    const h: Record<string, string> = {};
+    h['x-view-mode'] = 'teaching';
+    if (viewAsTeacherId) h['x-view-as-teacher-id'] = viewAsTeacherId;
+    return h;
+  }, [viewAsTeacherId]);
   const { toast } = useToast();
   const [stats, setStats] = useState<DashboardGuruStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -193,14 +201,16 @@ export default function DashboardGuruPage() {
     async function fetchStats() {
       setLoading(true);
       try {
-        const res = await fetch('/api/dashboard/stats-guru');
+        const res = await fetch('/api/dashboard/stats-guru', {
+          headers: viewHeaders,
+        });
         const json = await res.json();
         setStats(json);
       } catch { /* ignore */ }
       finally { setLoading(false); }
     }
     fetchStats();
-  }, []);
+  }, [viewHeaders]);
 
   const today = new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
   const hour = new Date().getHours();

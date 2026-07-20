@@ -217,9 +217,31 @@ export default function SiswaPage() {
     if (selectedIds.length === 0 || downloadingPdf) return;
     setDownloadingPdf(true);
     try {
-      // Fetch student data + profile
-      const [siswaRes, profilRes] = await Promise.all([
-        fetch(`/api/siswa/list?limit=500`),
+      // Fetch student data dengan pagination + class filter agar semua siswa terambil
+      const fetchAllSiswa = async (): Promise<Santri[]> => {
+        const allStudents: Santri[] = [];
+        let offset = 0;
+        const pageSize = 500;
+        let hasMore = true;
+
+        while (hasMore) {
+          const params = new URLSearchParams({ limit: String(pageSize), offset: String(offset) });
+          if (classFilter) params.set('class_id', classFilter);
+          const res = await fetch(`/api/siswa/list?${params.toString()}`, { headers: viewHeaders });
+          if (!res.ok) throw new Error('Gagal mengambil data siswa.');
+          const json = await res.json();
+          const page: Santri[] = json.data ?? [];
+          allStudents.push(...page);
+          hasMore = json.pagination?.hasMore ?? false;
+          offset += pageSize;
+          // Berhenti jika tidak ada data atau sudah cukup untuk selectedIds
+          if (page.length === 0) break;
+        }
+        return allStudents;
+      };
+
+      const [all, profilRes] = await Promise.all([
+        fetchAllSiswa(),
         fetch('/api/website/profil').catch(() => null),
       ]);
 
@@ -229,9 +251,6 @@ export default function SiswaPage() {
         if (pj.data) profil = pj.data;
       }
 
-      if (!siswaRes.ok) throw new Error('Gagal mengambil data siswa.');
-      const json = await siswaRes.json();
-      const all: Santri[] = json.data ?? [];
       const idSet = new Set(selectedIds);
       const selected = all.filter(s => idSet.has(s.id));
 
@@ -281,8 +300,19 @@ export default function SiswaPage() {
         )
       );
 
-      // Wait for rendering + QR code generation
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Tunggu semua kartu DOM muncul
+      const waitForCards = async (maxWaitMs = 8000, pollMs = 200) => {
+        const start = Date.now();
+        while (Date.now() - start < maxWaitMs) {
+          const allExist = selected.every(s =>
+            document.getElementById(`bulk-card-${s.id}`)
+          );
+          if (allExist) return true;
+          await new Promise(r => setTimeout(r, pollMs));
+        }
+        return false;
+      };
+      await waitForCards();
 
       // A4 Landscape: 297mm x 210mm, Card: 85mm x 55mm
       const CARD_W = 85, CARD_H = 55;
@@ -294,22 +324,38 @@ export default function SiswaPage() {
       const PER_PAGE = COLS * ROWS;
 
       const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+      const skipped: string[] = [];
 
       for (let i = 0; i < selected.length; i++) {
         const s = selected[i];
-        const cardEl = document.getElementById(`bulk-card-${s.id}`);
-        if (!cardEl) continue;
+        let cardEl = document.getElementById(`bulk-card-${s.id}`);
+
+        // Retry sekali jika DOM belum siap
+        if (!cardEl) {
+          await new Promise(r => setTimeout(r, 500));
+          cardEl = document.getElementById(`bulk-card-${s.id}`);
+        }
+        if (!cardEl) {
+          skipped.push(s.nama);
+          continue;
+        }
 
         if (i > 0 && i % PER_PAGE === 0) pdf.addPage();
 
-        const dataUrl = await toPng(cardEl, { pixelRatio: 3, skipAutoScale: false, cacheBust: true });
+        // Capture card — individual error handling agar 1 kartu gagal tidak membatalkan sisanya
+        try {
+          const dataUrl = await toPng(cardEl, { pixelRatio: 3, skipAutoScale: false, cacheBust: true });
 
-        const pos = i % PER_PAGE;
-        const col = pos % COLS;
-        const row = Math.floor(pos / COLS);
-        const x = MARGIN_X + col * (CARD_W + GAP);
-        const y = MARGIN_Y + row * (CARD_H + GAP);
-        pdf.addImage(dataUrl, 'PNG', x, y, CARD_W, CARD_H);
+          const pos = i % PER_PAGE;
+          const col = pos % COLS;
+          const row = Math.floor(pos / COLS);
+          const x = MARGIN_X + col * (CARD_W + GAP);
+          const y = MARGIN_Y + row * (CARD_H + GAP);
+          pdf.addImage(dataUrl, 'PNG', x, y, CARD_W, CARD_H);
+        } catch (captureErr) {
+          console.error(`Gagal capture kartu ${s.nama}:`, captureErr);
+          skipped.push(s.nama);
+        }
       }
 
       // Cleanup
@@ -318,7 +364,11 @@ export default function SiswaPage() {
 
       const timestamp = new Date().toISOString().slice(0, 10);
       pdf.save(`IDCard_Santri_${timestamp}.pdf`);
-      toast.success(`${selected.length} ID Card berhasil diunduh sebagai PDF.`);
+
+      if (skipped.length > 0) {
+        toast.warning(`${skipped.length} kartu gagal diunduh: ${skipped.join(', ')}. Silakan coba cetak ulang.`);
+      }
+      toast.success(`${selected.length - skipped.length} ID Card berhasil diunduh sebagai PDF.`);
     } catch (err) {
       console.error('Gagal download PDF:', err);
       toast.error('Gagal mengunduh PDF. Silakan coba lagi.');

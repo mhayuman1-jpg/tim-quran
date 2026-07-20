@@ -1,6 +1,6 @@
 import { createServerClient } from '@/lib/supabase/server';
 
-const HEADER_SELECT = `
+export const HEADER_SELECT = `
   id, student_id, teacher_id, periode, tahun_ajaran, juz, catatan,
   nama_guru_kelas, niy_guru_kelas, nama_kabid, niy_kabid, nama_kepala_sekolah, niy_kepala_sekolah,
   tahsin_metode, tahsin_buku, tahsin_halaman, tahsin_makhroj, tahsin_kelancaran, tahsin_adab, tahsin_catatan,
@@ -21,6 +21,7 @@ export interface RaportDetailRow {
 
 export interface RaportExportData {
   id: string;
+  student_id: string;
   periode: string;
   tahun_ajaran: string;
   juz?: number | null;

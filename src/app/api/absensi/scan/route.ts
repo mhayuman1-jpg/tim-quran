@@ -1,16 +1,18 @@
 // src/app/api/absensi/scan/route.ts
 // POST: terima qr_code, cari siswa di tabel santri, cek duplikat absensi hari ini,
-// insert ke tabel attendances, return nama siswa.
+// cek hari libur, insert ke tabel attendances, return nama siswa.
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
 import { requireActiveSemester } from '@/lib/semester';
+import { requireNoHoliday } from '@/lib/holiday';
 import {
   insertAttendanceRecord,
   queryAttendanceByStudentMaybeSingle,
 } from '@/lib/attendance';
+import { getTeacherClassIds } from '@/lib/rbac';
 
 export const dynamic = 'force-dynamic';
 
@@ -40,12 +42,12 @@ export async function POST(request: NextRequest) {
 
     // 1. Cari siswa berdasarkan qr_code — exact match dulu, lalu prefix match (8 char pertama)
     const scanned = qr_code.trim();
-    let siswa: { id: string; nama: string } | null = null;
+    let siswa: { id: string; nama: string; assigned_teacher_id: string | null; class_id: string | null } | null = null;
 
     // Coba exact match (case-insensitive)
     const { data: exactMatch } = await supabase
       .from('santri')
-      .select('id, nama')
+      .select('id, nama, assigned_teacher_id, class_id')
       .ilike('qr_code', scanned)
       .limit(1)
       .maybeSingle();
@@ -57,7 +59,7 @@ export async function POST(request: NextRequest) {
       const prefix = scanned.slice(0, 8).toLowerCase();
       const { data: prefixMatch } = await supabase
         .from('santri')
-        .select('id, nama')
+        .select('id, nama, assigned_teacher_id, class_id')
         .ilike('qr_code', prefix + '%')
         .limit(1)
         .maybeSingle();
@@ -71,10 +73,29 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Cek apakah pengajar memiliki akses ke siswa ini
+    if (session.user.role === 'Tim_Quran') {
+      const isAssigned = siswa.assigned_teacher_id === session.user.id;
+      if (!isAssigned) {
+        const teacherClassIds = await getTeacherClassIds(supabase, session.user.id);
+        const isInTeacherClass = siswa.class_id ? teacherClassIds.includes(siswa.class_id) : false;
+        if (!isInTeacherClass) {
+          return NextResponse.json(
+            { message: 'Siswa ini bukan binaan Anda.' },
+            { status: 403 }
+          );
+        }
+      }
+    }
+
     // 2. Tanggal hari ini format YYYY-MM-DD (WITA)
     const today = new Intl.DateTimeFormat('sv-SE', {
       timeZone: 'Asia/Makassar',
     }).format(new Date());
+
+    // 2b. Cek hari libur — tolak scan jika hari ini libur
+    const holidayCheck = await requireNoHoliday(supabase, today);
+    if (holidayCheck.error) return holidayCheck.error;
 
     // 3. Cek duplikat: cari record absensi hari ini di kolom santri_id / student_id
     const { data: existing, error: checkError } = await queryAttendanceByStudentMaybeSingle(

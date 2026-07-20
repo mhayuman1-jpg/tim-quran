@@ -9,7 +9,7 @@ import { withAuth, NextRequestWithAuth } from 'next-auth/middleware';
 import { NextResponse } from 'next/server';
 
 // Rute yang hanya boleh diakses oleh Kabid
-const KABID_ONLY_ROUTES = ['/kelas', '/semester', '/tim', '/dashboard/kelola-artikel', '/absensi/monitoring', '/website', '/dashboard/website', '/admin'];
+const KABID_ONLY_ROUTES = ['/kelas', '/semester', '/tim', '/dashboard/kelola-artikel', '/absensi/monitoring', '/absensi/kabid-mark', '/website', '/dashboard/website', '/admin', '/kalender-libur'];
 
 // Rute yang boleh diakses oleh Kabid dan Sekretaris
 const MANAJEMEN_ROUTES = ['/laporan-masuk', '/rekap'];
@@ -86,6 +86,7 @@ export const config = {
     '/dashboard/pengumuman/:path*',
     '/pengaturan/:path*',
     '/semester/:path*',
+    '/kalender-libur/:path*',
     '/kelas/:path*',
     '/tim/:path*',
     '/laporan/:path*',

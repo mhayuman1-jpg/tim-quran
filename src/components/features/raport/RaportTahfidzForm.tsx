@@ -148,6 +148,9 @@ export default function RaportTahfidzForm({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [autoLoading, setAutoLoading] = useState(false);
   const [autoMsg, setAutoMsg] = useState('');
+  const [storedJuzGroups, setStoredJuzGroups] = useState<{ juz: number; detail: any[]; matches: number }[]>([]);
+  // Multi-juz: separate tahfidz tables per juz
+  const [multiJuzGroups, setMultiJuzGroups] = useState<{ juz: number; detail: DetailSurah[] }[]>([]);
 
   // Fetch siswa (filter by class_id + teaching mode header)
   useEffect(() => {
@@ -231,9 +234,10 @@ export default function RaportTahfidzForm({
       const json = await res.json();
       if (!res.ok) { setAutoMsg(`Gagal: ${json.message}`); return; }
 
-      const { detail_surah, catatan_terbaru, tahsin_summary, stats, juz, kehadiran_summary, nama_guru_kelas, niy_guru_kelas } = json.data;
+      const { detail_surah, catatan_terbaru, tahsin_summary, stats, juz, juz_groups, kehadiran_summary, nama_guru_kelas, niy_guru_kelas } = json.data;
 
       if (detail_surah?.length > 0 || tahsin_summary?.length > 0 || kehadiran_summary) {
+        // Populate form with first/best juz for preview
         setForm(p => ({
           ...p,
           juz: juz !== undefined && juz !== null ? Number(juz) : p.juz,
@@ -246,10 +250,8 @@ export default function RaportTahfidzForm({
             wafa_halaman: d.wafa_halaman || '',
           })) : p.detail,
           catatan: `${kehadiran_summary || ''}${catatan_terbaru || ''}`.trim() || p.catatan,
-          // Isi guru kelas dari data kelas
           nama_guru_kelas: (nama_guru_kelas as string) || p.nama_guru_kelas,
           niy_guru_kelas: (niy_guru_kelas as string) || p.niy_guru_kelas,
-          // Isi tahsin dari data terbaru
           tahsin_metode: tahsin_summary?.[0]?.metode || p.tahsin_metode,
           tahsin_buku: tahsin_summary?.[0]?.buku || p.tahsin_buku,
           tahsin_halaman: tahsin_summary?.[0]?.halaman ? String(tahsin_summary[0].halaman) : p.tahsin_halaman,
@@ -258,7 +260,31 @@ export default function RaportTahfidzForm({
           tahsin_adab: tahsin_summary?.[0]?.adab || p.tahsin_adab,
           tahsin_catatan: tahsin_summary?.[0]?.catatan || p.tahsin_catatan,
         }));
-        setAutoMsg(`✓ Dimuat: ${stats?.surah_hafal || 0} surah dari ${stats?.total_hafalan || 0} catatan hafalan, ${stats?.total_tahsin || 0} catatan tahsin`);
+
+        // Store juz_groups for multi-juz save
+        if (juz_groups && juz_groups.length > 1) {
+          setStoredJuzGroups(juz_groups);
+          // Populate multiJuzGroups with separate tables per juz
+          setMultiJuzGroups(juz_groups.map((g: any) => ({
+            juz: g.juz,
+            detail: (g.detail || []).map((d: any) => ({
+              nama_surah: d.nama_surah || '',
+              makhroj: d.makhroj || '',
+              tajwid: d.tajwid || '',
+              lancar: d.lancar || '',
+              wafa_buku: d.wafa_buku || '',
+              wafa_halaman: d.wafa_halaman || '',
+            })),
+          })));
+        } else {
+          setStoredJuzGroups([]);
+          setMultiJuzGroups([]);
+        }
+
+        const groupInfo = juz_groups && juz_groups.length > 1
+          ? ` (${juz_groups.length} Juz: ${juz_groups.map((g: any) => `Juz ${g.juz}`).join(', ')})`
+          : '';
+        setAutoMsg(`✓ Dimuat: ${stats?.surah_hafal || 0} surah dari ${stats?.total_hafalan || 0} catatan hafalan, ${stats?.total_tahsin || 0} catatan tahsin${groupInfo}`);
       } else {
         setAutoMsg('Tidak ada data jurnal atau absensi ditemukan untuk siswa ini.');
       }
@@ -287,15 +313,125 @@ export default function RaportTahfidzForm({
   const addRow = () => setForm(p => ({ ...p, detail: [...p.detail, emptyRow()] }));
   const removeRow = (i: number) => setForm(p => ({ ...p, detail: p.detail.filter((_, idx) => idx !== i) }));
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // ── Multi-juz helpers ──────────────────────────────────────────────────
+  const updateMultiJuzRow = (groupIdx: number, rowIdx: number, field: keyof DetailSurah, value: string) => {
+    setMultiJuzGroups(prev => {
+      const next = [...prev];
+      const detail = [...next[groupIdx].detail];
+      detail[rowIdx] = { ...detail[rowIdx], [field]: value };
+      next[groupIdx] = { ...next[groupIdx], detail };
+      return next;
+    });
+  };
+
+  const addMultiJuzRow = (groupIdx: number) => {
+    setMultiJuzGroups(prev => {
+      const next = [...prev];
+      next[groupIdx] = { ...next[groupIdx], detail: [...next[groupIdx].detail, emptyRow()] };
+      return next;
+    });
+  };
+
+  const removeMultiJuzRow = (groupIdx: number, rowIdx: number) => {
+    setMultiJuzGroups(prev => {
+      const next = [...prev];
+      next[groupIdx] = { ...next[groupIdx], detail: next[groupIdx].detail.filter((_, idx) => idx !== rowIdx) };
+      return next;
+    });
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const errs: Record<string, string> = {};
     if (!isEdit && !form.student_id) errs.student_id = 'Siswa wajib dipilih.';
     if (!isEdit && !form.periode.trim()) errs.periode = 'Periode wajib diisi.';
     if (!isEdit && !form.tahun_ajaran.trim()) errs.tahun_ajaran = 'Tahun ajaran wajib diisi.';
-    if (form.detail.length === 0) errs.detail = 'Minimal satu baris surah.';
-    if (form.detail.some(d => !d.nama_surah.trim())) errs.detail = 'Nama surah tidak boleh kosong.';
+    // Validate detail: use multiJuzGroups if multi-juz, else form.detail
+    const hasMultiJuz = multiJuzGroups.length > 1;
+    const totalDetailRows = hasMultiJuz
+      ? multiJuzGroups.reduce((sum, g) => sum + g.detail.length, 0)
+      : form.detail.length;
+    if (totalDetailRows === 0) errs.detail = 'Minimal satu baris surah.';
+    if (!hasMultiJuz && form.detail.some(d => !d.nama_surah.trim())) errs.detail = 'Nama surah tidak boleh kosong.';
     if (Object.values(errs).some(Boolean)) { setErrors(errs); return; }
+
+    // Multi-juz: combine all juz groups into ONE raport (juz = null)
+    if (!isEdit && hasMultiJuz) {
+      setAutoLoading(true);
+      setAutoMsg('');
+      try {
+        // Combine all detail rows from all juz groups
+        const allDetail: DetailSurah[] = [];
+        for (const group of multiJuzGroups) {
+          for (const d of group.detail) {
+            allDetail.push({
+              nama_surah: d.nama_surah,
+              makhroj: d.makhroj || '',
+              tajwid: d.tajwid || '',
+              lancar: d.lancar || '',
+              wafa_buku: String(group.juz),
+              wafa_halaman: d.wafa_halaman || '',
+            });
+          }
+        }
+
+        // Check if existing raport already exists for this student+period
+        const existingRes = await fetch(`/api/raport/tahfidz?student_id=${form.student_id}&periode=${encodeURIComponent(form.periode)}`);
+        const existingJson = await existingRes.json();
+        const existingRaports = existingJson.data ?? [];
+        // Find existing raport with juz=null (multi-juz)
+        const existingMulti = existingRaports.find((r: any) => r.juz === null || r.juz === undefined);
+
+        let res: Response;
+        if (existingMulti) {
+          // Update existing raport via PUT (avoids DELETE RBAC issue + duplicate key)
+          res = await fetch('/api/raport/tahfidz', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              id: existingMulti.id,
+              ...form,
+              juz: null,
+              detail: allDetail,
+            }),
+          });
+        } else {
+          // Create new raport via POST
+          res = await fetch('/api/raport/tahfidz', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              ...form,
+              juz: null,
+              detail: allDetail,
+            }),
+          });
+        }
+
+        setAutoLoading(false);
+        setMultiJuzGroups([]);
+        setStoredJuzGroups([]);
+
+        if (res.ok) {
+          const result = await res.json();
+          setAutoMsg(`✓ Raport berhasil disimpan (${multiJuzGroups.length} Juz)`);
+          // Trigger refresh: call parent with the saved raport ID (PUT mode so it just refreshes)
+          if (result.data?.id) {
+            onSubmit({ ...form, detail: [] }, result.data.id);
+          }
+        } else {
+          const errJson = await res.json().catch(() => ({}));
+          setAutoMsg(errJson.message || 'Gagal menyimpan raport.');
+        }
+      } catch {
+        setAutoLoading(false);
+        setMultiJuzGroups([]);
+        setStoredJuzGroups([]);
+        setAutoMsg('Gagal menyimpan raport.');
+      }
+      return;
+    }
+
     onSubmit(form, editingId ?? undefined);
   };
 
@@ -383,6 +519,75 @@ export default function RaportTahfidzForm({
       )}
 
       {/* ══ BAGIAN TAHFIDZ ══════════════════════════════════════════════════ */}
+      {multiJuzGroups.length > 1 ? (
+        /* Multi-juz: stacked sections, one per juz */
+        multiJuzGroups.map((group, groupIdx) => (
+          <div key={groupIdx} className="rounded-xl border-2 border-amber-200 overflow-hidden">
+            <div className="bg-amber-700 px-4 py-3 flex items-center gap-2">
+              <BookOpen size={15} className="text-white" />
+              <p className="text-sm font-bold text-white">Penilaian Tahfidz — Juz {group.juz}</p>
+              <span className="text-amber-200 text-xs ml-auto">{group.detail.length} surah</span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-slate-50 text-xs font-semibold text-slate-600 uppercase tracking-wide border-b border-slate-200">
+                    <th className="px-3 py-2 text-left w-8">No</th>
+                    <th className="px-3 py-2 text-left min-w-[140px]">Surah</th>
+                    <th className="px-3 py-2 text-center w-14">Makhroj</th>
+                    <th className="px-3 py-2 text-center w-14">Tajwid</th>
+                    <th className="px-3 py-2 text-center w-14">Lancar</th>
+                    <th className="px-3 py-2 text-center min-w-[80px]">Ayat</th>
+                    <th className="px-3 py-2 w-8"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {group.detail.map((row, i) => (
+                    <tr key={i} className="hover:bg-slate-50">
+                      <td className="px-3 py-2 text-slate-400 text-xs">{i + 1}</td>
+                      <td className="px-3 py-2">
+                        <input type="text" value={row.nama_surah}
+                          onChange={e => updateMultiJuzRow(groupIdx, i, 'nama_surah', e.target.value)}
+                          disabled={loading} placeholder="Nama surah..."
+                          className="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:bg-slate-50" />
+                      </td>
+                      <td className="px-3 py-2 text-center">
+                        <NilaiSelect value={row.makhroj} onChange={v => updateMultiJuzRow(groupIdx, i, 'makhroj', v)} disabled={loading} options={NILAI_MAKHROJ_TAJWID} />
+                      </td>
+                      <td className="px-3 py-2 text-center">
+                        <NilaiSelect value={row.tajwid} onChange={v => updateMultiJuzRow(groupIdx, i, 'tajwid', v)} disabled={loading} options={NILAI_MAKHROJ_TAJWID} />
+                      </td>
+                      <td className="px-3 py-2 text-center">
+                        <NilaiSelect value={row.lancar} onChange={v => updateMultiJuzRow(groupIdx, i, 'lancar', v)} disabled={loading} options={NILAI_LANCAR_OPTS} />
+                      </td>
+                      <td className="px-3 py-2">
+                        <input type="text" value={row.wafa_halaman}
+                          onChange={e => updateMultiJuzRow(groupIdx, i, 'wafa_halaman', e.target.value)}
+                          disabled={loading} placeholder="Ayat..."
+                          className="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:bg-slate-50" />
+                      </td>
+                      <td className="px-3 py-2">
+                        <button type="button" onClick={() => removeMultiJuzRow(groupIdx, i)}
+                          disabled={loading || group.detail.length <= 1}
+                          className="p-1 rounded text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors disabled:opacity-30">
+                          <Trash2 size={14} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="px-4 py-3 border-t border-slate-100 bg-white">
+              <button type="button" onClick={() => addMultiJuzRow(groupIdx)} disabled={loading}
+                className="flex items-center gap-2 text-sm text-amber-600 hover:text-amber-700 font-medium transition-colors disabled:opacity-50">
+                <Plus size={15} /> Tambah Baris Surah
+              </button>
+            </div>
+          </div>
+        ))
+      ) : (
+      /* Single-juz: original table */
       <div className="rounded-xl border-2 border-amber-200 overflow-hidden">
         <div className="bg-amber-700 px-4 py-3 flex items-center gap-2">
           <BookOpen size={15} className="text-white" />
@@ -448,6 +653,7 @@ export default function RaportTahfidzForm({
           </button>
         </div>
       </div>
+      )}
 
       {/* ══ BAGIAN TAHSIN ═══════════════════════════════════════════════════ */}
       <div className="rounded-xl border-2 border-indigo-200 overflow-hidden">

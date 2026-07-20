@@ -31,6 +31,7 @@ export default function RaportTahfidzPrintable({
   onInlineDetailChange,
   onInlineAddRow,
   onInlineRemoveRow,
+  siblingRaports = [],
 }: {
   raport: RaportTahfidzData;
   hideButtons?: boolean;
@@ -42,6 +43,7 @@ export default function RaportTahfidzPrintable({
   onInlineDetailChange?: (index: number, field: keyof DetailSurahData, value: string | null) => void;
   onInlineAddRow?: () => void;
   onInlineRemoveRow?: (index: number) => void;
+  siblingRaports?: RaportTahfidzData[];
 }) {
   const printRef = useRef<HTMLDivElement>(null);
   const [profil, setProfil] = useState<ProfilRaportData>(profilProp ?? {});
@@ -64,7 +66,7 @@ export default function RaportTahfidzPrintable({
     pageStyle: getRaportBrowserPrintStyle(raport.juz),
   });
 
-  const documentProps = {
+  const mainDocProps = {
     raport,
     profil,
     inlineEdit,
@@ -74,8 +76,20 @@ export default function RaportTahfidzPrintable({
     onInlineRemoveRow,
   };
 
+  // Sort siblings by juz (ascending) for consistent ordering
+  const sortedSiblings = [...siblingRaports].sort((a, b) => Number(a.juz ?? 0) - Number(b.juz ?? 0));
+
   if (printOnly) {
-    return <RaportTahfidzDocument key={`print-only-${raport.id}`} {...documentProps} />;
+    return (
+      <>
+        <RaportTahfidzDocument key={`print-only-${raport.id}`} {...mainDocProps} />
+        {sortedSiblings.map((sib) => (
+          <div key={`print-sib-${sib.id}`} style={{ pageBreakBefore: 'always' }}>
+            <RaportTahfidzDocument key={`print-sib-doc-${sib.id}`} raport={sib} profil={profil} />
+          </div>
+        ))}
+      </>
+    );
   }
 
   return (
@@ -83,21 +97,34 @@ export default function RaportTahfidzPrintable({
       {!hideButtons && (
         <div className="no-print flex justify-end">
           <Button variant="primary" leftIcon={<Printer size={16} />} onClick={() => handlePrint()}>
-            Cetak Raport
+            Cetak Raport{sortedSiblings.length > 0 ? ` (${sortedSiblings.length + 1} Juz)` : ''}
           </Button>
         </div>
       )}
 
+      {/* Preview — main raport + siblings */}
       <div className="raport-preview-chrome no-print">
         <div className="raport-preview-frame">
           <div className="raport-preview-sheet">
-            <RaportTahfidzDocument key={`preview-${raport.id}`} {...documentProps} />
+            <RaportTahfidzDocument key={`preview-${raport.id}`} {...mainDocProps} />
           </div>
+          {sortedSiblings.map((sib) => (
+            <div key={`preview-sib-${sib.id}`} className="raport-preview-sheet" style={{ marginTop: '2rem' }}>
+              <div className="text-xs text-slate-400 text-center mb-1 no-print">— Juz {sib.juz ?? '?'} —</div>
+              <RaportTahfidzDocument key={`preview-sib-doc-${sib.id}`} raport={sib} profil={profil} />
+            </div>
+          ))}
         </div>
       </div>
 
+      {/* Print portal — main raport + siblings with page breaks */}
       <div className="raport-print-portal" aria-hidden="true">
-        <RaportTahfidzDocument key={`print-${raport.id}`} ref={contentRef ?? printRef} {...documentProps} />
+        <RaportTahfidzDocument key={`print-${raport.id}`} ref={contentRef ?? printRef} {...mainDocProps} />
+        {sortedSiblings.map((sib) => (
+          <div key={`print-sib-${sib.id}`} style={{ pageBreakBefore: 'always' }}>
+            <RaportTahfidzDocument key={`print-sib-doc-${sib.id}`} raport={sib} profil={profil} />
+          </div>
+        ))}
       </div>
     </div>
   );
