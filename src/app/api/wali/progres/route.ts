@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
+import { todayStr, dateToStrWITA } from '@/lib/time';
 
 export const dynamic = 'force-dynamic';
 
@@ -92,16 +93,16 @@ export async function GET(request: NextRequest) {
     const fromParam = searchParams.get('from');
     let startDate: Date;
     if (fromParam) {
-      startDate = new Date(fromParam + 'T00:00:00');
+      startDate = new Date(fromParam + 'T00:00:00Z');
     } else {
-      startDate = new Date();
-      const day = startDate.getDay();
-      startDate.setDate(startDate.getDate() - (day === 0 ? 6 : day - 1));
+      startDate = new Date(todayStr() + 'T00:00:00Z');
+      const day = startDate.getUTCDay();
+      startDate.setUTCDate(startDate.getUTCDate() - (day === 0 ? 6 : day - 1));
     }
     const endDate = new Date(startDate);
-    endDate.setDate(endDate.getDate() + 6);
-    const startDateStr = startDate.toISOString().split('T')[0];
-    const endDateStr = endDate.toISOString().split('T')[0];
+    endDate.setUTCDate(endDate.getUTCDate() + 6);
+    const startDateStr = dateToStrWITA(startDate);
+    const endDateStr = dateToStrWITA(endDate);
 
     // Ambil data hari libur dalam rentang
     const { data: holidays } = await supabase
@@ -185,12 +186,12 @@ export async function GET(request: NextRequest) {
     const chartData: { tanggal: string; label: string; tahfidz: number; tahsin: number; keterangan?: string; isWeekend: boolean }[] = [];
     for (let i = 0; i < 7; i++) {
       const d = new Date(startDate);
-      d.setDate(d.getDate() + i);
-      const dateStr = d.toISOString().split('T')[0];
-      const label = d.toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short' });
+      d.setUTCDate(d.getUTCDate() + i);
+      const dateStr = dateToStrWITA(d);
+      const label = d.toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'Asia/Makassar' });
       const hData = chartHafalanPerDate[dateStr];
       const tData = chartTahsinPerDate[dateStr];
-      const isWeekend = d.getDay() === 5 || d.getDay() === 6 || d.getDay() === 0;
+      const isWeekend = d.getUTCDay() === 5 || d.getUTCDay() === 6 || d.getUTCDay() === 0;
       const kabidKeterangan = holidayMap[dateStr];
       chartData.push({
         tanggal: dateStr,
