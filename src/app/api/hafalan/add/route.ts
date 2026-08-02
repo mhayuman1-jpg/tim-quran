@@ -9,6 +9,7 @@ import { getAuthenticatedSession } from '@/lib/api-auth';
 import { createServerClient } from '@/lib/supabase/server';
 import { requireActiveSemester } from '@/lib/semester';
 import { requireNoHoliday } from '@/lib/holiday';
+import { requireActiveDay } from '@/lib/activeDays';
 import { SURAH_PER_JUZ } from '@/lib/surahData';
 
 export const dynamic = 'force-dynamic';
@@ -58,6 +59,10 @@ export async function POST(request: NextRequest) {
     // Cek hari libur — tolak input jika tanggal libur
     const holidayCheck = await requireNoHoliday(supabase, tanggal);
     if (holidayCheck.error) return holidayCheck.error;
+
+    // Cek hari aktif — tolak input di Jumat, Sabtu, Minggu
+    const activeDayCheck = requireActiveDay(tanggal);
+    if (activeDayCheck.error) return activeDayCheck.error;
 
     if (!teacherId) {
       return NextResponse.json(
