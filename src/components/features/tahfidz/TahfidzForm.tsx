@@ -15,6 +15,7 @@ import Button from '@/components/ui/Button';
 import type { Tahfidz } from '@/types';
 import type { NilaiTahfidz } from '@/lib/surahData';
 import { NILAI_TANPA_HAFAL, NILAI_LANCAR } from '@/lib/surahData';
+import { todayStr } from '@/lib/time';
 
 // Format for <select> dropdown (maps v -> value, label -> label)
 const NILAI_MAKHROJ_TAJWID_OPTS = NILAI_TANPA_HAFAL.map(o => ({ value: o.v, label: o.label }));
@@ -76,7 +77,7 @@ export default function TahfidzForm({
   onCancel,
 }: TahfidzFormProps) {
   const isEdit = Boolean(initialData);
-  const today = new Date().toISOString().split('T')[0];
+  const today = todayStr();
 
   const [form, setForm] = useState<TahfidzFormData>({
     student_id: initialData?.student_id ?? '',

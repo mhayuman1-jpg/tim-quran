@@ -13,6 +13,7 @@ import type { Hafalan } from '@/types';
 import { useSiswaList } from '@/hooks/useSWRFetcher';
 import type { NilaiTahfidz } from '@/lib/surahData';
 import { NILAI_TANPA_HAFAL, NILAI_LANCAR } from '@/lib/surahData';
+import { todayStr } from '@/lib/time';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -87,7 +88,7 @@ export default function HafalanForm({
   onCancel,
 }: HafalanFormProps) {
   const isEdit = Boolean(initialData);
-  const today = new Date().toISOString().split('T')[0];
+  const today = todayStr();
 
   const [form, setForm] = useState<HafalanFormData>({
     student_id: preselectedStudentId ?? '',
