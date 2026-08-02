@@ -3,11 +3,10 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
 import { TAHFIDZ_DAYS, TAHSIN_DAYS } from '@/lib/activeDays';
-import { todayStr } from '@/lib/time';
+import { getWeekday, todayStr } from '@/lib/time';
 
 function getDayOfWeek(dateStr: string): number {
-  const d = new Date(dateStr);
-  return d.getDay();
+  return getWeekday(dateStr);
 }
 
 function getNilaiNumeric(nilai: string | null): number {

@@ -109,22 +109,22 @@ export default function StudentProgressChart({ data }: StudentProgressChartProps
         <div style={cardStyle}>
           <p style={labelStyle}>Nilai Tahfidz</p>
           <p style={{ ...valueStyle, color: '#d97706' }}>{tahfidzAvg}%</p>
-          <p style={subStyle}>Fleksibel · Makhroj, Tajwid, Lancar</p>
+          <p style={subStyle}>Sen–Kam · Makhroj, Tajwid, Lancar</p>
         </div>
         <div style={cardStyle}>
           <p style={labelStyle}>Nilai Tahsin</p>
           <p style={{ ...valueStyle, color: '#059669' }}>{tahsinAvg}%</p>
-          <p style={subStyle}>Sen–Rab · Makhroj, Kelancaran, Adab</p>
+          <p style={subStyle}>Sen–Kam · Makhroj, Kelancaran, Adab</p>
         </div>
         <div style={cardStyle}>
           <p style={labelStyle}>Kehadiran Tahfidz</p>
           <p style={{ ...valueStyle, color: '#d97706' }}>{tahfidzCompletionAvg}%</p>
-          <p style={subStyle}>Fleksibel · Semua hari</p>
+          <p style={subStyle}>Sen–Kam · Semua hari</p>
         </div>
         <div style={cardStyle}>
           <p style={labelStyle}>Kehadiran Tahsin</p>
           <p style={{ ...valueStyle, color: '#059669' }}>{tahsinCompletionAvg}%</p>
-          <p style={subStyle}>Target: 3× per minggu</p>
+          <p style={subStyle}>Target: 4× per minggu</p>
         </div>
       </div>
 
