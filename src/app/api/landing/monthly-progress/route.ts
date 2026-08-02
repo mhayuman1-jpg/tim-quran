@@ -2,11 +2,8 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
-
-// ─── Jadwal fleksibel ───
-// 0=Minggu, 1=Senin, 2=Selasa, 3=Rabu, 4=Kamis, 5=Jumat, 6=Sabtu
-// Tahfidz: fleksibel (semua hari), Tahsin: Senin, Selasa, Rabu
-const TAHSIN_DAYS = [1, 2, 3];
+import { TAHFIDZ_DAYS, TAHSIN_DAYS } from '@/lib/activeDays';
+import { todayStr } from '@/lib/time';
 
 function getDayOfWeek(dateStr: string): number {
   const d = new Date(dateStr);
@@ -27,7 +24,7 @@ function getNilaiNumeric(nilai: string | null): number {
 }
 
 function getSixMonthRange(): { label: string; key: string }[] {
-  const today = new Date();
+  const today = new Date(todayStr() + 'T00:00:00');
   return Array.from({ length: 6 }, (_, index) => {
     const date = new Date(today.getFullYear(), today.getMonth() - (5 - index), 1);
     const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
@@ -42,16 +39,6 @@ function countExpectedSessions(year: number, month: number, days: number[]): num
   for (let d = 1; d <= daysInMonth; d++) {
     const dow = new Date(year, month, d).getDay();
     if (days.includes(dow)) count++;
-  }
-  return count;
-}
-
-function countWeekdays(year: number, month: number): number {
-  let count = 0;
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  for (let d = 1; d <= daysInMonth; d++) {
-    const dow = new Date(year, month, d).getDay();
-    if (dow >= 1 && dow <= 5) count++;
   }
   return count;
 }
@@ -99,6 +86,7 @@ export async function GET(_request: NextRequest) {
     const tahfidzByMonth: Record<string, { count: number; total: number }> = {};
     for (const record of tahfidzData ?? []) {
       const dateStr = String(record.tanggal);
+      if (!TAHFIDZ_DAYS.includes(getDayOfWeek(dateStr))) continue;
       const monthKey = dateStr.substring(0, 7);
       const nilai =
         (getNilaiNumeric(record.makhroj) + getNilaiNumeric(record.tajwid) + getNilaiNumeric(record.lancar)) / 3;
@@ -122,7 +110,7 @@ export async function GET(_request: NextRequest) {
     const progressData = months.map((month) => {
       const [y, m] = month.key.split('-').map(Number);
       const expectedTahsin = countExpectedSessions(y, m - 1, TAHSIN_DAYS);
-      const totalWeekdays = countWeekdays(y, m - 1);
+      const totalWeekdays = countExpectedSessions(y, m - 1, TAHFIDZ_DAYS);
 
       const tahfidzStats = tahfidzByMonth[month.key];
       const tahsinStats = tahsinByMonth[month.key];
