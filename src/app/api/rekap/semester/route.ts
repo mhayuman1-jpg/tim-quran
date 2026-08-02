@@ -5,6 +5,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthenticatedSession } from '@/lib/api-auth';
 import { createServerClient } from '@/lib/supabase/server';
+import { isActiveDay } from '@/lib/activeDays';
 
 export const dynamic = 'force-dynamic';
 
@@ -147,12 +148,17 @@ export async function GET(request: NextRequest) {
       studentIds, 'date', dateRange.start, dateRange.end
     );
 
-    // Fetch total active days in semester
-    const { count: totalActiveDays } = await supabase
+    // Fetch total active days in semester (hanya Senin-Kamis)
+    const { data: attendanceDates } = await supabase
       .from('attendances')
-      .select('date', { count: 'exact', head: true })
+      .select('date')
       .gte('date', dateRange.start)
       .lte('date', dateRange.end);
+    const totalActiveDays = new Set(
+      (attendanceDates ?? [])
+        .map((r: any) => r.date)
+        .filter((d: string) => isActiveDay(d))
+    ).size;
 
     // Aggregate data per student
     const studentsRecap: StudentRecap[] = (students || []).map(student => {
@@ -160,8 +166,8 @@ export async function GET(request: NextRequest) {
       const studentTahsin = (tahsinData || []).filter(t => t.student_id === student.id);
       const studentAttendance = (attendanceData || []).filter(a => a.student_id === student.id);
 
-      const totalHadir = studentAttendance.filter(a => a.status === 'Hadir').length;
-      const totalTidakHadir = studentAttendance.filter(a => a.status === 'Tidak Hadir').length;
+      const totalHadir = studentAttendance.filter(a => a.status === 'Hadir' && isActiveDay(a.date)).length;
+      const totalTidakHadir = studentAttendance.filter(a => a.status === 'Tidak Hadir' && isActiveDay(a.date)).length;
 
       // Calculate average scores
       const makhrojScores = studentHafalan.filter(h => h.makhroj).map(h => parseFloat(h.makhroj as string)).filter(n => !isNaN(n));

@@ -12,6 +12,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
+import { isActiveDay } from '@/lib/activeDays';
 
 export async function GET(request: NextRequest) {
   // Verifikasi sesi
@@ -136,7 +137,9 @@ export async function GET(request: NextRequest) {
 
     const distinctDates = new Set<string>();
     for (const record of allDates ?? []) {
-      distinctDates.add(record.date as string);
+      if (isActiveDay(record.date as string)) {
+        distinctDates.add(record.date as string);
+      }
     }
     const totalHariAktif = distinctDates.size;
 
@@ -160,6 +163,7 @@ export async function GET(request: NextRequest) {
     for (const a of attendanceData ?? []) {
       const sid = a.student_id as string;
       const date = a.date as string;
+      if (!isActiveDay(date)) continue;
       if (!attendanceCountMap[sid]) {
         attendanceCountMap[sid] = new Set();
       }
