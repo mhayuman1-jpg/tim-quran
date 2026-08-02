@@ -10,6 +10,7 @@ import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
 import { requireActiveSemester } from '@/lib/semester';
 import { requireNoHoliday } from '@/lib/holiday';
+import { requireActiveDay } from '@/lib/activeDays';
 import { normalizeAttendanceRows, insertAttendanceRecord } from '@/lib/attendance';
 
 // ─── GET: daftar siswa per kelas + status hadir hari ini ──────────────────────
@@ -145,6 +146,10 @@ export async function POST(request: NextRequest) {
     // Cek hari libur
     const holidayCheck = await requireNoHoliday(supabase, date);
     if (holidayCheck.error) return holidayCheck.error;
+
+    // Cek hari aktif — tolak input di Jumat, Sabtu, Minggu
+    const activeDayCheck = requireActiveDay(date);
+    if (activeDayCheck.error) return activeDayCheck.error;
 
     // Validasi siswa exists
     const { data: validStudents } = await supabase
