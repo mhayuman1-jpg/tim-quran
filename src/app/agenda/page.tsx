@@ -2,6 +2,7 @@
 
 import { Calendar, Clock, MapPin } from 'lucide-react';
 import { createServerClient } from '@/lib/supabase/server';
+import { todayStr } from '@/lib/time';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,7 +24,7 @@ interface Agenda {
 
 async function getAgenda(): Promise<{ upcoming: Agenda[]; past: Agenda[] }> {
   try {
-    const today = new Date().toISOString().split('T')[0];
+    const today = todayStr();
     const supabase = createServerClient();
     const { data, error } = await supabase
       .from('agenda')

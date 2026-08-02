@@ -13,6 +13,7 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Button from '@/components/ui/Button';
 import { useToast } from '@/lib/toast';
+import { todayStr } from '@/lib/time';
 import type { ChartDataPoint, DateRange } from '@/components/features/charts/AttendanceChart';
 
 // ─── Dynamic import — SSR dimatikan karena Recharts menggunakan browser APIs ──
@@ -72,7 +73,7 @@ export default function MonitoringAbsensiPage() {
   const [mounted, setMounted] = useState(false);
 
   // Default: 30 hari terakhir
-  const defaultTo = toDateInputValue(new Date());
+  const defaultTo = todayStr();
   const defaultFrom = toDateInputValue(daysAgo(29));
 
   const [fromDate, setFromDate] = useState(defaultFrom);
@@ -90,7 +91,7 @@ export default function MonitoringAbsensiPage() {
   const [kelasList, setKelasList] = useState<{ id: string; name: string; jumlah_siswa: number }[]>([]);
   const [kelasLoading, setKelasLoading] = useState(true);
 
-  const today = toDateInputValue(new Date());
+  const today = todayStr();
 
   // Redirect jika bukan Kabid
   useEffect(() => {
@@ -160,7 +161,7 @@ export default function MonitoringAbsensiPage() {
   };
 
   const handlePreset = (days: number) => {
-    const newTo = toDateInputValue(new Date());
+    const newTo = todayStr();
     const newFrom = toDateInputValue(daysAgo(days - 1));
     setFromDate(newFrom);
     setToDate(newTo);

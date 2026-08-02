@@ -15,6 +15,7 @@ import {
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 import { useToast } from '@/lib/toast';
+import { todayStr } from '@/lib/time';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -92,8 +93,7 @@ function CalendarGrid({
 }) {
   const firstDay = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const today = new Date();
-  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  const todayWITA = todayStr();
 
   const cells: (string | null)[] = [];
   for (let i = 0; i < firstDay; i++) cells.push(null);
@@ -106,7 +106,7 @@ function CalendarGrid({
       {cells.map((dateStr, i) => {
         if (!dateStr) return <div key={`empty-${i}`} />;
         const isSelected = selectedDates.includes(dateStr);
-        const isToday = dateStr === todayStr;
+        const isToday = dateStr === todayWITA;
         return (
           <button
             key={dateStr}
@@ -138,7 +138,7 @@ function CalendarGrid({
 export default function KalenderLiburPage() {
   const { toast } = useToast();
 
-  const now = new Date();
+  const now = new Date(todayStr() + 'T00:00:00');
   const [selectedYear, setSelectedYear] = useState(now.getFullYear());
   const [selectedMonth, setSelectedMonth] = useState<number | ''>(now.getMonth() + 1);
 

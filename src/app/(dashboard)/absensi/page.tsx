@@ -12,6 +12,7 @@ import Button from '@/components/ui/Button';
 import Badge, { getStatusBadgeVariant } from '@/components/ui/Badge';
 import DataTable, { ColumnDef } from '@/components/shared/DataTable';
 import { useToast } from '@/lib/toast';
+import { todayStr } from '@/lib/time';
 import { useViewMode } from '@/hooks/useViewMode';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -45,13 +46,6 @@ interface TabProps {
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
-
-function toDateInputValue(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
-}
 
 function formatTanggal(dateStr: string): string {
   const [y, m, d] = dateStr.split('-').map(Number);
@@ -118,7 +112,7 @@ function TabHarian({ showToast, classId }: TabProps) {
     }
     return h;
   }, [viewAsRole, viewAsTeacherId]);
-  const today = toDateInputValue(new Date());
+  const today = todayStr();
   const [date, setDate] = useState(today);
   const [data, setData] = useState<AbsensiHarian[]>([]);
   const [loading, setLoading] = useState(false);

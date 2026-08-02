@@ -11,6 +11,7 @@ import { AtSign, Mail, MapPin, Phone, PlayCircle, ArrowUpRight, BookOpen, Star, 
 import PublicNavbar from '@/components/layout/PublicNavbar';
 import { IslamicPatternBg, CornerOrnament } from '@/components/features/IslamicDecorations';
 import { createServerClient } from '@/lib/supabase/server';
+import { todayStr } from '@/lib/time';
 
 export const metadata: Metadata = {
   title: "Tim Qur'an — Platform Tahfidz & Tahsin Modern",
@@ -44,7 +45,7 @@ interface MonthlyProgressPoint {
 }
 
 function getSixMonthRange(): { label: string; key: string }[] {
-  const today = new Date();
+  const today = new Date(todayStr() + 'T00:00:00');
   return Array.from({ length: 6 }, (_, index) => {
     const date = new Date(today.getFullYear(), today.getMonth() - (5 - index), 1);
     const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
@@ -97,7 +98,7 @@ async function getMonthlyProgressData(): Promise<MonthlyProgressPoint[]> {
 
 async function getPageData() {
   try {
-    const today = new Date().toISOString().split('T')[0];
+    const today = todayStr();
     const supabase = createServerClient();
     const [profilResult, programsResult, agendasResult, pengumumanResult, artikelResult, galeriResult, santriResult, navResult] = await Promise.all([
       supabase.from('profil_website').select('*').limit(1).maybeSingle(),

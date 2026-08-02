@@ -11,6 +11,7 @@ import Badge from '@/components/ui/Badge';
 import ConfirmDialog from '@/components/shared/ConfirmDialog';
 import ImageUpload from '@/components/shared/ImageUpload';
 import { useToast } from '@/lib/toast';
+import { todayStr } from '@/lib/time';
 import { toImageUrl } from '@/lib/storage/urls';
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -485,7 +486,7 @@ function AgendaTab({ toast }: { toast: ReturnType<typeof useToast>['toast'] }) {
     setDeleteLoading(false);
   };
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = todayStr();
 
   return (
     <div className="space-y-4">
