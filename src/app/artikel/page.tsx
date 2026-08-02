@@ -88,7 +88,7 @@ export default async function ArtikelPublikPage() {
           </span>
           <h1 className="text-4xl font-bold text-slate-900 mb-4">Artikel</h1>
           <p className="text-amber-600 text-lg max-w-xl mx-auto">
-            Baca artikel dan berita terbaru seputar program Qur'an.
+Baca artikel dan berita terbaru seputar program Qur&apos;an.
           </p>
         </div>
       </div>

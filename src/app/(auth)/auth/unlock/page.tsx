@@ -60,7 +60,7 @@ export default function UnlockPage() {
             Akses Terbatas
           </h1>
           <p className="text-slate-500 text-center text-sm mb-8">
-            Masukkan kode akses untuk melanjutkan ke halaman login Tim Qur'an.
+            Masukkan kode akses untuk melanjutkan ke halaman login Tim Qur&apos;an.
           </p>
 
           {/* Error Alert */}

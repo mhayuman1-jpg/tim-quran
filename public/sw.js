@@ -75,7 +75,7 @@ async function handleRequest(request, strategy) {
       if (cached) return cached;
       try {
         const response = await fetch(request);
-        if (response.ok) cache.put(request, response.clone());
+        if (response.ok && response.status !== 206) cache.put(request, response.clone());
         return response;
       } catch {
         return new Response('Offline', { status: 503 });
@@ -85,7 +85,7 @@ async function handleRequest(request, strategy) {
     case 'networkFirst': {
       try {
         const response = await fetch(request);
-        if (response.ok) cache.put(request, response.clone());
+        if (response.ok && response.status !== 206) cache.put(request, response.clone());
         return response;
       } catch {
         const cached = await cache.match(request);
@@ -97,7 +97,7 @@ async function handleRequest(request, strategy) {
     case 'staleWhileRevalidate': {
       const cached = await cache.match(request);
       const fetchPromise = fetch(request).then((response) => {
-        if (response.ok) cache.put(request, response.clone());
+        if (response.ok && response.status !== 206) cache.put(request, response.clone());
         return response;
       });
       return cached || fetchPromise;

@@ -8,36 +8,6 @@ import { createServerClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
 
-interface HafalanRecord {
-  tanggal: string;
-  surah_juz: string;
-  halaman: string;
-  makhroj: string;
-  tajwid: string;
-  lancar: string;
-  catatan: string;
-}
-
-interface TahsinRecord {
-  tanggal: string;
-  metode: string;
-  makhroj: string;
-  kelancaran: string;
-  adab: string;
-  buku: string;
-  halaman: string;
-  catatan: string;
-}
-
-interface AttendanceRecord {
-  status: string;
-}
-
-interface StudentInfo {
-  nama: string;
-  gender: string;
-}
-
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);

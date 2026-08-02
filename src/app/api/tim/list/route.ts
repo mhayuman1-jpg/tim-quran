@@ -1,23 +1,17 @@
 ﻿// src/app/api/tim/list/route.ts
 // GET: Ambil semua user dengan role Tim_Quran, Sekretaris, atau Bendahara
 
-import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import { NextRequest, NextResponse } from 'next/server';
+import { getAuthenticatedSession } from '@/lib/api-auth';
 import { createServerClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     // Cek autentikasi
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
-      return NextResponse.json(
-        { message: 'Sesi tidak valid, silakan login kembali' },
-        { status: 401 }
-      );
-    }
+    const session = await getAuthenticatedSession(request);
+    if (session instanceof NextResponse) return session;
 
     // Hanya Kabid yang boleh akses
     if (session.user.role !== 'Kabid') {

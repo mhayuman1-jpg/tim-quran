@@ -5,8 +5,7 @@
 // - Tim_Quran hanya bisa tambah tahsin untuk siswa yang menjadi tanggung jawabnya
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { getAuthenticatedSession } from '@/lib/api-auth';
 import { createServerClient } from '@/lib/supabase/server';
 import { requireActiveSemester } from '@/lib/semester';
 import { requireNoHoliday } from '@/lib/holiday';
@@ -18,13 +17,8 @@ const VALID_METODE: TahsinMetode[] = ['Wafa', 'IWR', 'Al-Quran'];
 
 export async function POST(request: NextRequest) {
   // Verifikasi sesi
-  const session = await getServerSession(authOptions);
-  if (!session || !session.user) {
-    return NextResponse.json(
-      { message: 'Sesi tidak valid, silakan login kembali.' },
-      { status: 401 }
-    );
-  }
+  const session = await getAuthenticatedSession(request);
+  if (session instanceof NextResponse) return session;
 
   try {
     const body = await request.json();
@@ -55,16 +49,9 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    if (halaman === undefined || halaman === null) {
+    if (halaman === undefined || halaman === null || typeof halaman !== 'string' || halaman.trim() === '') {
       return NextResponse.json(
         { message: 'Halaman wajib diisi.' },
-        { status: 400 }
-      );
-    }
-    const halamanNum = Number(halaman);
-    if (isNaN(halamanNum) || halamanNum < 1) {
-      return NextResponse.json(
-        { message: 'Halaman harus berupa angka positif.' },
         { status: 400 }
       );
     }
@@ -130,7 +117,7 @@ export async function POST(request: NextRequest) {
       tanggal,
       metode: metode as TahsinMetode,
       buku: buku.trim(),
-      halaman: halamanNum,
+      halaman: halaman.trim(),
     };
 
     if (catatan && typeof catatan === 'string' && catatan.trim() !== '') {

@@ -108,7 +108,7 @@ export async function POST(request: NextRequest) {
     // 9. Reset juz_terakhir santri aktif yang BELUM ditugaskan ke pengajar
     const { data: resetData, error: resetError } = await supabase
       .from('santri')
-      .update({ juz_terakhir: 1, updated_at: new Date().toISOString() })
+      .update({ juz_terakhir: '1', updated_at: new Date().toISOString() })
       .eq('status', 'Aktif')
       .is('assigned_teacher_id', null)
       .select('id');

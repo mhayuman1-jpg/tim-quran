@@ -6,8 +6,7 @@
 // Returns: { url: string } — proxy URL gambar (permanent, via /api/images)
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import { getAuthenticatedSession } from '@/lib/api-auth';
 import { storageUpload } from '@/lib/storage/tigris';
 
 export const dynamic = 'force-dynamic';
@@ -18,10 +17,8 @@ const MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024;
 
 export async function POST(request: NextRequest) {
   // Auth check
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
-    return NextResponse.json({ message: 'Sesi tidak valid.' }, { status: 401 });
-  }
+  const session = await getAuthenticatedSession(request);
+  if (session instanceof NextResponse) return session;
 
   try {
     const { searchParams } = new URL(request.url);

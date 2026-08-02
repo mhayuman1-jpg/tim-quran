@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
     const supabase = createServerClient();
 
     // 1. Ambil semua siswa yang dibina oleh teacher_id ini (hanya yang assigned)
-    let santriQ = supabase
+    const santriQ = supabase
       .from('santri')
       .select('id, nisn, nama, gender, juz_terakhir, classes ( id, name )')
       .eq('status', 'Aktif')

@@ -15,7 +15,6 @@
 // Semua data diambil server-side via fetchRaportForExport().
 
 import RaportTahfidzDocument from '@/components/features/raport/RaportTahfidzDocument';
-import type { RaportTahfidzData } from '@/components/features/raport/raport-tahfidz-types';
 import { buildLogoReplacements } from '@/lib/raport/embed-logos';
 import { fetchRaportForExport, HEADER_SELECT } from '@/lib/raport/fetch-raport-data';
 import type { RaportExportData } from '@/lib/raport/fetch-raport-data';
@@ -89,7 +88,7 @@ async function renderRaport(raportId: string) {
     const { profil: profilWithLogos } = await buildLogoReplacements(profil);
 
     // Fetch sibling raports (same student+period, different juz)
-    let siblingRaports: RaportExportData[] = [];
+    const siblingRaports: RaportExportData[] = [];
     if (raport.student_id && raport.periode) {
       const supabase = createServerClient();
       const { data: siblings } = await supabase

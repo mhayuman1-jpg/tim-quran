@@ -5,13 +5,13 @@
 // - Tim_Quran hanya dapat menambahkan untuk siswa tanggung jawabnya
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { getAuthenticatedSession } from '@/lib/api-auth';
 import { createServerClient } from '@/lib/supabase/server';
 import { requireActiveSemester } from '@/lib/semester';
 import { requireNoHoliday } from '@/lib/holiday';
 import type { TahsinMetode } from '@/types';
 import type { NilaiTahfidz } from '@/lib/surahData';
+import { SURAH_PER_JUZ } from '@/lib/surahData';
 
 const VALID_METODE: TahsinMetode[] = ['Wafa', 'IWR', 'Al-Quran'];
 const VALID_RATING: NilaiTahfidz[] = ['✓', 'A', 'B', 'C', 'D', 'L', 'KL', 'TL', ''];
@@ -28,10 +28,8 @@ interface DetailRow {
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session || !session.user) {
-    return NextResponse.json({ message: 'Sesi tidak valid, silakan login kembali.' }, { status: 401 });
-  }
+  const session = await getAuthenticatedSession(request);
+  if (session instanceof NextResponse) return session;
 
   try {
     const { searchParams } = new URL(request.url);
@@ -47,15 +45,29 @@ export async function GET(request: NextRequest) {
     // 1. Ambil data hafalan
     const { data: hafalanData, error: hErr } = await supabase
       .from('hafalan')
-      .select('id, surah_juz, halaman, makhroj, tajwid, lancar, buku, catatan')
+      .select('id, surah_juz, halaman, makhroj, tajwid, lancar, buku, catatan, sort_order')
       .eq('student_id', studentId)
-      .eq('tanggal', tanggal)
-      .order('created_at', { ascending: true });
+      .eq('tanggal', tanggal);
 
     if (hErr) {
       console.error('Fetch hafalan error:', hErr);
       return NextResponse.json({ message: 'Gagal mengambil data hafalan.', error: hErr.message }, { status: 500 });
     }
+
+    // Re-sort berdasarkan urutan template agar konsisten meskipun sort_order di DB berbeda
+    const TEMPLATE_POSITION = new Map<string, number>();
+    for (let j = 30; j >= 1; j--) {
+      const surahsInJuz = SURAH_PER_JUZ[j] ?? [];
+      for (let idx = 0; idx < surahsInJuz.length; idx++) {
+        const key = surahsInJuz[idx].nama.toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (!TEMPLATE_POSITION.has(key)) TEMPLATE_POSITION.set(key, j * 1000 + idx);
+      }
+    }
+    const sortedHafalan = (hafalanData ?? []).sort((a, b) => {
+      const ka = (a.surah_juz ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
+      const kb = (b.surah_juz ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
+      return (TEMPLATE_POSITION.get(ka) ?? 999999) - (TEMPLATE_POSITION.get(kb) ?? 999999);
+    });
 
     // 2. Ambil data tahsin
     const { data: tahsinData, error: tErr } = await supabase
@@ -73,7 +85,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       data: {
-        hafalan: hafalanData ?? [],
+        hafalan: sortedHafalan,
         tahsin: tahsinData ?? null
       }
     }, { status: 200 });
@@ -85,10 +97,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session || !session.user) {
-    return NextResponse.json({ message: 'Sesi tidak valid, silakan login kembali.' }, { status: 401 });
-  }
+  const session = await getAuthenticatedSession(request);
+  if (session instanceof NextResponse) return session;
 
   try {
     const body = await request.json();
@@ -193,20 +203,30 @@ export async function POST(request: NextRequest) {
 
     // Insert hafalan hanya jika ada data
     if (hasHafalan) {
-      // Ambil sort_order max yang sudah ada untuk siswa+tanggal ini
-      const { data: existingMax } = await supabase
+      // Hapus record hafalan lama untuk siswa+tanggal ini, lalu insert baru
+      // agar urutan surah selalu sesuai template dan tidak ada duplikasi
+      await supabase
         .from('hafalan')
-        .select('sort_order')
+        .delete()
         .eq('student_id', student_id.trim())
-        .eq('tanggal', tanggal)
-        .order('sort_order', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .eq('tanggal', tanggal);
 
-      const baseSortOrder = existingMax ? (existingMax.sort_order ?? 0) + 1 : 0;
+      // ── Hitung sort_order berdasarkan urutan template ──
+      // Iterasi Juz 30→1 agar template Juz 30 (lengkap) override Juz 25-27
+      const SURAH_POSITION: Record<string, number> = {};
+      for (let j = 30; j >= 1; j--) {
+        const surahsInJuz = SURAH_PER_JUZ[j] ?? [];
+        for (let idx = 0; idx < surahsInJuz.length; idx++) {
+          const key = surahsInJuz[idx].nama.toLowerCase().replace(/[^a-z0-9]/g, '');
+          if (!(key in SURAH_POSITION)) {
+            SURAH_POSITION[key] = j * 1000 + idx;
+          }
+        }
+      }
 
       const hafalanRecords = detailRows.map((row, index) => {
         const halamanValue = typeof row.halaman === 'string' ? row.halaman.trim() : (row.halaman ? String(row.halaman) : null);
+        const surahKey = row.nama_surah.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
         return {
           student_id: student_id.trim(),
           teacher_id: teacherId,
@@ -218,11 +238,10 @@ export async function POST(request: NextRequest) {
           tajwid: typeof row.tajwid === 'string' && VALID_RATING.includes(row.tajwid) ? row.tajwid : null,
           lancar: typeof row.lancar === 'string' && VALID_RATING.includes(row.lancar) ? row.lancar : null,
           buku: typeof row.buku === 'string' && row.buku.trim() !== '' ? row.buku.trim() : null,
-          sort_order: baseSortOrder + index,
+          sort_order: SURAH_POSITION[surahKey] ?? 999999,
         };
       });
 
-      // Insert data hafalan baru (tanpa delete - agar riwayat tetap terjaga)
       const { error: hafalanError } = await supabase.from('hafalan').insert(hafalanRecords);
       if (hafalanError) {
         console.error('Supabase insert hafalan error:', hafalanError);

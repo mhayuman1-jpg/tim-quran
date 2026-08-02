@@ -17,7 +17,7 @@ interface Testimonial {
 }
 
 export default function KelolaTestimoniPage() {
-  const { data: session } = useSession();
+  useSession();
   const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");

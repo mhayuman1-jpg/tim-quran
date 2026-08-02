@@ -44,9 +44,8 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ message: 'Penilaian kelancaran tidak valid.' }, { status: 400 });
     }
     if (halaman !== undefined && halaman !== null) {
-      const halamanNum = Number(halaman);
-      if (isNaN(halamanNum) || halamanNum < 1) {
-        return NextResponse.json({ message: 'Halaman harus berupa angka positif.' }, { status: 400 });
+      if (typeof halaman !== 'string' || halaman.trim() === '') {
+        return NextResponse.json({ message: 'Halaman tidak valid.' }, { status: 400 });
       }
     }
 
@@ -76,7 +75,7 @@ export async function PUT(request: NextRequest) {
     const updateData: Record<string, unknown> = {};
     if (tanggal) updateData.tanggal = tanggal;
     if (surah_juz) updateData.surah_juz = surah_juz.trim();
-    if (halaman !== undefined && halaman !== null) updateData.halaman = Number(halaman);
+    if (halaman !== undefined && halaman !== null) updateData.halaman = String(halaman).trim();
     if (makhroj !== undefined && makhroj !== null) updateData.makhroj = makhroj;
     if (tajwid !== undefined && tajwid !== null) updateData.tajwid = tajwid;
     if (lancar !== undefined && lancar !== null) updateData.lancar = lancar;

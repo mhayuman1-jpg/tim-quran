@@ -1,51 +1,54 @@
-// src/middleware.ts
-// Auth + RBAC middleware
-// - Semua protected routes memerlukan JWT yang valid (redirect ke /login jika tidak ada)
-// - KABID_ONLY_ROUTES hanya bisa diakses oleh role 'Kabid'
-// - /raport/print/:path* DIKECUALIKAN dari middleware — auth ditangani di page.tsx
-//   menggunakan Node.js crypto (tidak tersedia di Edge Runtime).
-
 import { withAuth, NextRequestWithAuth } from 'next-auth/middleware';
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
-// Rute yang hanya boleh diakses oleh Kabid
 const KABID_ONLY_ROUTES = ['/kelas', '/semester', '/tim', '/dashboard/kelola-artikel', '/absensi/monitoring', '/absensi/kabid-mark', '/website', '/dashboard/website', '/admin', '/kalender-libur'];
-
-// Rute yang boleh diakses oleh Kabid dan Sekretaris
 const MANAJEMEN_ROUTES = ['/laporan-masuk', '/rekap'];
 
-// Rute wali yang tidak perlu autentikasi
-const PUBLIC_WALI_ROUTES = ['/wali/login'];
+function isLocalhostOrigin(origin: string): boolean {
+  return /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+}
+
+function getCorsHeaders(request: NextRequest): Record<string, string> {
+  const origin = request.headers.get('origin') || '';
+  const isLocalhost = isLocalhostOrigin(origin);
+  const allowedOrigin = isLocalhost ? origin : '*';
+  const headers: Record<string, string> = {
+    'Access-Control-Allow-Origin': allowedOrigin,
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, PATCH, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, Accept, Origin, X-View-Mode, X-View-As-Teacher-Id',
+    'Access-Control-Max-Age': '86400',
+  };
+  if (isLocalhost) {
+    headers['Access-Control-Allow-Credentials'] = 'true';
+  }
+  return headers;
+}
 
 export default withAuth(
   function middleware(req: NextRequestWithAuth) {
     const { pathname } = req.nextUrl;
     const token = req.nextauth.token;
 
-    // Lewati rute publik wali
-    const isPublicWali = PUBLIC_WALI_ROUTES.some((route) =>
-      pathname === route
-    );
-    if (isPublicWali) return NextResponse.next();
+    // For API routes, add CORS headers
+    if (pathname.startsWith('/api/')) {
+      const response = NextResponse.next();
+      const corsHeaders = getCorsHeaders(req);
+      Object.entries(corsHeaders).forEach(([key, value]) => {
+        response.headers.set(key, value);
+      });
+      return response;
+    }
 
-    // Cek apakah rute ini termasuk KABID_ONLY_ROUTES
-    const isKabidOnly = KABID_ONLY_ROUTES.some((route) =>
-      pathname.startsWith(route)
-    );
-
+    // RBAC for dashboard routes
+    const isKabidOnly = KABID_ONLY_ROUTES.some((route) => pathname.startsWith(route));
     if (isKabidOnly && token?.role !== 'Kabid') {
-      // Redirect non-Kabid ke dashboard dengan pesan forbidden
       const url = req.nextUrl.clone();
       url.pathname = '/dashboard';
       url.searchParams.set('error', 'forbidden');
       return NextResponse.redirect(url);
     }
 
-    // Cek MANAJEMEN_ROUTES (hanya Kabid + Sekretaris)
-    const isManajemenOnly = MANAJEMEN_ROUTES.some((route) =>
-      pathname.startsWith(route)
-    );
-
+    const isManajemenOnly = MANAJEMEN_ROUTES.some((route) => pathname.startsWith(route));
     if (isManajemenOnly && token?.role !== 'Kabid' && token?.role !== 'Sekretaris') {
       const url = req.nextUrl.clone();
       url.pathname = '/dashboard';
@@ -57,29 +60,26 @@ export default withAuth(
   },
   {
     callbacks: {
-      authorized: ({ req, token }) => {
+      authorized: ({ token, req }) => {
         const { pathname } = req.nextUrl;
-        // Izinkan akses ke halaman login wali tanpa token
-        if (PUBLIC_WALI_ROUTES.some((route) => pathname === route)) return true;
+        // Skip auth for API routes (CORS only) and public wali login
+        if (pathname.startsWith('/api/')) return true;
+        if (pathname === '/wali/login') return true;
         return !!token;
       },
     },
   }
 );
 
-// Matcher mencakup semua protected routes.
-// /raport/print/* DIKECUALIKAN via regex negative lookahead agar Playwright
-// bisa mengakses halaman cetak dengan signed print-token tanpa session cookie.
-// Auth untuk /raport/print dikerjakan di page.tsx (Node.js runtime, bukan Edge).
 export const config = {
   matcher: [
+    '/api/:path*',
     '/dashboard/:path*',
     '/dashboard-guru/:path*',
     '/siswa/:path*',
     '/hafalan/:path*',
     '/tahsin/:path*',
     '/absensi/:path*',
-    // Cocokkan /raport/* KECUALI /raport/print/* (untuk Playwright)
     '/raport/((?!print/).*)',
     '/scan/:path*',
     '/rekap/:path*',

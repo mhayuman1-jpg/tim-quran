@@ -178,7 +178,7 @@ function JuzChart({ data, loading }: { data: JuzSummary[]; loading: boolean }) {
 
 export default function DashboardGuruPage() {
   const { data: session } = useSession();
-  const { getEffectiveRole, viewAsRole, viewAsTeacherId } = useViewMode();
+  const { viewAsTeacherId } = useViewMode();
   const viewHeaders = useMemo(() => {
     const h: Record<string, string> = {};
     h['x-view-mode'] = 'teaching';

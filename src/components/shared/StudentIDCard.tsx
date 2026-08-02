@@ -11,7 +11,7 @@ export interface IDCardStudent {
   nama: string;
   qr_code: string;
   photo_url?: string | null;
-  juz_terakhir?: number;
+  juz_terakhir?: string;
   classes?: { id?: string; name: string } | null;
 }
 
@@ -32,7 +32,7 @@ export function StudentIDCard({
   logoUrl,
   logoSekolahUrl,
   namaSekolah,
-  accentColor,
+  accentColor: _accentColor,
   showDownload: _showDownload,
   cardId,
 }: StudentIDCardProps) {
@@ -285,8 +285,8 @@ export function StudentIDCard({
             boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
           }}>
             {qrDataUrl ? (
-              <img src={qrDataUrl} alt="QR Code"
-                style={{ width: "62px", height: "62px", borderRadius: "6px", display: "block" }} />
+              <Image src={qrDataUrl} alt="QR Code" width={62} height={62} unoptimized
+                style={{ borderRadius: "6px", display: "block" }} />
             ) : (
               <div style={{
                 width: "62px", height: "62px", borderRadius: "6px",

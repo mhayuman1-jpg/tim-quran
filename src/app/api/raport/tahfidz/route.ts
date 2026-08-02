@@ -5,8 +5,7 @@
 // DELETE: hapus raport
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { getAuthenticatedSession } from '@/lib/api-auth';
 import { createServerClient, withRetry } from '@/lib/supabase/server';
 import { shouldFilterByTeacher, getTeacherFilterId, getTeacherClassIds, applyTeacherSantriFilter } from '@/lib/rbac';
 
@@ -24,8 +23,8 @@ const HEADER_SELECT = `
 
 // â”€â”€ GET â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export async function GET(request: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 });
+  const session = await getAuthenticatedSession(request);
+  if (session instanceof NextResponse) return session;
 
   try {
     const { searchParams } = new URL(request.url);
@@ -91,8 +90,8 @@ export async function GET(request: NextRequest) {
 
 // â”€â”€ POST â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export async function POST(request: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 });
+  const session = await getAuthenticatedSession(request);
+  if (session instanceof NextResponse) return session;
 
   try {
     const body = await request.json();
@@ -210,8 +209,8 @@ export async function POST(request: NextRequest) {
 
 // â”€â”€ PUT â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export async function PUT(request: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 });
+  const session = await getAuthenticatedSession(request);
+  if (session instanceof NextResponse) return session;
 
   try {
     const body = await request.json();
@@ -230,7 +229,7 @@ export async function PUT(request: NextRequest) {
     // Cek akses
     const { data: existing } = await supabase
       .from('raport_tahfidz')
-      .select('id, student_id, santri ( assigned_teacher_id )')
+      .select('id, student_id, periode, juz, santri ( assigned_teacher_id )')
       .eq('id', id)
       .single();
 
@@ -268,6 +267,25 @@ export async function PUT(request: NextRequest) {
     if (tahsin_adab !== undefined) updateHeader.tahsin_adab = tahsin_adab || null;
     if (tahsin_catatan !== undefined) updateHeader.tahsin_catatan = tahsin_catatan?.trim() || null;
     if (html_custom !== undefined) updateHeader.html_custom = html_custom || null;
+
+    // Cek duplikat — pastikan student_id + periode + juz baru tidak bentrok dengan record lain
+    const checkPeriode = (updateHeader.periode as string) ?? existing.periode;
+    const checkJuz = ('juz' in updateHeader) ? (updateHeader.juz as string | number | null) : existing.juz;
+    let dupCheck = supabase
+      .from('raport_tahfidz')
+      .select('id')
+      .eq('student_id', existing.student_id)
+      .eq('periode', checkPeriode)
+      .neq('id', id);
+    if (checkJuz === null) {
+      dupCheck = dupCheck.is('juz', null);
+    } else {
+      dupCheck = dupCheck.eq('juz', checkJuz);
+    }
+    const { data: dup } = await dupCheck.maybeSingle();
+    if (dup) {
+      return NextResponse.json({ message: 'Sudah ada raport dengan periode dan juz yang sama.', duplicate: true }, { status: 409 });
+    }
 
     const { error: headerErr } = await supabase.from('raport_tahfidz').update(updateHeader).eq('id', id);
     if (headerErr) {
@@ -320,8 +338,8 @@ export async function PUT(request: NextRequest) {
 
 // â”€â”€ DELETE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export async function DELETE(request: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 });
+  const session = await getAuthenticatedSession(request);
+  if (session instanceof NextResponse) return session;
   if (session.user.role !== 'Kabid' && session.user.role !== 'Sekretaris') {
     return NextResponse.json({ message: 'Hanya Kabid dan Sekretaris yang bisa menghapus raport.' }, { status: 403 });
   }

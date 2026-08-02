@@ -11,7 +11,7 @@ export interface ExcelImportRow {
   gender: string;
   tanggal_lahir: string | null;
   kelas: string | null;
-  juz_terakhir: number;
+  juz_terakhir: string;
 }
 
 export interface ExcelRowError {
@@ -82,9 +82,9 @@ export function parseExcelImport(buffer: Buffer): ParseExcelResult {
       return;
     }
 
-    const juzNum = Number(juzRaw);
-    if (!juzRaw || isNaN(juzNum) || juzNum < 1 || juzNum > 30) {
-      errors.push({ row: rowNum, nisn, nama, alasan: 'Juz Saat Ini harus angka 1–30' });
+    const juzStr = juzRaw != null ? String(juzRaw).trim() : '';
+    if (!juzStr) {
+      errors.push({ row: rowNum, nisn, nama, alasan: 'Juz Saat Ini wajib diisi' });
       return;
     }
 
@@ -99,7 +99,7 @@ export function parseExcelImport(buffer: Buffer): ParseExcelResult {
     }
 
     const kelas = kelasRaw && String(kelasRaw).trim() ? String(kelasRaw).trim() : null;
-    valid.push({ nisn, nama, gender, tanggal_lahir, kelas, juz_terakhir: juzNum });
+    valid.push({ nisn, nama, gender, tanggal_lahir, kelas, juz_terakhir: juzStr });
   });
 
   return { valid, errors };

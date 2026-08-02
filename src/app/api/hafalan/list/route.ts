@@ -5,23 +5,37 @@
 // - Kabid bisa lihat semua hafalan
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { getAuthenticatedSession } from '@/lib/api-auth';
 import { createServerClient } from '@/lib/supabase/server';
-import { shouldFilterByTeacher, getTeacherFilterId, getTeacherClassIds, applyTeacherSantriFilter } from '@/lib/rbac';
+import { shouldFilterByTeacher, getTeacherFilterId } from '@/lib/rbac';
 import { shuffleArray } from '@/lib/shuffle';
+import { SURAH_PER_JUZ } from '@/lib/surahData';
+
+// ── Template position lookup ────────────────────────────────────────────────
+// Map nama surah normalized → posisi global di template (juz*1000 + idx)
+// Iterasi dari Juz 30→1 agar template Juz 30 (lengkap) override Juz 25-27 (parsial)
+const TEMPLATE_POSITION = new Map<string, number>();
+for (let j = 30; j >= 1; j--) {
+  const surahsInJuz = SURAH_PER_JUZ[j] ?? [];
+  for (let idx = 0; idx < surahsInJuz.length; idx++) {
+    const key = surahsInJuz[idx].nama.toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (!TEMPLATE_POSITION.has(key)) {
+      TEMPLATE_POSITION.set(key, j * 1000 + idx);
+    }
+  }
+}
+
+function getTemplatePosition(surahName: string): number {
+  const key = surahName.toLowerCase().replace(/[^a-z0-9]/g, '');
+  return TEMPLATE_POSITION.get(key) ?? 999999;
+}
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   // Verifikasi sesi
-  const session = await getServerSession(authOptions);
-  if (!session || !session.user) {
-    return NextResponse.json(
-      { message: 'Sesi tidak valid, silakan login kembali.' },
-      { status: 401 }
-    );
-  }
+  const session = await getAuthenticatedSession(request);
+  if (session instanceof NextResponse) return session;
 
   try {
     const { searchParams } = new URL(request.url);
@@ -72,7 +86,9 @@ export async function GET(request: NextRequest) {
     }
 
     // Query hafalan dengan join ke santri dan users (teacher)
-    // Urutkan berdasarkan sort_order agar urutan surah tetap sesuai template
+    // NOTE: Tidak pakai .order()/.range() di query, karena sort_order di DB
+    // tidak konsisten (record lama vs baru punya nilai berbeda). Semua sorting
+    // dan pagination dilakukan di JS setelah re-sort berdasarkan template.
     let query = supabase
       .from('hafalan')
       .select(
@@ -80,10 +96,7 @@ export async function GET(request: NextRequest) {
          santri ( id, nama, assigned_teacher_id ),
          users!hafalan_teacher_id_fkey ( id, name )`,
         { count: 'exact' }
-      )
-      .order('sort_order', { ascending: true })
-      .order('created_at', { ascending: true })
-      .range(offset, offset + limit - 1);
+      );
 
     // Filter by student_id jika diberikan
     if (studentId) {
@@ -130,13 +143,31 @@ export async function GET(request: NextRequest) {
       });
     }
 
+    // ── Re-sort berdasarkan urutan template ──────────────────────────────────
+    // Agar urutan surah selalu sesuai template meskipun sort_order di DB salah/null
+    // Sort GLOBAL berdasarkan posisi surah di template (bukan per tanggal)
+    filteredData.sort((a, b) => {
+      const posA = getTemplatePosition(a.surah_juz ?? '');
+      const posB = getTemplatePosition(b.surah_juz ?? '');
+      if (posA !== posB) return posA - posB;
+      // Fallback: sort by sort_order, then created_at
+      const soA = a.sort_order ?? 999999;
+      const soB = b.sort_order ?? 999999;
+      if (soA !== soB) return soA - soB;
+      return (a.created_at ?? '').localeCompare(b.created_at ?? '');
+    });
+
+    // ── Pagination setelah re-sort ───────────────────────────────────────────
+    const total = count ?? filteredData.length;
+    const paginatedData = filteredData.slice(offset, offset + limit);
+
     return NextResponse.json({
-      data: filteredData,
+      data: paginatedData,
       pagination: {
-        total: count ?? filteredData.length,
+        total,
         limit,
         offset,
-        hasMore: (count ?? 0) > offset + limit,
+        hasMore: total > offset + limit,
       },
     }, { status: 200 });
   } catch (error) {

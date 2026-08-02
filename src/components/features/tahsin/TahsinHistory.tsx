@@ -21,7 +21,7 @@ interface TahsinRow {
   tanggal: string;
   metode: TahsinMetode;
   buku?: string | null;
-  halaman?: number | null;
+  halaman?: string | null;
   makhroj?: string | null;
   kelancaran?: string | null;
   adab?: string | null;
@@ -62,22 +62,7 @@ function formatDate(dateStr: string): string {
   }
 }
 
-function formatEditTimestamp(isoStr: string): string {
-  if (!isoStr) return '';
-  try {
-    return new Date(isoStr).toLocaleDateString('id-ID', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  } catch {
-    return isoStr;
-  }
-}
-
-function EditIndicator({ editedFields, field }: { editedFields?: Record<string, string> | null; field: string }) {
+function EditIndicator({ editedFields: _editedFields, field: _field }: { editedFields?: Record<string, string> | null; field: string }) {
   return null;
 }
 

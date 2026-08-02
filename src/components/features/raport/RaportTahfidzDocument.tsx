@@ -410,7 +410,7 @@ const RaportTahfidzDocument = React.forwardRef<HTMLDivElement, RaportTahfidzDocu
             marginBottom: '4px',
           }}
         >
-          RAPORT TAHFIDZ &amp; TAHIN
+          RAPORT TAHFIDZ &amp; TAHSIN
         </div>
 
         {/* ══ INFO SISWA ══════════════════════════════════════════════════════ */}
@@ -461,192 +461,7 @@ const RaportTahfidzDocument = React.forwardRef<HTMLDivElement, RaportTahfidzDocu
       <>
         {headerInfoOnly}
 
-        {/* ══ TABEL PENILAIAN TAHFIDZ (satu-satunya table) ═════════════════ */}
-        <div style={{ marginBottom: '2px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            {/* Logo sekolah kiri */}
-            <div style={{ width: 100, height: 100, flexShrink: 0 }}>
-              {profil.logo_sekolah_url ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={toImageUrl(profil.logo_sekolah_url) || ''}
-                  alt="Logo"
-                  width={100}
-                  height={100}
-                  style={{ objectFit: 'contain', width: '100%', height: '100%' }}
-                  loading="eager"
-                  decoding="sync"
-                />
-              ) : (
-                <div
-                  style={{
-                    width: 100,
-                    height: 100,
-                    borderRadius: '50%',
-                    background: '#1a5c2a',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    border: '3px solid #fbbf24',
-                  }}
-                >
-                  <span
-                    style={{
-                      color: '#fbbf24',
-                      fontSize: '7px',
-                      fontWeight: 900,
-                      textAlign: 'center',
-                      lineHeight: 1.2,
-                    }}
-                  >
-                    LOGO
-                    <br />
-                    SEKOLAH
-                  </span>
-                </div>
-              )}
-            </div>
-
-            {/* Tengah: nama + tagline + garis + alamat */}
-            <div style={{ flex: 1, textAlign: 'center' }}>
-              <div
-                style={{
-                  fontSize: '28px',
-                  fontWeight: 900,
-                  color: '#cc0000',
-                  lineHeight: 1.1,
-                  letterSpacing: '0.5px',
-                  textTransform: 'uppercase',
-                  fontFamily: '"Times New Roman", serif',
-                }}
-              >
-                {profil.nama_sekolah ?? profil.nama_lembaga ?? 'SD ISLAM TERPADU AL-HILMI'}
-              </div>
-
-              <div
-                style={{
-                  fontSize: '12px',
-                  fontStyle: 'italic',
-                  fontWeight: 700,
-                  color: '#166534',
-                  marginTop: '1px',
-                }}
-              >
-                Sekolah Terpadu Dengan Pendidikan Berkarakter
-              </div>
-
-              <div style={{ fontSize: '10px', color: '#333', lineHeight: 1.3, textAlign: 'center' }}>
-                <span style={{ fontWeight: 700 }}>Alamat : </span>
-                {profil.alamat ? profil.alamat : 'Lingk. Jado RT.09 Kel. Dorotangga Dompu - NTB'}
-              </div>
-              <div style={{ fontSize: '10px', color: '#333', lineHeight: 1.2, textAlign: 'center' }}>
-                <span style={{ marginRight: 6 }}>✉ sditah.asshoff@gmail.com</span>
-                <span>🌐 Sdit Al-Hilmi Dompu</span>
-              </div>
-            </div>
-
-            {/* Logo tim kanan */}
-            <div style={{ width: 100, height: 100, flexShrink: 0 }}>
-              {profil.logo_url ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={toImageUrl(profil.logo_url) || ''}
-                  alt="Logo Tim"
-                  width={100}
-                  height={100}
-                  style={{ objectFit: 'contain', width: '100%', height: '100%' }}
-                  loading="eager"
-                  decoding="sync"
-                />
-              ) : (
-                <div
-                  style={{
-                    width: 100,
-                    height: 100,
-                    borderRadius: '50%',
-                    background: '#1e3a5f',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    border: '2px solid #93c5fd',
-                  }}
-                >
-                  <span style={{ color: '#93c5fd', fontSize: '8px', fontWeight: 900, textAlign: 'center' }}>
-                    LOGO
-                    <br />
-                    TIM
-                  </span>
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div style={{ height: '1.5px', background: '#000', marginTop: '3px' }} />
-          <div style={{ height: '1px', background: '#000', marginTop: '1px' }} />
-        </div>
-
-        {/* ══ JUDUL ═════════════════════════════════════════════════════════ */}
-        <div
-          style={{
-            textAlign: 'center',
-            fontSize: '12px',
-            fontWeight: 900,
-            letterSpacing: '3px',
-            textDecoration: 'underline',
-            textDecorationColor: '#cc0000',
-            textUnderlineOffset: '3px',
-            color: '#000',
-            margin: '4px 0 6px',
-            textTransform: 'uppercase',
-          }}
-        >
-          Raport Tahfidz &amp; Tahsin
-        </div>
-
-        {/* ══ IDENTITAS SISWA ═══════════════════════════════════════════════ */}
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
-            gap: '1px 20px',
-            marginBottom: '6px',
-            fontSize: '11px',
-          }}
-        >
-          <div style={{ display: 'flex', gap: 4, lineHeight: 1.5 }}>
-            <span style={{ minWidth: 72 }}>Nama</span>
-            <span>:</span>
-            <span style={{ fontWeight: 700, flex: 1 }}>{siswa?.nama ?? '—'}</span>
-          </div>
-          <div style={{ display: 'flex', gap: 4, lineHeight: 1.5 }}>
-            <span style={{ minWidth: 72 }}>Kelas/Semester</span>
-            <span>:</span>
-            <span style={{ flex: 1 }}>
-              {siswa?.classes?.name ?? '—'} / {renderEditableText('periode', raport.periode, '—')}
-            </span>
-          </div>
-          <div style={{ display: 'flex', gap: 4, lineHeight: 1.5 }}>
-            <span style={{ minWidth: 72 }}>NIS / NISN</span>
-            <span>:</span>
-            <span style={{ flex: 1 }}>{siswa?.nisn ?? '—'}</span>
-          </div>
-          <div style={{ display: 'flex', gap: 4, lineHeight: 1.5 }}>
-            <span style={{ minWidth: 72 }}>Tahun Ajaran</span>
-            <span>:</span>
-            <span style={{ flex: 1 }}>{renderEditableText('tahun_ajaran', raport.tahun_ajaran, '—')}</span>
-          </div>
-          <div style={{ display: 'flex', gap: 4, lineHeight: 1.5 }}>
-            <span style={{ minWidth: 72 }}>Juz</span>
-            <span>:</span>
-            <span style={{ flex: 1 }}>
-              {renderEditableText('juz', raport.juz ? String(raport.juz) : null, '—')}
-            </span>
-          </div>
-          <div />
-        </div>
-
-        {/* ══ TABEL PENILAIAN TAHFIDZ (satu-satunya table) ═════════════════ */}
+        {/* ══ TABEL PENILAIAN TAHFIDZ ════════════════════════════════════ */}
         <div style={{ fontWeight: 700, marginBottom: '4px', fontSize: '11px' }}>Penilaian Tahfidz</div>
         <table
           className="raport-tahfidz-table"
@@ -1034,7 +849,6 @@ const RaportTahfidzDocument = React.forwardRef<HTMLDivElement, RaportTahfidzDocu
             const isTahsinPage = totalJuz <= 2
               ? juzIdx === totalJuz - 1
               : juzIdx === totalJuz - 2;
-            const isLastPage = juzIdx === totalJuz - 1;
             return (
               <React.Fragment key={juzNum}>
                 <RaportPageLayout

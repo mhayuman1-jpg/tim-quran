@@ -84,13 +84,13 @@ interface RaportTahfidzCardProps {
 const RaportTahfidzCard = React.forwardRef<HTMLDivElement, RaportTahfidzCardProps>(
   (
     {
-      raport,
+raport,
       profil = {},
-      inlineEdit = false,
-      onInlineChange,
-      onInlineDetailChange,
-      onInlineAddRow,
-      onInlineRemoveRow,
+      inlineEdit: _inlineEdit = false,
+      onInlineChange: _onInlineChange,
+      onInlineDetailChange: _onInlineDetailChange,
+      onInlineAddRow: _onInlineAddRow,
+      onInlineRemoveRow: _onInlineRemoveRow,
     },
     ref
   ) => {
@@ -436,7 +436,7 @@ const RaportTahfidzCard = React.forwardRef<HTMLDivElement, RaportTahfidzCardProp
             <div className="signature-nih">NIY: {niyGuruKelas || '—'}</div>
           </div>
           <div className="signature-box">
-            <div>Kabid Qur'an</div>
+            <div>Kabid Qur&apos;an</div>
             <div className="signature-line" />
             <div className="signature-name">{namaKabid || '—'}</div>
             <div className="signature-nih">NIY: {niyKabid || '—'}</div>

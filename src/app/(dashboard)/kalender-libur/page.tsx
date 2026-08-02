@@ -257,6 +257,7 @@ export default function KalenderLiburPage() {
   const yearOptions = useMemo(() => {
     const thisYear = now.getFullYear();
     return Array.from({ length: 6 }, (_, i) => thisYear - 2 + i);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const monthOptions = useMemo(() => {

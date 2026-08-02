@@ -102,8 +102,6 @@ function buildUserPrompt(action: string, text: string): string {
 
 // ─── OpenRouter ───────────────────────────────────────────────────────────────────
 
-const OPENROUTER_MODEL = 'qwen/qwen-2-7b-instruct:free';
-
 async function callOpenRouter(
   systemPrompt: string,
   userPrompt: string,
@@ -165,11 +163,10 @@ function markdownToHtml(md: string): string {
   const html: string[] = [];
   let inUl = false;
   let inOl = false;
-  let olIdx = 0;
 
   const closeList = () => {
     if (inUl) { html.push('</ul>'); inUl = false; }
-    if (inOl) { html.push('</ol>'); inOl = false; olIdx = 0; }
+    if (inOl) { html.push('</ol>'); inOl = false; }
   };
 
   const inline = (t: string) =>

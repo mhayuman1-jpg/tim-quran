@@ -29,7 +29,7 @@ export interface TahfidzFormData {
   student_id: string;
   tanggal: string;
   surah_juz: string;
-  halaman: number;
+  halaman: string;
   makhroj: string;
   tajwid: string;
   lancar: string;
@@ -60,8 +60,8 @@ function validate(data: TahfidzFormData): FormErrors {
     errors.tanggal = 'Tanggal wajib diisi.';
   }
   if (!data.surah_juz.trim()) errors.surah_juz = 'Surah / Juz wajib diisi.';
-  if (isNaN(data.halaman) || data.halaman < 1) {
-    errors.halaman = 'Halaman harus berupa angka positif.';
+  if (!data.halaman || !data.halaman.trim()) {
+    errors.halaman = 'Halaman wajib diisi.';
   }
   if (!data.makhroj) errors.makhroj = 'Penilaian makhroj wajib dipilih.';
   if (!data.tajwid) errors.tajwid = 'Penilaian tajwid wajib dipilih.';
@@ -82,7 +82,7 @@ export default function TahfidzForm({
     student_id: initialData?.student_id ?? '',
     tanggal: initialData?.tanggal ?? today,
     surah_juz: initialData?.surah_juz ?? '',
-    halaman: initialData?.halaman ?? 1,
+    halaman: initialData?.halaman ?? '',
     makhroj: initialData?.makhroj ?? '',
     tajwid: initialData?.tajwid ?? '',
     lancar: initialData?.lancar ?? '',
@@ -126,7 +126,7 @@ export default function TahfidzForm({
       student_id: initialData?.student_id ?? '',
       tanggal: initialData?.tanggal ?? today,
       surah_juz: initialData?.surah_juz ?? '',
-      halaman: initialData?.halaman ?? 1,
+      halaman: initialData?.halaman ?? '',
       makhroj: initialData?.makhroj ?? '',
       tajwid: initialData?.tajwid ?? '',
       lancar: initialData?.lancar ?? '',
@@ -203,10 +203,11 @@ export default function TahfidzForm({
       <Input
         label="Halaman"
         required
-        value={String(form.halaman)}
-        onChange={(e) => set('halaman', Number(e.target.value) || 1)}
+        value={form.halaman}
+        onChange={(e) => set('halaman', e.target.value)}
         error={errors.halaman}
-        helperText="Halaman tahfidz yang dipelajari"
+        placeholder="Contoh: 1, 1-20, atau ayat 1-5"
+        helperText="Halaman atau ayat yang dipelajari"
         disabled={loading}
       />
 

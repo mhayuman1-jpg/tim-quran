@@ -23,7 +23,7 @@ export interface RaportData {
   tajwid?: number | null;
   lancar?: number | null;
   buku_surah?: string | null;
-  halaman?: number | null;
+  halaman?: string | null;
   catatan?: string | null;
   santri?: {
     nama: string;
@@ -616,8 +616,8 @@ export default function RaportPrintable({ raport, className = '' }: RaportPrinta
           {/* Identitas */}
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h2 className="text-xl font-bold text-amber-800">Raport Qur'an</h2>
-              <p className="text-sm text-slate-500">Program Tahfidz &amp; Tahsin Al-Qur'an</p>
+              <h2 className="text-xl font-bold text-amber-800">Raport Qur&apos;an</h2>
+              <p className="text-sm text-slate-500">Program Tahfidz &amp; Tahsin Al-Qur&apos;an</p>
             </div>
             <div className="text-right text-sm text-slate-600">
               <p className="font-semibold">{raport.periode}</p>

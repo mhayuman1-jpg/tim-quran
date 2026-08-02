@@ -19,7 +19,7 @@ import { NILAI_TANPA_HAFAL, NILAI_LANCAR } from '@/lib/surahData';
 interface StudentOption {
   id: string;
   nama: string;
-  juz_terakhir: number;
+  juz_terakhir: string;
 }
 
 export interface HafalanFormData {
@@ -32,7 +32,7 @@ export interface HafalanFormData {
   tajwid: NilaiTahfidz;
   lancar: NilaiTahfidz;
   update_juz_terakhir: boolean;
-  juz_baru: number;
+  juz_baru: string;
 }
 
 interface HafalanFormProps {
@@ -70,9 +70,8 @@ function validate(data: HafalanFormData): FormErrors {
     errors.ayat = 'Ayat wajib diisi.';
   }
   if (data.update_juz_terakhir) {
-    const juzNum = Number(data.juz_baru);
-    if (isNaN(juzNum) || juzNum < 1 || juzNum > 30) {
-      errors.juz_baru = 'Juz harus antara 1 dan 30.';
+    if (!data.juz_baru || !data.juz_baru.trim()) {
+      errors.juz_baru = 'Juz wajib diisi.';
     }
   }
   return errors;
@@ -100,11 +99,11 @@ export default function HafalanForm({
     tajwid: '',
     lancar: '',
     update_juz_terakhir: false,
-    juz_baru: 1,
-  });
+    juz_baru: '1',
+    });
 
   const [errors, setErrors] = useState<FormErrors>({});
-  const [selectedStudentJuz, setSelectedStudentJuz] = useState<number>(1);
+  const [selectedStudentJuz, setSelectedStudentJuz] = useState<string>('1');
 
   // Fetch daftar siswa via SWR (cached & deduplicated)
   const { siswa: allSiswa, isLoading: studentsLoading } = useSiswaList();
@@ -118,8 +117,8 @@ export default function HafalanForm({
   useEffect(() => {
     const selected = students.find((s) => s.id === form.student_id);
     if (selected) {
-      setSelectedStudentJuz(selected.juz_terakhir);
-      setForm((prev) => ({ ...prev, juz_baru: selected.juz_terakhir }));
+      setSelectedStudentJuz(String(selected.juz_terakhir ?? '1'));
+      setForm((prev) => ({ ...prev, juz_baru: String(selected.juz_terakhir ?? '1') }));
     }
   }, [form.student_id, students]);
 
@@ -136,7 +135,7 @@ export default function HafalanForm({
         tajwid: (initialData.tajwid as NilaiTahfidz) ?? '',
         lancar: (initialData.lancar as NilaiTahfidz) ?? '',
         update_juz_terakhir: false,
-        juz_baru: 1,
+        juz_baru: '1',
       });
     } else {
       setForm({
@@ -149,7 +148,7 @@ export default function HafalanForm({
         tajwid: '',
         lancar: '',
         update_juz_terakhir: false,
-        juz_baru: 1,
+        juz_baru: '1',
       });
     }
     setErrors({});
@@ -327,13 +326,10 @@ export default function HafalanForm({
             <Input
               label="Juz Baru"
               required
-              type="number"
-              min={1}
-              max={30}
-              value={String(form.juz_baru)}
-              onChange={(e) => set('juz_baru', parseInt(e.target.value) || 1)}
+              value={form.juz_baru}
+              onChange={(e) => set('juz_baru', e.target.value)}
               error={errors.juz_baru}
-              helperText="Nilai antara 1 dan 30"
+              placeholder="Contoh: Juz 30, 29, & 1"
               disabled={loading}
             />
           </div>

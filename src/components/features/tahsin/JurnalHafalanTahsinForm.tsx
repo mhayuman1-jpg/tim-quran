@@ -6,7 +6,7 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import type { TahsinMetode } from '@/types';
 import type { NilaiTahfidz } from '@/lib/surahData';
-import { JUZ_TERSEDIA, SURAH_PER_JUZ, NILAI_TANPA_HAFAL, NILAI_LANCAR } from '@/lib/surahData';
+import { JUZ_TERSEDIA, SURAH_PER_JUZ, NILAI_TANPA_HAFAL, NILAI_LANCAR, SURAH_ALQURAN_LIST } from '@/lib/surahData';
 
 interface StudentOption {
   id: string;
@@ -59,6 +59,10 @@ const NILAI_MAKHROJ_TAJWID = NILAI_TANPA_HAFAL;
 
 // Options for Lancar column (Kosong, Lancar, Kurang Lancar, Tidak Lancar)
 const NILAI_LANCAR_OPTS = NILAI_LANCAR;
+
+// Opsi buku/jilid berdasarkan metode tahsin
+const BUKU_WAFA_OPTIONS = ['WAFA 1', 'WAFA 2', 'WAFA 3', 'WAFA 4', 'WAFA 5', 'TAJWID', 'GHORIB'];
+const BUKU_IWR_OPTIONS = ['Jilid 1', 'Jilid 2', 'Jilid 3', 'Jilid 4', 'Panduan Tajwid & Ghorib'];
 
 function NilaiSelect({ value, onChange, disabled, options }: {
   value: NilaiTahfidz;
@@ -165,7 +169,7 @@ export default function JurnalHafalanTahsinForm({ loading = false, mode = 'both'
 
   // ── Slide state ──
   const [slides, setSlides] = useState<JurnalSlide[]>([newSlide()]);
-  const [activeSlideIndex, setActiveSlideIndex] = useState(0);
+  const [_activeSlideIndex, setActiveSlideIndex] = useState(0);
 
   // Cek apakah jurnal sudah ada pada tanggal ini untuk siswa terpilih
   const [isCheckingJournal, setIsCheckingJournal] = useState(false);
@@ -257,21 +261,45 @@ export default function JurnalHafalanTahsinForm({ loading = false, mode = 'both'
           setSlides([newSlide('', loadedRows.length > 0 ? loadedRows : [emptyRow()])]);
           setActiveSlideIndex(0);
         } else {
-          // Tidak ada data harian -> Reset input ke default (Mode Baru)
+          // Tidak ada data harian -> Auto-fill dari riwayat tahsin terakhir
           setIsEditingExisting(false);
-          setForm((prev) => ({
-            ...prev,
-            tahsin_metode: '',
-            tahsin_buku: '',
-            tahsin_halaman: '',
-            tahsin_makhroj: '',
-            tahsin_kelancaran: '',
-            tahsin_adab: '',
-            tahsin_catatan: '',
-            detail: [emptyRow()],
-          }));
-          setSlides([newSlide()]);
-          setActiveSlideIndex(0);
+
+          // Fetch riwayat tahsin terakhir untuk auto-fill
+          fetch(`/api/tahsin/list?student_id=${form.student_id}&limit=1`)
+            .then((res) => (cancelled ? null : res.ok ? res.json() : { data: [] }))
+            .then((tahsinJson) => {
+              if (cancelled || !tahsinJson) return;
+              const lastTahsin = tahsinJson.data?.[0];
+              setForm((prev) => ({
+                ...prev,
+                tahsin_metode: lastTahsin?.metode || '',
+                tahsin_buku: lastTahsin?.buku || '',
+                tahsin_halaman: lastTahsin?.halaman ?? '',
+                tahsin_makhroj: '',
+                tahsin_kelancaran: '',
+                tahsin_adab: '',
+                tahsin_catatan: '',
+                detail: [emptyRow()],
+              }));
+              setSlides([newSlide()]);
+              setActiveSlideIndex(0);
+            })
+            .catch(() => {
+              if (cancelled) return;
+              setForm((prev) => ({
+                ...prev,
+                tahsin_metode: '',
+                tahsin_buku: '',
+                tahsin_halaman: '',
+                tahsin_makhroj: '',
+                tahsin_kelancaran: '',
+                tahsin_adab: '',
+                tahsin_catatan: '',
+                detail: [emptyRow()],
+              }));
+              setSlides([newSlide()]);
+              setActiveSlideIndex(0);
+            });
         }
       })
       .catch(() => {
@@ -285,6 +313,32 @@ export default function JurnalHafalanTahsinForm({ loading = false, mode = 'both'
       cancelled = true;
     };
   }, [form.student_id, form.tanggal, mode]);
+
+  // Auto-fill tahsin dari riwayat terakhir (mode='tahsin' saja)
+  useEffect(() => {
+    if (mode !== 'tahsin') return;
+    if (!form.student_id) return;
+
+    let cancelled = false;
+
+    fetch(`/api/tahsin/list?student_id=${form.student_id}&limit=1`)
+      .then((res) => (cancelled ? null : res.ok ? res.json() : { data: [] }))
+      .then((json) => {
+        if (cancelled || !json) return;
+        const lastTahsin = json.data?.[0];
+        if (lastTahsin) {
+          setForm((prev) => ({
+            ...prev,
+            tahsin_metode: lastTahsin.metode || '',
+            tahsin_buku: lastTahsin.buku || '',
+            tahsin_halaman: lastTahsin.halaman ?? '',
+          }));
+        }
+      })
+      .catch(() => {});
+
+    return () => { cancelled = true; };
+  }, [form.student_id, mode]);
 
   const setField = <K extends keyof JurnalHafalanTahsinFormData>(key: K, value: JurnalHafalanTahsinFormData[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -483,7 +537,6 @@ export default function JurnalHafalanTahsinForm({ loading = false, mode = 'both'
 
         {/* ── Each slide = its own independent section with table ── */}
         {slides.map((slide, slideIdx) => {
-          const juzLabel = slide.juz ? `Juz ${slide.juz}` : `Slide ${slideIdx + 1}`;
           return (
             <div key={slide.id} className="rounded-xl border border-amber-200 overflow-hidden">
               {/* Slide header banner */}
@@ -630,7 +683,11 @@ export default function JurnalHafalanTahsinForm({ loading = false, mode = 'both'
               <label className="text-xs font-medium text-slate-600 uppercase tracking-wide">Metode</label>
               <select
                 value={form.tahsin_metode}
-                onChange={(e) => setField('tahsin_metode', e.target.value as TahsinMetode)}
+                onChange={(e) => {
+                  const newMetode = e.target.value as TahsinMetode;
+                  setForm((prev) => ({ ...prev, tahsin_metode: newMetode, tahsin_buku: '' }));
+                  setErrors((prev) => ({ ...prev, tahsin_metode: '', tahsin_buku: '' }));
+                }}
                 disabled={loading}
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-100"
               >
@@ -641,13 +698,31 @@ export default function JurnalHafalanTahsinForm({ loading = false, mode = 'both'
               </select>
               {errors.tahsin_metode && <p className="text-xs text-red-600">{errors.tahsin_metode}</p>}
             </div>
-            <Input
-              label="Jilid / Surah"
-              value={form.tahsin_buku}
-              onChange={(e) => setField('tahsin_buku', e.target.value)}
-              error={errors.tahsin_buku}
-              disabled={loading}
-            />
+            {form.tahsin_metode === 'Wafa' || form.tahsin_metode === 'IWR' || form.tahsin_metode === 'Al-Quran' ? (
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-medium text-slate-600 uppercase tracking-wide">Jilid / Surah</label>
+                <select
+                  value={form.tahsin_buku}
+                  onChange={(e) => setField('tahsin_buku', e.target.value)}
+                  disabled={loading}
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-100"
+                >
+                  <option value="">— Pilih —</option>
+                  {(form.tahsin_metode === 'Wafa' ? BUKU_WAFA_OPTIONS : form.tahsin_metode === 'IWR' ? BUKU_IWR_OPTIONS : SURAH_ALQURAN_LIST).map((opt) => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
+                </select>
+                {errors.tahsin_buku && <p className="text-xs text-red-600">{errors.tahsin_buku}</p>}
+              </div>
+            ) : (
+              <Input
+                label="Jilid / Surah"
+                value={form.tahsin_buku}
+                onChange={(e) => setField('tahsin_buku', e.target.value)}
+                error={errors.tahsin_buku}
+                disabled={loading}
+              />
+            )}
             <Input
               label="Halaman / Ayat"
               value={form.tahsin_halaman}

@@ -111,6 +111,7 @@ export default function PublicNavbar({
       }
     };
     fetchNav();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigationItems]);
 
   useEffect(() => {

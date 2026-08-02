@@ -81,7 +81,7 @@ export async function GET(request: NextRequest) {
 
     // Ambil nama guru assigned
     const teacherIds = Array.from(new Set(santriList.map((s: any) => s.assigned_teacher_id).filter(Boolean)));
-    let teacherMap: Record<string, string> = {};
+    const teacherMap: Record<string, string> = {};
     if (teacherIds.length > 0) {
       const { data: teachers } = await supabase
         .from('users')

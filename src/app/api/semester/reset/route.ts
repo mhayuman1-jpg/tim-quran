@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
     if (reset_juz === true) {
       const { data: resetData, error: resetError } = await supabase
         .from('santri')
-        .update({ juz_terakhir: 1, updated_at: new Date().toISOString() })
+        .update({ juz_terakhir: '1', updated_at: new Date().toISOString() })
         .eq('status', 'Aktif')
         .select('id');
 

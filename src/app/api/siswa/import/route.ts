@@ -126,9 +126,9 @@ export async function POST(request: NextRequest) {
         continue;
       }
 
-      const juzNum = Number(juzRaw);
-      if (!juzRaw || isNaN(juzNum) || juzNum < 1 || juzNum > 30) {
-        results.push({ row: rowNum, nisn, nama, status: 'gagal', alasan: 'Juz Saat Ini harus berupa angka antara 1 dan 30' });
+      const juzStr = juzRaw != null ? String(juzRaw).trim() : '';
+      if (!juzStr) {
+        results.push({ row: rowNum, nisn, nama, status: 'gagal', alasan: 'Juz Saat Ini wajib diisi' });
         gagal++;
         continue;
       }
@@ -157,7 +157,7 @@ export async function POST(request: NextRequest) {
         nisn,
         nama,
         gender,
-        juz_terakhir: juzNum,
+        juz_terakhir: juzStr,
         qr_code,
         status: 'Aktif',
       };

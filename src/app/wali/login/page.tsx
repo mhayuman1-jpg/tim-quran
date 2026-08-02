@@ -22,7 +22,7 @@ export default function WaliLoginPage() {
     if (res?.error) { setError("NIS tidak ditemukan. Pastikan NIS yang Anda masukkan benar."); }
     else {
       setRedirecting(true);
-      const session = await getSession();
+      await getSession();
       router.push("/wali/dashboard"); router.refresh();
     }
   };
@@ -124,14 +124,14 @@ export default function WaliLoginPage() {
           <div className="mt-6 p-4 rounded-2xl border border-emerald-200 bg-white">
             <p className="text-xs text-slate-500 text-center">
               Masukkan NIS putra/putri Anda untuk melihat progres hafalan, tahsin, dan raport.
-              Hubungi Tim Qur'an jika NIS tidak dikenal.
+              Hubungi Tim Qur&apos;an jika NIS tidak dikenal.
             </p>
           </div>
 
           <div className="mt-4 text-center">
             <Link href="/auth/login"
               className="text-sm text-slate-500 hover:text-slate-700 underline underline-offset-2 transition-colors">
-              Login untuk Staff Tim Qur'an
+              Login untuk Staff Tim Qur&apos;an
             </Link>
           </div>
         </div>

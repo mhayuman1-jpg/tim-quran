@@ -17,7 +17,7 @@ import RaportTahfidzForm, { type RaportTahfidzFormData } from '@/components/feat
 import RaportTahfidzPrintable, { type RaportTahfidzData, type DetailSurahData } from '@/components/features/raport/RaportTahfidzPrintable';
 import { useRole } from '@/hooks/useRole';
 import { useViewMode } from '@/hooks/useViewMode';
-import { triggerRaportPdfDownload, sanitizePdfFilename } from '@/lib/raport/pdf-renderer';
+import { sanitizePdfFilename } from '@/lib/raport/pdf-renderer';
 import { triggerRaportDocxDownload, sanitizeDocxFilename } from '@/lib/raport/docx-renderer';
 import { getRaportBrowserPrintStyle } from '@/lib/raport/print-config';
 
@@ -66,7 +66,7 @@ interface ClassGroup {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function RaportPage() {
-  const { role, isKabid, isSekretaris, isManajemen } = useRole();
+  const { role, isManajemen } = useRole();
   const { viewAsRole } = useViewMode();
   const printRef = useRef<HTMLDivElement>(null);
   const downloadingLockRef = useRef(false);

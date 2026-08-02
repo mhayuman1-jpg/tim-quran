@@ -3,8 +3,7 @@
 // Query params: semester_name (e.g., "Ganjil 2025/2026"), compare_with (optional, for comparison)
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { getAuthenticatedSession } from '@/lib/api-auth';
 import { createServerClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
@@ -15,7 +14,7 @@ interface StudentRecap {
   nisn: string;
   class_name: string;
   gender: string;
-  juz_terakhir: number;
+  juz_terakhir: string;
   total_hafalan: number;
   total_tahsin: number;
   total_hadir: number;
@@ -71,8 +70,8 @@ function getSemesterDateRange(semesterName: string): { start: string; end: strin
 }
 
 export async function GET(request: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 });
+  const session = await getAuthenticatedSession(request);
+  if (session instanceof NextResponse) return session;
 
   const { searchParams } = new URL(request.url);
   const semesterName = searchParams.get('semester_name') || 'Ganjil 2025/2026';
@@ -175,7 +174,7 @@ export async function GET(request: NextRequest) {
         nisn: student.nisn,
         class_name: (student.classes as any)?.name || '-',
         gender: student.gender,
-        juz_terakhir: student.juz_terakhir || 0,
+        juz_terakhir: student.juz_terakhir || '-',
         total_hafalan: studentHafalan.length,
         total_tahsin: studentTahsin.length,
         total_hadir: totalHadir,

@@ -66,98 +66,40 @@ function formatDate(dateStr: string): string {
   }
 }
 
-function formatEditTimestamp(isoStr: string): string {
-  if (!isoStr) return '';
-  try {
-    return new Date(isoStr).toLocaleDateString('id-ID', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  } catch {
-    return isoStr;
-  }
-}
-
-function EditIndicator({ editedFields, field }: { editedFields?: Record<string, string> | null; field: string }) {
+function EditIndicator({ editedFields: _editedFields, field: _field }: { editedFields?: Record<string, string> | null; field: string }) {
   return null;
 }
 
-// ─── Juz reverse mapping ──────────────────────────────────────────────────────
-
-// surah name -> possible juz numbers
-const SURAH_TO_JUZ: Record<string, number[]> = {};
-for (const [juzStr, surahs] of Object.entries(SURAH_PER_JUZ)) {
-  const juz = Number(juzStr);
+// ─── Juz mapping — tiap surah → tepat satu juz ──────────────────────────────
+// Iterasi 30→1: surah yang muncul di banyak juz (misal Juz 25 & 30)
+// hanya dipetakan ke juz TERTINGGI (Juz 30), sehingga tidak ambigu.
+const SURAH_TO_JUZ: Record<string, number> = {};
+for (let j = 30; j >= 1; j--) {
+  const surahs = SURAH_PER_JUZ[j] ?? [];
   for (const s of surahs) {
-    if (!SURAH_TO_JUZ[s.nama]) SURAH_TO_JUZ[s.nama] = [];
-    if (!SURAH_TO_JUZ[s.nama].includes(juz)) SURAH_TO_JUZ[s.nama].push(juz);
+    if (!(s.nama in SURAH_TO_JUZ)) {
+      SURAH_TO_JUZ[s.nama] = j;
+    }
   }
 }
 
 /**
  * Group hafalan rows by juz.
- * Uses co-occurrence within each date to disambiguate surahs that appear in multiple juz.
- * Returns a sorted Map of juz -> rows, plus an array of ungroupable rows.
+ * Setiap surah dipetakan ke tepat satu juz (yang tertinggi dari template),
+ * sehingga tidak perlu co-occurrence disambiguation.
  */
 function groupDataByJuz(rows: HafalanRow[]): { juzGroups: Map<number, HafalanRow[]>; ungrouped: HafalanRow[] } {
-  // Step 1: group by date (use plain object to avoid ES5 Map iteration issues)
-  const byDate: Record<string, HafalanRow[]> = {};
-  for (const row of rows) {
-    if (!byDate[row.tanggal]) byDate[row.tanggal] = [];
-    byDate[row.tanggal].push(row);
-  }
-
-  // Step 2: for each date, determine juz per row using co-occurrence
   const juzGroups = new Map<number, HafalanRow[]>();
   const ungrouped: HafalanRow[] = [];
 
-  const dateKeys = Object.keys(byDate);
-  for (let di = 0; di < dateKeys.length; di++) {
-    const dateRows = byDate[dateKeys[di]];
-    // For each possible juz, count how many rows in this date group could belong to it
-    const juzHitCount = new Map<number, number>();
-    const rowPossibleJuz = new Map<string, number[]>();
-
-    for (const row of dateRows) {
-      const possible = SURAH_TO_JUZ[row.surah_juz];
-      if (possible && possible.length > 0) {
-        rowPossibleJuz.set(row.id, possible);
-        for (const j of possible) {
-          juzHitCount.set(j, (juzHitCount.get(j) ?? 0) + 1);
-        }
-      }
-    }
-
-    // Assign each row to its best juz
-    for (const row of dateRows) {
-      const possible = rowPossibleJuz.get(row.id);
-      if (!possible || possible.length === 0) {
-        ungrouped.push(row);
-        continue;
-      }
-      if (possible.length === 1) {
-        const juz = possible[0];
-        const existing = juzGroups.get(juz) ?? [];
-        existing.push(row);
-        juzGroups.set(juz, existing);
-      } else {
-        // Pick the juz with the most hits in this date group; prefer higher juz on tie
-        let bestJuz = possible[0];
-        let bestCount = juzHitCount.get(bestJuz) ?? 0;
-        for (const j of possible) {
-          const c = juzHitCount.get(j) ?? 0;
-          if (c > bestCount || (c === bestCount && j > bestJuz)) {
-            bestJuz = j;
-            bestCount = c;
-          }
-        }
-        const existing = juzGroups.get(bestJuz) ?? [];
-        existing.push(row);
-        juzGroups.set(bestJuz, existing);
-      }
+  for (const row of rows) {
+    const juz = SURAH_TO_JUZ[row.surah_juz];
+    if (juz !== undefined) {
+      const existing = juzGroups.get(juz) ?? [];
+      existing.push(row);
+      juzGroups.set(juz, existing);
+    } else {
+      ungrouped.push(row);
     }
   }
 

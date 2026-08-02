@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: 'Siswa tidak perteneca ke kelas ini' }, { status: 400 });
     }
 
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('santri')
       .update({ assigned_teacher_id: teacher_id })
       .eq('id', student_id);

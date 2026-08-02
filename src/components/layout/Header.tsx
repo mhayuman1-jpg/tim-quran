@@ -46,7 +46,7 @@ export default function Header({ onMenuClick }: { onMenuClick?: () => void }) {
   const pathname = usePathname();
   const title = getPageTitle(pathname);
   const { role } = useRole();
-  const { viewAsRole, setViewAsRole, isViewingAsOther } = useViewMode();
+  const { setViewAsRole, isViewingAsOther } = useViewMode();
 
   const canSwitchRole = role === 'Kabid' || role === 'Sekretaris';
 

@@ -77,10 +77,10 @@ export default function QRScanner({ onScanSuccess, onScanError, scannedList, com
           globalCleanupPromise = (async () => {
             try {
               await html5Qrcode.stop();
-            } catch (e) {}
+            } catch {}
             try {
               await html5Qrcode.clear();
-            } catch (e) {}
+            } catch {}
             if (globalHtml5Qrcode === html5Qrcode) {
               globalHtml5Qrcode = null;
             }
@@ -116,12 +116,12 @@ export default function QRScanner({ onScanSuccess, onScanError, scannedList, com
       globalCleanupPromise = (async () => {
         try {
           await currentScanner.stop();
-        } catch (e) {
+        } catch {
           // Abaikan jika sudah di-stop
         }
         try {
           await currentScanner.clear();
-        } catch (e) {
+        } catch {
           // Abaikan jika gagal clear
         }
         if (globalHtml5Qrcode === currentScanner) {

@@ -15,8 +15,7 @@
 //   500 — gagal render PDF
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { getAuthenticatedSession } from '@/lib/api-auth';
 import { createServerClient } from '@/lib/supabase/server';
 import { generateRaportPdf, resolveBaseUrl } from '@/lib/raport/playwright-pdf';
 import { uploadRaportPdf, getSignedPdfUrl } from '@/lib/raport/pdf-storage';
@@ -73,13 +72,8 @@ export async function GET(request: NextRequest) {
   const requestStart = Date.now();
 
   // ── 1. Validasi session (401) ──────────────────────────────────────────
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
-    return NextResponse.json(
-      { message: 'Sesi tidak valid. Silakan login kembali.' },
-      { status: 401 },
-    );
-  }
+  const session = await getAuthenticatedSession(request);
+  if (session instanceof NextResponse) return session;
 
   const { searchParams } = new URL(request.url);
   const raportId = (searchParams.get('raportId') ?? '').trim();
@@ -114,7 +108,7 @@ export async function GET(request: NextRequest) {
       supabase,
       raportId,
       session.user.id,
-      session.user.role,
+      session.user.role as string,
     );
 
     if (!access.allowed) {

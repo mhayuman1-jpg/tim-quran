@@ -1,7 +1,6 @@
 import type { ProfilExportData } from '@/lib/raport/fetch-raport-data';
 
 const IMAGE_FETCH_TIMEOUT_MS = 8000;
-const PRINT_LOGO_MAX_PX = 180;
 
 function getResizedFetchUrl(url: string): string {
   // Tigris CDN URLs tidak perlu di-rewrite — return as-is

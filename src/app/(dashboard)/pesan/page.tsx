@@ -3,9 +3,7 @@ export const dynamic = 'force-dynamic';
 
 import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
-import { MessageCircle, Send, Search, ArrowLeft, CheckCheck, Clock, User, Trash2 } from "lucide-react";
-import Link from "next/link";
-
+import { MessageCircle, Send, Search, CheckCheck, Clock, User, Trash2 } from "lucide-react";
 interface Message {
   id: string;
   santri_id: string;
@@ -22,7 +20,7 @@ interface Message {
 }
 
 export default function PesanPage() {
-  const { data: session } = useSession();
+  useSession();
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedMsg, setSelectedMsg] = useState<Message | null>(null);

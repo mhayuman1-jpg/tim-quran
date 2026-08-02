@@ -2,18 +2,15 @@
 // GET: Statistik dashboard khusus guru — hanya data siswa yang diampu
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { getAuthenticatedSession } from '@/lib/api-auth';
 import { createServerClient } from '@/lib/supabase/server';
 import { shouldFilterByTeacher, getTeacherFilterId } from '@/lib/rbac';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
-    return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 });
-  }
+  const session = await getAuthenticatedSession(request);
+  if (session instanceof NextResponse) return session;
 
   const userId = session.user.id;
   const role = session.user.role;
@@ -98,15 +95,16 @@ export async function GET(request: NextRequest) {
       : 0;
 
     // Ringkasan juz
-    const juzMap: Record<number, number> = {};
+    const juzMap: Record<string, number> = {};
     for (const s of studentList) {
       if (s.juz_terakhir) {
-        juzMap[s.juz_terakhir] = (juzMap[s.juz_terakhir] ?? 0) + 1;
+        const juz = String(s.juz_terakhir);
+        juzMap[juz] = (juzMap[juz] ?? 0) + 1;
       }
     }
     const ringkasanJuz = Object.entries(juzMap)
-      .map(([juz, count]) => ({ juz: Number(juz), count }))
-      .sort((a, b) => a.juz - b.juz);
+      .map(([juz, count]) => ({ juz, count }))
+      .sort((a, b) => a.juz.localeCompare(b.juz));
 
     // 5 hafalan terakhir
     const { data: recentHafalan } = await supabase

@@ -5,23 +5,18 @@
 // - Tim_Quran hanya bisa tambah hafalan untuk siswa yang menjadi tanggung jawabnya
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { getAuthenticatedSession } from '@/lib/api-auth';
 import { createServerClient } from '@/lib/supabase/server';
 import { requireActiveSemester } from '@/lib/semester';
 import { requireNoHoliday } from '@/lib/holiday';
+import { SURAH_PER_JUZ } from '@/lib/surahData';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
   // Verifikasi sesi
-  const session = await getServerSession(authOptions);
-  if (!session || !session.user) {
-    return NextResponse.json(
-      { message: 'Sesi tidak valid, silakan login kembali.' },
-      { status: 401 }
-    );
-  }
+  const session = await getAuthenticatedSession(request);
+  if (session instanceof NextResponse) return session;
 
   try {
     const body = await request.json();
@@ -46,16 +41,9 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    if (halaman === undefined || halaman === null) {
+    if (halaman === undefined || halaman === null || typeof halaman !== 'string' || halaman.trim() === '') {
       return NextResponse.json(
         { message: 'Halaman wajib diisi.' },
-        { status: 400 }
-      );
-    }
-    const halamanNum = Number(halaman);
-    if (isNaN(halamanNum) || halamanNum < 1) {
-      return NextResponse.json(
-        { message: 'Halaman harus berupa angka positif.' },
         { status: 400 }
       );
     }
@@ -115,12 +103,28 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // ── Hitung sort_order berdasarkan urutan template ──
+    // Iterasi Juz 30→1 agar template Juz 30 (lengkap) override Juz 25-27
+    const SURAH_POSITION: Record<string, number> = {};
+    for (let j = 30; j >= 1; j--) {
+      const surahsInJuz = SURAH_PER_JUZ[j] ?? [];
+      for (let idx = 0; idx < surahsInJuz.length; idx++) {
+        const key = surahsInJuz[idx].nama.toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (!(key in SURAH_POSITION)) {
+          SURAH_POSITION[key] = j * 1000 + idx;
+        }
+      }
+    }
+    const surahKey = surah_juz.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+    const sortPosition = SURAH_POSITION[surahKey] ?? 999999;
+
     const insertData: Record<string, unknown> = {
       student_id: student_id.trim(),
       teacher_id: teacherId,
       tanggal,
       surah_juz: surah_juz.trim(),
-      halaman: halamanNum,
+      halaman: halaman.trim(),
+      sort_order: sortPosition,
     };
 
     if (catatan && typeof catatan === 'string' && catatan.trim() !== '') {

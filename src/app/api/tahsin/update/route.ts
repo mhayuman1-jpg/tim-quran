@@ -54,10 +54,9 @@ export async function PUT(request: NextRequest) {
 
     // Validasi halaman jika diberikan
     if (halaman !== undefined && halaman !== null) {
-      const halamanNum = Number(halaman);
-      if (isNaN(halamanNum) || halamanNum < 1) {
+      if (typeof halaman !== 'string' || halaman.trim() === '') {
         return NextResponse.json(
-          { message: 'Halaman harus berupa angka positif.' },
+          { message: 'Halaman tidak valid.' },
           { status: 400 }
         );
       }
@@ -110,7 +109,7 @@ export async function PUT(request: NextRequest) {
       editedFields.buku = now;
     }
     if (halaman !== undefined && halaman !== null) {
-      updateData.halaman = Number(halaman);
+      updateData.halaman = String(halaman).trim();
       editedFields.halaman = now;
     }
 

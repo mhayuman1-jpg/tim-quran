@@ -6,20 +6,14 @@
 //   - jumlah Tim_Quran aktif
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { getAuthenticatedSession } from '@/lib/api-auth';
 import { createServerClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(_request: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session) {
-    return NextResponse.json(
-      { message: 'Sesi tidak valid, silakan login kembali.' },
-      { status: 401 }
-    );
-  }
+export async function GET(request: NextRequest) {
+  const session = await getAuthenticatedSession(request);
+  if (session instanceof NextResponse) return session;
 
   try {
     const supabase = createServerClient();
@@ -44,6 +38,7 @@ export async function GET(_request: NextRequest) {
     const totalAktif = totalSantriAktif ?? 0;
 
     // 2. Jumlah santri hadir hari ini — fallback ke hari terakhir jika kosong
+    // eslint-disable-next-line prefer-const
     let { count: totalHadir, error: hadirError } = await supabase
       .from('attendances')
       .select('*', { count: 'exact', head: true })
@@ -102,14 +97,14 @@ export async function GET(_request: NextRequest) {
     }
 
     // Agregasi count per juz_terakhir
-    const juzMap: Record<number, number> = {};
+    const juzMap: Record<string, number> = {};
     for (const row of santriJuz ?? []) {
-      const juz = row.juz_terakhir as number;
-      juzMap[juz] = (juzMap[juz] ?? 0) + 1;
+      const juz = String(row.juz_terakhir ?? '');
+      if (juz) juzMap[juz] = (juzMap[juz] ?? 0) + 1;
     }
     const ringkasanJuz = Object.entries(juzMap)
-      .map(([juz, count]) => ({ juz: Number(juz), count }))
-      .sort((a, b) => a.juz - b.juz);
+      .map(([juz, count]) => ({ juz, count }))
+      .sort((a, b) => a.juz.localeCompare(b.juz));
 
     // 4. Jumlah Tim_Quran aktif — hitung semua Tim_Quran yang bukan Nonaktif
     const { count: totalTim, error: timError } = await supabase

@@ -4,17 +4,14 @@ export const dynamic = 'force-dynamic';
 // Dipakai oleh halaman /scan untuk menampilkan daftar real-time.
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { getAuthenticatedSession } from '@/lib/api-auth';
 import { createServerClient } from '@/lib/supabase/server';
 import { normalizeAttendanceRows } from '@/lib/attendance';
 import { getTeacherClassIds } from '@/lib/rbac';
 
-export async function GET(_request: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session) {
-    return NextResponse.json({ message: 'Tidak terautentikasi.' }, { status: 401 });
-  }
+export async function GET(request: NextRequest) {
+  const session = await getAuthenticatedSession(request);
+  if (session instanceof NextResponse) return session;
 
   try {
     const supabase = createServerClient();
@@ -41,7 +38,7 @@ export async function GET(_request: NextRequest) {
     const normalized = normalizeAttendanceRows(attData);
     const rawIds = normalized.map((r: any) => r.santri_id).filter(Boolean);
     const santriIds = Array.from(new Set(rawIds));
-    let namaMap: Record<string, string> = {};
+    const namaMap: Record<string, string> = {};
     let allowedIds: Set<string> | null = null;
     if (santriIds.length > 0) {
       const { data: santriData } = await supabase

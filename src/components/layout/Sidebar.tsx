@@ -2,13 +2,14 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import useSWR, { useSWRConfig } from 'swr';
+import useSWR from 'swr';
 import Image from 'next/image';
 import {
   LayoutDashboard, Users, BookOpen,
   FileText, BarChart2, Repeat, TrendingUp,
   School, UserCheck, Megaphone, Newspaper, Settings, Globe, X, Eye,
   CalendarDays, MessageCircle, MessageSquareQuote, CalendarOff, UserX,
+  ClipboardList,
 } from 'lucide-react';
 import { useSession } from '@/hooks/useSession';
 import { useRole } from '@/hooks/useRole';
@@ -35,6 +36,7 @@ const menuItems: MenuItem[] = [
   { label: 'Dashboard Guru', href: '/dashboard-guru',     icon: <LayoutDashboard size={16} />, group: 'Utama', roles: ['Kabid', 'Sekretaris'] },
   { label: 'Data Siswa',     href: '/siswa',              icon: <Users size={16} />,           group: 'Akademik', roles: ['Kabid', 'Tim_Quran', 'Sekretaris'] },
   { label: 'Hafalan & Tahsin', href: '/tahsin',           icon: <BookOpen size={16} />,        group: 'Akademik', roles: ['Kabid', 'Tim_Quran', 'Sekretaris'] },
+  { label: 'Riwayat Catatan',  href: '/dashboard-guru/riwayat-catatan', icon: <ClipboardList size={16} />, group: 'Akademik', roles: ['Kabid', 'Tim_Quran', 'Sekretaris'] },
   { label: 'Raport',         href: '/raport',             icon: <FileText size={16} />,        group: 'Akademik', roles: ['Kabid', 'Tim_Quran', 'Sekretaris'] },
   { label: 'Absensi',        href: '/absensi',            icon: <BarChart2 size={16} />,       group: 'Kehadiran', roles: ['Kabid', 'Tim_Quran', 'Sekretaris'] },
   { label: 'Monitoring',     href: '/absensi/monitoring', icon: <TrendingUp size={16} />,      group: 'Kehadiran', roles: ['Kabid'] },
@@ -46,6 +48,7 @@ const menuItems: MenuItem[] = [
   { label: 'Kalender Libur',  href: '/kalender-libur',     icon: <CalendarOff size={16} />,     group: 'Manajemen', roles: ['Kabid'] },
   { label: 'Kelas',          href: '/kelas',              icon: <School size={16} />,          group: 'Manajemen', roles: ['Kabid'] },
   { label: "Tim Qur'an",     href: '/tim',                icon: <UserCheck size={16} />,       group: 'Manajemen', roles: ['Kabid'] },
+  { label: 'Data Pengajar & Siswa', href: '/admin/pengajar-pdf', icon: <Users size={16} />,       group: 'Manajemen', roles: ['Kabid'] },
   { label: 'Kelola Pengumuman', href: '/dashboard/pengumuman', icon: <Megaphone size={16} />,       group: 'Konten', roles: ['Kabid', 'Sekretaris', 'Bendahara'] },
   { label: 'Kelola Artikel',    href: '/dashboard/kelola-artikel', icon: <Newspaper size={16} />,       group: 'Konten', roles: ['Kabid', 'Sekretaris'] },
   { label: 'Kelola Testimoni',  href: '/kelola-testimoni', icon: <MessageSquareQuote size={16} />,  group: 'Konten', roles: ['Kabid'] },
@@ -127,10 +130,10 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
         {/* Logo area */}
         <div className="flex h-16 items-center gap-3 px-5 shrink-0 border-b border-black/5">
           <div className="w-9 h-9 rounded-full shrink-0 shadow-sm overflow-hidden bg-white">
-            <Image src="/favicon.png" alt="Logo Tim Qur'an" width={36} height={36} className="w-full h-full object-cover" />
+            <Image src="/favicon.png" alt="Logo Tim Qur&apos;an" width={36} height={36} className="w-full h-full object-cover" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="font-semibold text-slate-900 text-sm leading-tight tracking-tight">Tim Qur'an</p>
+            <p className="font-semibold text-slate-900 text-sm leading-tight tracking-tight">Tim Qur&apos;an</p>
             <p className="text-amber-600/70 text-[11px] leading-tight">Dashboard</p>
           </div>
           <button onClick={onClose}

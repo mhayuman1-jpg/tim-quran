@@ -12,7 +12,7 @@ export interface SiswaFormData {
   gender: Gender;
   tanggal_lahir: string;
   class_id: string;
-  juz_terakhir: number;
+  juz_terakhir: string;
   status: 'Aktif' | 'Nonaktif';
   photo_url: string;
   assigned_teacher_id: string;
@@ -59,9 +59,8 @@ function validate(data: SiswaFormData): FormErrors {
   if (!data.gender) {
     errors.gender = 'Jenis kelamin wajib dipilih';
   }
-  const juz = Number(data.juz_terakhir);
-  if (isNaN(juz) || juz < 1 || juz > 30) {
-    errors.juz_terakhir = 'Juz harus antara 1 dan 30';
+  if (!data.juz_terakhir || !data.juz_terakhir.trim()) {
+    errors.juz_terakhir = 'Juz wajib diisi';
   }
   return errors;
 }
@@ -83,7 +82,7 @@ export default function SiswaForm({
     gender: 'Laki-laki',
     tanggal_lahir: '',
     class_id: '',
-    juz_terakhir: 1,
+    juz_terakhir: '1',
     status: 'Aktif',
     photo_url: '',
     assigned_teacher_id: '',
@@ -105,7 +104,7 @@ export default function SiswaForm({
         gender: initialData.gender,
         tanggal_lahir: initialData.tanggal_lahir ?? '',
         class_id: initialData.class_id ?? '',
-        juz_terakhir: initialData.juz_terakhir,
+        juz_terakhir: initialData.juz_terakhir ?? '1',
         status: initialData.status,
         photo_url: initialData.photo_url ?? '',
         assigned_teacher_id: initialData.assigned_teacher_id ?? '',
@@ -117,7 +116,7 @@ export default function SiswaForm({
         gender: 'Laki-laki',
         tanggal_lahir: '',
         class_id: '',
-        juz_terakhir: 1,
+        juz_terakhir: '1',
         status: 'Aktif',
         photo_url: '',
         assigned_teacher_id: '',
@@ -315,13 +314,10 @@ export default function SiswaForm({
       <Input
         label="Juz Saat Ini"
         required
-        type="number"
-        min={1}
-        max={30}
-        value={String(form.juz_terakhir)}
-        onChange={(e) => set('juz_terakhir', parseInt(e.target.value) || 1)}
+        value={form.juz_terakhir}
+        onChange={(e) => set('juz_terakhir', e.target.value)}
         error={errors.juz_terakhir}
-        helperText="Nilai antara 1 dan 30"
+        placeholder="Contoh: Juz 30, 29, & 1"
         disabled={loading}
       />
 

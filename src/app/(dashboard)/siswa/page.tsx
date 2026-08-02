@@ -261,8 +261,6 @@ export default function SiswaPage() {
 
       // Dynamically import components
       const { StudentIDCard } = await import('@/components/shared/StudentIDCard');
-      const { generateQRCodeDataURL } = await import('@/lib/qrcode');
-      const { toImageUrl } = await import('@/lib/storage/urls');
       const { toPng } = await import('html-to-image');
       const { default: jsPDF } = await import('jspdf');
       const React = await import('react');

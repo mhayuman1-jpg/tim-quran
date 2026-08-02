@@ -435,7 +435,7 @@ export default function KelasPage() {
       }
       toast.success(json.message ?? 'Siswa berhasil dibagi.');
       fetchKelas();
-    } catch (err) {
+    } catch {
       toast.error('Terjadi kesalahan saat membagi siswa.');
     } finally {
       setSplitLoadingId(null);
@@ -786,7 +786,6 @@ export default function KelasPage() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ class_id: assignStudentTarget.id }),
           });
-          const splitJson = await splitRes.json();
           if (splitRes.ok) {
             toast.success(`${selectedStudents.size} siswa berhasil diassign & dibagi ke guru.`);
           } else {
@@ -799,7 +798,7 @@ export default function KelasPage() {
         setSelectedStudents(new Set());
         fetchKelas();
       }
-    } catch (err) {
+    } catch {
       toast.error('Terjadi kesalahan saat assign siswa.');
     } finally {
       setAssignStudentLoading(false);

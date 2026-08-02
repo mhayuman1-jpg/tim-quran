@@ -34,7 +34,7 @@ export async function DELETE(request: NextRequest) {
 
     const supabase = createServerClient();
 
-    const { error, count } = await supabase
+    const { error } = await supabase
       .from('santri')
       .delete()
       .in('id', ids);

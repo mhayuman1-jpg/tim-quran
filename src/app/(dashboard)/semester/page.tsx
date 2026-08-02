@@ -647,7 +647,7 @@ export default function SemesterPage() {
               <li>Hafalan (setoran harian siswa)</li>
               <li>Tahsin (catatan sesi tahsin)</li>
               <li>Absensi (kehadiran harian)</li>
-              <li>Raport Tahfidz &amp; Raport Qur'an</li>
+              <li>Raport Tahfidz &amp; Raport Qur&apos;an</li>
               <li>Detail Raport per surah</li>
             </ul>
             <div className="mt-3 rounded-xl bg-red-100 border border-red-200 p-3 text-red-800 text-xs">

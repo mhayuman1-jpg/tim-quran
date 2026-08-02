@@ -7,11 +7,10 @@ export const dynamic = 'force-dynamic';
 
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import nextDynamic from 'next/dynamic';
-import { Plus, BookOpenCheck, Users, XCircle, BookText, BookOpen, ScanLine, CheckCircle, AlertCircle, RefreshCw, ArrowLeft, Filter } from 'lucide-react';
+import { Plus, BookOpenCheck, Users, XCircle, BookText, BookOpen, ScanLine, CheckCircle, AlertCircle, RefreshCw, ArrowLeft } from 'lucide-react';
 import Modal from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
 import SearchInput from '@/components/shared/SearchInput';
-import { toImageUrl } from '@/lib/storage/urls';
 import JurnalHafalanTahsinForm, { type JurnalFormMode } from '@/components/features/tahsin/JurnalHafalanTahsinForm';
 import TahsinHistory from '@/components/features/tahsin/TahsinHistory';
 import HafalanHistory from '@/components/features/hafalan/HafalanHistory';
@@ -19,7 +18,6 @@ import HafalanForm, { type HafalanFormData } from '@/components/features/hafalan
 import TahsinForm, { type TahsinFormData } from '@/components/features/tahsin/TahsinForm';
 import { useViewMode } from '@/hooks/useViewMode';
 import { useRole } from '@/hooks/useRole';
-import type { Hafalan, Tahsin } from '@/types';
 
 const QRScanner = nextDynamic(
   () => import('@/components/features/qr-scanner/QRScanner'),
@@ -406,15 +404,17 @@ export default function TahsinPage() {
               >
                 {scannerOpen ? 'Tutup Scanner' : 'Scan QR Absen'}
               </Button>
-              <Button
-                variant="primary"
-                leftIcon={<Plus size={16} />}
-                onClick={() => handleOpenAdd('both')}
-                disabled={selectedStudent != null && !selectedStudentAttended}
-                title={selectedStudent && !selectedStudentAttended ? 'Siswa belum absen hari ini' : undefined}
-              >
-                Tambah Jurnal
-              </Button>
+              {role === 'Kabid' && (
+                <Button
+                  variant="primary"
+                  leftIcon={<Plus size={16} />}
+                  onClick={() => handleOpenAdd('both')}
+                  disabled={selectedStudent != null && !selectedStudentAttended}
+                  title={selectedStudent && !selectedStudentAttended ? 'Siswa belum absen hari ini' : undefined}
+                >
+                  Tambah Jurnal
+                </Button>
+              )}
             </>
           )}
         </div>

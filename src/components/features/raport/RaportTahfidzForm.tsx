@@ -148,9 +148,9 @@ export default function RaportTahfidzForm({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [autoLoading, setAutoLoading] = useState(false);
   const [autoMsg, setAutoMsg] = useState('');
-  const [storedJuzGroups, setStoredJuzGroups] = useState<{ juz: number; detail: any[]; matches: number }[]>([]);
   // Multi-juz: separate tahfidz tables per juz
   const [multiJuzGroups, setMultiJuzGroups] = useState<{ juz: number; detail: DetailSurah[] }[]>([]);
+  const [_storedJuzGroups, setStoredJuzGroups] = useState<any[]>([]);
 
   // Fetch siswa (filter by class_id + teaching mode header)
   useEffect(() => {
@@ -672,7 +672,7 @@ export default function RaportTahfidzForm({
                 <option value="">— Pilih Metode —</option>
                 <option value="Wafa">Wafa</option>
                 <option value="IWR">IWR</option>
-                <option value="Al-Quran">Al-Qur'an</option>
+                <option value="Al-Quran">Al-Qur&apos;an</option>
                 <option value="Iqra">Iqra</option>
               </select>
             </div>

@@ -4,8 +4,7 @@ export const dynamic = 'force-dynamic';
 // Tim_Quran / Mode Mengajar: hanya kelas yang punya siswa assigned ke guru tersebut
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import { getAuthenticatedSession } from '@/lib/api-auth';
 import { createServerClient } from '@/lib/supabase/server';
 import { shouldFilterByTeacher, getTeacherFilterId } from '@/lib/rbac';
 import { shuffleArray } from '@/lib/shuffle';
@@ -13,13 +12,8 @@ import { shuffleArray } from '@/lib/shuffle';
 export async function GET(request: NextRequest) {
   try {
     // Cek autentikasi
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
-      return NextResponse.json(
-        { message: 'Sesi tidak valid, silakan login kembali' },
-        { status: 401 }
-      );
-    }
+    const session = await getAuthenticatedSession(request);
+    if (session instanceof NextResponse) return session;
 
     const supabase = createServerClient();
     const filterByTeacher = shouldFilterByTeacher(session.user.role, request);
@@ -166,7 +160,7 @@ export async function GET(request: NextRequest) {
       if ((k as any).teacher2_id) teacherIds.add((k as any).teacher2_id);
       if ((k as any).teacher3_id) teacherIds.add((k as any).teacher3_id);
     });
-    let teacherMap: Record<string, { id: string; name: string; email: string }> = {};
+    const teacherMap: Record<string, { id: string; name: string; email: string }> = {};
     if (teacherIds.size > 0) {
       const { data: teachers } = await supabase.from('users').select('id, name, email').in('id', Array.from(teacherIds));
       for (const t of teachers ?? []) teacherMap[t.id] = t;

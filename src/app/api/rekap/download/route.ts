@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import { getAuthenticatedSession } from '@/lib/api-auth';
 import { createClient } from '@supabase/supabase-js';
 
 export const dynamic = 'force-dynamic';
@@ -25,10 +24,8 @@ const supabase = createClient(
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session) {
-      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-    }
+    const session = await getAuthenticatedSession(request);
+    if (session instanceof NextResponse) return session;
 
     const searchParams = request.nextUrl.searchParams;
     const format = searchParams.get('format') || 'pdf'; // pdf atau excel
@@ -42,7 +39,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch optional rekap metadata dari database
-    const { data: rekapData, error: rekapError } = await supabase
+    const { error: rekapError } = await supabase
       .from('rekap_bulanan')
       .select('id, periode, file_url, created_at')
       .eq('periode', periode)
@@ -251,7 +248,6 @@ export async function GET(request: NextRequest) {
       doc.setFontSize(10);
       const headerY = 90;
       const rowHeight = 7;
-      const marginLeft = 20;
       const colPositions = {
         nama: 20,
         nisn: 80,

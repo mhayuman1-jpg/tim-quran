@@ -160,23 +160,6 @@ export default function IdCardPage() {
         return results;
       }
 
-      // Helper: scan a region for QR
-      function scanRegion(imageData: ImageData, rx: number, ry: number, rw: number, rh: number): string | null {
-        const tempCanvas = document.createElement('canvas');
-        tempCanvas.width = rw;
-        tempCanvas.height = rh;
-        const tempCtx = tempCanvas.getContext('2d')!;
-        // Need to extract from the original imageData
-        const tempData = tempCtx.createImageData(rw, rh);
-        for (let row = 0; row < rh; row++) {
-          const srcOffset = ((ry + row) * imageData.width + rx) * 4;
-          const dstOffset = row * rw * 4;
-          tempData.data.set(imageData.data.subarray(srcOffset, srcOffset + rw * 4), dstOffset);
-        }
-        const result = jsQR(tempData.data, rw, rh, { inversionAttempts: 'attemptBoth' });
-        return result ? result.data : null;
-      }
-
       for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
         setExtractProgress(`Halaman ${pageNum}/${totalPages}...`);
 
@@ -213,7 +196,7 @@ export default function IdCardPage() {
 
         // Strategy 1: scan full page with iterative masking
         const fullPixels = new Uint8ClampedArray(fullPageData.data);
-        let qrResults = findAllQrCodes(fullPixels, scaledW, scaledH);
+        const qrResults = findAllQrCodes(fullPixels, scaledW, scaledH);
         console.log(`Strategy 1 (full page): ${qrResults.length} QR codes`);
 
         // Strategy 2: if few found, try splitting into 3 columns and scanning each

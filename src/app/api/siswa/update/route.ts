@@ -4,8 +4,7 @@
 // - Return data santri terbaru setelah update
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { getAuthenticatedSession } from '@/lib/api-auth';
 import { createServerClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
@@ -13,13 +12,8 @@ export const dynamic = 'force-dynamic';
 export async function PUT(request: NextRequest) {
   try {
     // Cek autentikasi
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
-      return NextResponse.json(
-        { message: 'Sesi tidak valid, silakan login kembali' },
-        { status: 401 }
-      );
-    }
+    const session = await getAuthenticatedSession(request);
+    if (session instanceof NextResponse) return session;
 
     const body = await request.json();
     const { id, nisn, nama, gender, tanggal_lahir, class_id, juz_terakhir, status, assigned_teacher_id, photo_url } = body;
@@ -43,10 +37,9 @@ export async function PUT(request: NextRequest) {
       );
     }
     if (juz_terakhir !== undefined) {
-      const juzNum = Number(juz_terakhir);
-      if (isNaN(juzNum) || juzNum < 1 || juzNum > 30) {
+      if (typeof juz_terakhir !== 'string' || juz_terakhir.trim() === '') {
         return NextResponse.json(
-          { message: 'Juz terakhir harus berupa angka antara 1 dan 30' },
+          { message: 'Juz terakhir tidak boleh kosong' },
           { status: 400 }
         );
       }
@@ -77,7 +70,7 @@ export async function PUT(request: NextRequest) {
     if (gender !== undefined) updateData.gender = gender;
     if (tanggal_lahir !== undefined) updateData.tanggal_lahir = tanggal_lahir;
     if (class_id !== undefined) updateData.class_id = class_id;
-    if (juz_terakhir !== undefined) updateData.juz_terakhir = Number(juz_terakhir);
+    if (juz_terakhir !== undefined) updateData.juz_terakhir = String(juz_terakhir).trim();
     if (status !== undefined) updateData.status = status;
     if (photo_url !== undefined) updateData.photo_url = photo_url;
     // Hanya Kabid yang bisa mengubah assigned_teacher_id

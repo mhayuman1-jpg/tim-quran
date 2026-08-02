@@ -5,8 +5,7 @@
 // - Tim_Quran hanya bisa tambah untuk siswa tanggung jawabnya
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import { getAuthenticatedSession } from '@/lib/api-auth';
 import { createServerClient } from '@/lib/supabase/server';
 import { requireActiveSemester } from '@/lib/semester';
 import type { NilaiTahfidz } from '@/lib/surahData';
@@ -15,13 +14,8 @@ export const dynamic = 'force-dynamic';
 const VALID_NILAI: NilaiTahfidz[] = ['✓', 'A', 'B', 'C', 'D', 'L', 'KL', 'TL'];
 
 export async function POST(request: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
-    return NextResponse.json(
-      { message: 'Sesi tidak valid, silakan login kembali.' },
-      { status: 401 }
-    );
-  }
+  const session = await getAuthenticatedSession(request);
+  if (session instanceof NextResponse) return session;
 
   try {
     const body = await request.json();
@@ -46,9 +40,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: 'Penilaian kelancaran tidak valid.' }, { status: 400 });
     }
     if (halaman !== undefined && halaman !== null) {
-      const halamanNum = Number(halaman);
-      if (isNaN(halamanNum) || halamanNum < 1) {
-        return NextResponse.json({ message: 'Halaman harus berupa angka positif.' }, { status: 400 });
+      if (typeof halaman !== 'string' || halaman.trim() === '') {
+        return NextResponse.json({ message: 'Halaman tidak valid.' }, { status: 400 });
       }
     }
 
@@ -82,7 +75,7 @@ export async function POST(request: NextRequest) {
       tajwid,
       lancar,
     };
-    if (halaman !== undefined && halaman !== null) insertData.halaman = Number(halaman);
+    if (halaman !== undefined && halaman !== null) insertData.halaman = String(halaman).trim();
     if (catatan && typeof catatan === 'string' && catatan.trim() !== '') {
       insertData.catatan = catatan.trim();
     }

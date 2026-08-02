@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import {
   BookOpen, BookText, BarChart3, CalendarDays,
   User, School, Hash, TrendingUp, AlertCircle,
-  Award, Target, Clock, CheckCircle2, Star,
+  Award, CheckCircle2, Star, Info,
+  ChevronLeft, ChevronRight,
 } from "lucide-react";
 
 interface SantriData {
@@ -27,6 +28,7 @@ interface HafalanItem {
   tajwid?: string;
   lancar?: string;
   catatan?: string;
+  nama_pengajar?: string;
 }
 
 interface TahsinItem {
@@ -39,6 +41,16 @@ interface TahsinItem {
   kelancaran?: string;
   adab?: string;
   catatan?: string;
+  nama_pengajar?: string;
+}
+
+interface ChartDataItem {
+  tanggal: string;
+  label: string;
+  tahfidz: number;
+  tahsin: number;
+  keterangan?: string;
+  isWeekend: boolean;
 }
 
 interface RaportItem {
@@ -85,6 +97,13 @@ export default function WaliDashboardPage() {
   const [tahsin, setTahsin] = useState<TahsinItem[]>([]);
   const [raport, setRaport] = useState<RaportItem[]>([]);
   const [ringkasan, setRingkasan] = useState<Ringkasan | null>(null);
+  const [chartData, setChartData] = useState<ChartDataItem[]>([]);
+  const [rataRataTahfidz, setRataRataTahfidz] = useState(0);
+  const [rataRataTahsin, setRataRataTahsin] = useState(0);
+  const [chartFrom, setChartFrom] = useState<string | null>(null);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [isMingguIni, setIsMingguIni] = useState(true);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [greetingPlayed, setGreetingPlayed] = useState(false);
@@ -126,14 +145,15 @@ export default function WaliDashboardPage() {
       return;
     }
     if (status !== "authenticated" || !session?.user?.santri_id) return;
-    fetchData();
-  }, [status, session]);
+    fetchData(chartFrom);
+  }, [status, session, router, chartFrom]);
 
-  const fetchData = async () => {
+  const fetchData = async (from?: string | null) => {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch(`/api/wali/progres`);
+      const params = from ? `?from=${from}` : '';
+      const res = await fetch(`/api/wali/progres${params}`);
       if (!res.ok) {
         const err = await res.json();
         throw new Error(err.message || "Gagal memuat data");
@@ -144,6 +164,12 @@ export default function WaliDashboardPage() {
       setTahsin(data.tahsin ?? []);
       setRaport(data.raport ?? []);
       setRingkasan(data.ringkasan);
+      setChartData(data.chartData ?? []);
+      setRataRataTahfidz(data.rataRataTahfidz ?? 0);
+      setRataRataTahsin(data.rataRataTahsin ?? 0);
+      setStartDate(data.startDate ?? '');
+      setEndDate(data.endDate ?? '');
+      setIsMingguIni(data.isMingguIni ?? true);
     } catch (e: any) {
       setError(e.message || "Terjadi kesalahan");
     } finally {
@@ -151,7 +177,6 @@ export default function WaliDashboardPage() {
     }
   };
 
-  // Hitung statistik penilaian
   const stats = useMemo(() => {
     const allScores = hafalan.flatMap((h) =>
       [h.makhroj, h.tajwid, h.lancar].filter(Boolean)
@@ -168,13 +193,7 @@ export default function WaliDashboardPage() {
       scoreCounts[s!] = (scoreCounts[s!] || 0) + 1;
     });
 
-    // Hafalan per tanggal untuk chart
-    const hafalanPerDate: Record<string, number> = {};
-    hafalan.forEach((h) => {
-      hafalanPerDate[h.tanggal] = (hafalanPerDate[h.tanggal] || 0) + 1;
-    });
-
-    return { scoreCounts, hafalanPerDate };
+    return { scoreCounts };
   }, [hafalan, tahsin]);
 
   if (status === "loading" || (status === "authenticated" && loading)) {
@@ -198,7 +217,7 @@ export default function WaliDashboardPage() {
           </h2>
           <p className="text-sm text-slate-500">{error}</p>
           <button
-            onClick={fetchData}
+            onClick={() => fetchData(chartFrom)}
             className="mt-4 px-5 py-2 rounded-xl text-sm font-medium text-white bg-emerald-500 hover:bg-emerald-600 transition-colors"
           >
             Coba Lagi
@@ -215,21 +234,7 @@ export default function WaliDashboardPage() {
       ? Math.round((ringkasan.absensi_hadir / ringkasan.total_absensi) * 100)
       : 0;
 
-  // Data untuk bar chart hafalan per tanggal
-  const chartDates = Object.keys(stats.hafalanPerDate).sort().slice(-7);
-  const maxHafalan = Math.max(...chartDates.map((d) => stats.hafalanPerDate[d]), 1);
-
-  // Data untuk distribusi nilai
   const nilaiOrder = ["A", "B", "C", "D", "L", "TL", "✓"];
-  const nilaiLabels: Record<string, string> = {
-    A: "Sangat Baik",
-    B: "Baik",
-    C: "Cukup",
-    D: "Kurang",
-    L: "Lancar",
-    TL: "Tidak Lancar",
-    "✓": "Hafal",
-  };
   const nilaiColors: Record<string, string> = {
     A: "bg-emerald-500",
     B: "bg-blue-500",
@@ -359,50 +364,274 @@ export default function WaliDashboardPage() {
         </div>
       </div>
 
-      {/* Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Chart Hafalan per Tanggal */}
-        <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
-          <h3 className="font-semibold text-slate-900 mb-4 flex items-center gap-2">
-            <BarChart3 size={16} className="text-indigo-500" />
-            Hafalan 7 Hari Terakhir
-          </h3>
-          {chartDates.length === 0 ? (
+      {/* Charts Row - Stat Cards + Bar Chart */}
+      <div className="space-y-4">
+        {/* Stat Cards Row */}
+        <div className="grid grid-cols-3 gap-4">
+          <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl p-5 border border-amber-200/60 shadow-sm text-center">
+            <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center mx-auto mb-2">
+              <BookText size={18} className="text-amber-600" />
+            </div>
+            <p className="text-[10px] font-semibold text-amber-400 uppercase tracking-wider mb-1">Rata-Rata Tahfidz</p>
+            <p className="text-4xl font-bold text-amber-600">{rataRataTahfidz}%</p>
+            <p className="text-[11px] text-amber-500/70 mt-1">Makhroj, Tajwid, Kelancaran</p>
+          </div>
+          <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-2xl p-5 border border-emerald-200/60 shadow-sm text-center">
+            <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center mx-auto mb-2">
+              <BookOpen size={18} className="text-emerald-600" />
+            </div>
+            <p className="text-[10px] font-semibold text-emerald-400 uppercase tracking-wider mb-1">Rata-Rata Tahsin</p>
+            <p className="text-4xl font-bold text-emerald-600">{rataRataTahsin}%</p>
+            <p className="text-[11px] text-emerald-500/70 mt-1">Makhroj, Kelancaran, Tajwid</p>
+          </div>
+          <div className="bg-gradient-to-br from-slate-50 to-gray-100 rounded-2xl p-5 border border-slate-200/60 shadow-sm text-center">
+            <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center mx-auto mb-2">
+              <CalendarDays size={18} className="text-slate-600" />
+            </div>
+            <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Periode</p>
+            <p className="text-lg font-bold text-slate-700 leading-tight">
+              {startDate
+                ? new Date(startDate + 'T00:00:00').toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }) + ' - ' +
+                  new Date(endDate + 'T00:00:00').toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
+                : '7 Hari'}
+            </p>
+            <p className="text-[11px] text-slate-400 mt-1">{isMingguIni ? 'Minggu ini' : 'Minggu lalu'}</p>
+          </div>
+        </div>
+
+        {/* Bar Chart */}
+        <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
+          <div className="flex items-center justify-between mb-1">
+            <h3 className="font-semibold text-slate-900 flex items-center gap-2">
+              <BarChart3 size={16} className="text-indigo-500" />
+              Grafik Progres 7 Hari
+            </h3>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => {
+                  if (chartFrom) {
+                    const d = new Date(chartFrom + 'T00:00:00');
+                    d.setDate(d.getDate() - 7);
+                    setChartFrom(d.toISOString().split('T')[0]);
+                  } else {
+                    const d = new Date();
+                    const day = d.getDay();
+                    d.setDate(d.getDate() - (day === 0 ? 6 : day - 1) - 7);
+                    setChartFrom(d.toISOString().split('T')[0]);
+                  }
+                }}
+                className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
+                title="Minggu Sebelumnya"
+              >
+                <ChevronLeft size={16} />
+              </button>
+              <button
+                onClick={() => setChartFrom(null)}
+                disabled={isMingguIni}
+                className={`px-2 py-1 rounded-lg text-[11px] font-medium transition-colors ${
+                  isMingguIni
+                    ? 'text-slate-300 cursor-not-allowed'
+                    : 'text-indigo-600 hover:bg-indigo-50'
+                }`}
+              >
+                Minggu Ini
+              </button>
+              <button
+                onClick={() => {
+                  if (isMingguIni) return;
+                  const d = new Date(chartFrom! + 'T00:00:00');
+                  d.setDate(d.getDate() + 7);
+                  const next = d.toISOString().split('T')[0];
+                  const today = new Date();
+                  const seninIni = new Date(today);
+                  const day = seninIni.getDay();
+                  seninIni.setDate(seninIni.getDate() - (day === 0 ? 6 : day - 1));
+                  const seninIniStr = seninIni.toISOString().split('T')[0];
+                  if (next >= seninIniStr) setChartFrom(null);
+                  else setChartFrom(next);
+                }}
+                disabled={isMingguIni}
+                className={`p-1.5 rounded-lg transition-colors ${
+                  isMingguIni
+                    ? 'text-slate-200 cursor-not-allowed'
+                    : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
+                }`}
+                title={isMingguIni ? 'Sudah minggu ini' : 'Minggu Berikutnya'}
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          </div>
+          {startDate && (
+            <p className="text-[11px] text-slate-400 mb-5 ml-1">
+              {new Date(startDate + 'T00:00:00').toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })} —{' '}
+              {new Date(endDate + 'T00:00:00').toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+            </p>
+          )}
+          {chartData.length === 0 ? (
             <p className="text-sm text-slate-400 text-center py-8">
-              Belum ada data hafalan
+              Belum ada data progres
             </p>
           ) : (
-            <div className="flex items-end gap-2 h-40">
-              {chartDates.map((date) => {
-                const count = stats.hafalanPerDate[date];
-                const height = (count / maxHafalan) * 100;
-                const d = new Date(date + "T00:00:00");
-                const label = d.toLocaleDateString("id-ID", {
-                  day: "numeric",
-                  month: "short",
-                });
-                return (
-                  <div
-                    key={date}
-                    className="flex-1 flex flex-col items-center gap-1"
-                  >
-                    <span className="text-xs font-semibold text-slate-700">
-                      {count}
-                    </span>
-                    <div
-                      className="w-full bg-gradient-to-t from-indigo-500 to-indigo-400 rounded-t-lg transition-all duration-500"
-                      style={{ height: `${Math.max(height, 4)}%` }}
-                    />
-                    <span className="text-[10px] text-slate-500 truncate w-full text-center">
-                      {label}
-                    </span>
-                  </div>
-                );
-              })}
+            <div className="relative">
+              <svg viewBox="0 0 700 310" className="w-full h-auto" style={{ minHeight: 280 }}>
+                <defs>
+                  <linearGradient id="gradTahfidz" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#f59e0b" />
+                    <stop offset="100%" stopColor="#d97706" />
+                  </linearGradient>
+                  <linearGradient id="gradTahsin" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#34d399" />
+                    <stop offset="100%" stopColor="#059669" />
+                  </linearGradient>
+                  <filter id="barShadow" x="-10%" y="-5%" width="120%" height="120%">
+                    <feDropShadow dx="0" dy="1" stdDeviation="1" floodOpacity="0.06" />
+                  </filter>
+                </defs>
+
+                {/* Grid lines */}
+                {[0, 25, 50, 75, 100].map((val) => {
+                  const y = 255 - (val / 100) * 220;
+                  return (
+                    <g key={val}>
+                      <line x1="60" y1={y} x2="680" y2={y} stroke="#f1f5f9" strokeWidth="1" />
+                      <text x="48" y={y + 4} textAnchor="end" className="fill-slate-400" fontSize="11" fontWeight="500">{val}</text>
+                    </g>
+                  );
+                })}
+
+                {/* Baseline */}
+                <line x1="60" y1="255" x2="680" y2="255" stroke="#cbd5e1" strokeWidth="1" />
+
+                {/* Bars + X-axis labels */}
+                {chartData.map((item, i) => {
+                  const groupWidth = 580 / chartData.length;
+                  const groupX = 70 + i * groupWidth;
+                  const barWidth = groupWidth * 0.18;
+                  const gap = 2;
+                  const tahfidzH = (item.tahfidz / 100) * 220;
+                  const tahsinH = (item.tahsin / 100) * 220;
+                  const isToday = i === chartData.length - 1;
+                  const barsTotalWidth = barWidth * 2 + gap;
+                  const barsStartX = groupX + (groupWidth - barsTotalWidth) / 2;
+                  const barOpacity = item.keterangan ? 0.3 : 1;
+                  return (
+                    <g key={item.tanggal}>
+                      {/* Tahfidz bar */}
+                      <rect
+                        x={barsStartX}
+                        y={255 - tahfidzH}
+                        width={barWidth}
+                        height={Math.max(tahfidzH, 2)}
+                        rx={3}
+                        ry={3}
+                        fill="url(#gradTahfidz)"
+                        filter="url(#barShadow)"
+                        opacity={barOpacity}
+                      />
+                      {/* Tahsin bar */}
+                      <rect
+                        x={barsStartX + barWidth + gap}
+                        y={255 - tahsinH}
+                        width={barWidth}
+                        height={Math.max(tahsinH, 2)}
+                        rx={3}
+                        ry={3}
+                        fill="url(#gradTahsin)"
+                        filter="url(#barShadow)"
+                        opacity={barOpacity}
+                      />
+                      {/* Value labels */}
+                      {!item.keterangan && item.tahfidz > 0 && (
+                        <text
+                          x={barsStartX + barWidth / 2}
+                          y={255 - tahfidzH - 5}
+                          textAnchor="middle"
+                          className="fill-amber-600"
+                          fontSize="9"
+                          fontWeight="700"
+                        >
+                          {item.tahfidz}
+                        </text>
+                      )}
+                      {!item.keterangan && item.tahsin > 0 && (
+                        <text
+                          x={barsStartX + barWidth + gap + barWidth / 2}
+                          y={255 - tahsinH - 5}
+                          textAnchor="middle"
+                          className="fill-emerald-600"
+                          fontSize="9"
+                          fontWeight="700"
+                        >
+                          {item.tahsin}
+                        </text>
+                      )}
+                      {/* X-axis label */}
+                      <text
+                        x={groupX + groupWidth / 2}
+                        y="270"
+                        textAnchor="middle"
+                        className={isToday ? "fill-slate-800" : "fill-slate-400"}
+                        fontSize="10"
+                        fontWeight={isToday ? "700" : "500"}
+                      >
+                        {item.label}
+                      </text>
+                      {isToday && !item.keterangan && (
+                        <text
+                          x={groupX + groupWidth / 2}
+                          y="284"
+                          textAnchor="middle"
+                          className="fill-emerald-500"
+                          fontSize="8"
+                          fontWeight="600"
+                        >
+                          Hari ini
+                        </text>
+                      )}
+                      {item.keterangan && !item.isWeekend && (
+                        <text
+                          x={groupX + groupWidth / 2}
+                          y="282"
+                          textAnchor="middle"
+                          className="fill-red-400"
+                          fontSize="7"
+                          fontWeight="500"
+                        >
+                          {item.keterangan}
+                        </text>
+                      )}
+                    </g>
+                  );
+                })}
+              </svg>
+
+              {/* Legend */}
+              <div className="flex items-center justify-center gap-8 mt-4 pt-3 border-t border-slate-100">
+                <div className="flex items-center gap-2">
+                  <div className="w-3.5 h-3.5 rounded bg-gradient-to-b from-amber-400 to-amber-600" />
+                  <span className="text-sm font-medium text-slate-600">Tahfidz</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3.5 h-3.5 rounded bg-gradient-to-b from-emerald-400 to-emerald-600" />
+                  <span className="text-sm font-medium text-slate-600">Tahsin</span>
+                </div>
+              </div>
+              {chartData.some(d => d.keterangan) && (
+                <div className="mt-3 pt-3 border-t border-slate-100">
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Keterangan</p>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Pada hari Jum&apos;at, Sabtu, dan Minggu, tidak ada tahfidz dan tahsin
+                  </p>
+                </div>
+              )}
             </div>
           )}
         </div>
+      </div>
 
+      {/* Distribusi Nilai + Detail Aspek Penilaian */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Distribusi Nilai */}
         <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
           <h3 className="font-semibold text-slate-900 mb-4 flex items-center gap-2">
@@ -449,6 +678,67 @@ export default function WaliDashboardPage() {
                 })}
             </div>
           )}
+        </div>
+
+        {/* Detail Aspek Penilaian */}
+        <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
+          <h3 className="font-semibold text-slate-900 mb-4 flex items-center gap-2">
+            <Info size={16} className="text-blue-500" />
+            Detail Aspek Penilaian
+          </h3>
+          <div className="space-y-4">
+            {/* Tahfidz */}
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-3 h-3 rounded-sm bg-amber-500" />
+                <span className="text-sm font-semibold text-amber-700">Tahfidz</span>
+              </div>
+              <div className="space-y-1.5 ml-5">
+                <p className="text-xs text-slate-600">
+                  <span className="font-semibold text-blue-600">Makhroj</span> — Ketepatan pengucapan huruf hijaiyah dari tempat keluarnya
+                </p>
+                <p className="text-xs text-slate-600">
+                  <span className="font-semibold text-purple-600">Tajwid</span> — Kepatuhan aturan bacaan dalam melafalkan ayat Al-Qur&apos;an
+                </p>
+                <p className="text-xs text-slate-600">
+                  <span className="font-semibold text-emerald-600">Kelancaran</span> — Kemampuan membaca tanpa terbata-bata
+                </p>
+              </div>
+            </div>
+            <div className="border-t border-slate-100" />
+            {/* Tahsin */}
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-3 h-3 rounded-sm bg-emerald-500" />
+                <span className="text-sm font-semibold text-emerald-700">Tahsin</span>
+              </div>
+              <div className="space-y-1.5 ml-5">
+                <p className="text-xs text-slate-600">
+                  <span className="font-semibold text-blue-600">Makhroj</span> — Ketepatan pengucapan huruf dari tempat keluarnya
+                </p>
+                <p className="text-xs text-slate-600">
+                  <span className="font-semibold text-amber-600">Kelancaran</span> — Kemampuan membaca dengan lancar dan ritme yang tepat
+                </p>
+                <p className="text-xs text-slate-600">
+                  <span className="font-semibold text-purple-600">Tajwid</span> — Penerapan aturan bacaan tajwid yang benar
+                </p>
+              </div>
+            </div>
+            <div className="border-t border-slate-100" />
+            {/* Keterangan Nilai */}
+            <div>
+              <p className="text-xs font-semibold text-slate-700 mb-2">Keterangan Skor</p>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                <p className="text-[11px] text-slate-600"><span className="font-bold text-emerald-600">A / 85-100</span> — Sangat Baik</p>
+                <p className="text-[11px] text-slate-600"><span className="font-bold text-amber-600">B / 70-84</span> — Baik</p>
+                <p className="text-[11px] text-slate-600"><span className="font-bold text-red-600">C / 50-69</span> — Perlu Perbaikan</p>
+                <p className="text-[11px] text-slate-600"><span className="font-bold text-red-700">D / &lt;50</span> — Kurang</p>
+                <p className="text-[11px] text-slate-600"><span className="font-bold text-emerald-600">L</span> — Lancar</p>
+                <p className="text-[11px] text-slate-600"><span className="font-bold text-amber-600">KL</span> — Kurang Lancar</p>
+                <p className="text-[11px] text-slate-600"><span className="font-bold text-red-600">TL</span> — Tidak Lancar</p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -563,6 +853,14 @@ export default function WaliDashboardPage() {
                         { day: "numeric", month: "short", year: "numeric" }
                       )}
                     </p>
+                    {h.catatan && (
+                      <div className="mt-2 p-2 rounded-lg bg-indigo-50 border border-indigo-100">
+                        <p className="text-[10px] font-semibold text-indigo-600 mb-0.5">
+                          Catatan {h.nama_pengajar ? `dari ${h.nama_pengajar}` : 'Pengajar'}
+                        </p>
+                        <p className="text-[11px] text-slate-600 leading-relaxed">{h.catatan}</p>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
@@ -629,6 +927,14 @@ export default function WaliDashboardPage() {
                         { day: "numeric", month: "short", year: "numeric" }
                       )}
                     </p>
+                    {t.catatan && (
+                      <div className="mt-2 p-2 rounded-lg bg-emerald-50 border border-emerald-100">
+                        <p className="text-[10px] font-semibold text-emerald-600 mb-0.5">
+                          Catatan {t.nama_pengajar ? `dari ${t.nama_pengajar}` : 'Pengajar'}
+                        </p>
+                        <p className="text-[11px] text-slate-600 leading-relaxed">{t.catatan}</p>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}

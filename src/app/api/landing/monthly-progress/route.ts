@@ -1,10 +1,17 @@
 export const dynamic = 'force-dynamic';
-// src/app/api/landing/monthly-progress/route.ts
-// GET: Hitung progres tahfidz dan tahsin per siswa per bulan
-// Menghitung rata-rata penilaian dari data harian
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
+
+// ─── Jadwal fleksibel ───
+// 0=Minggu, 1=Senin, 2=Selasa, 3=Rabu, 4=Kamis, 5=Jumat, 6=Sabtu
+// Tahfidz: fleksibel (semua hari), Tahsin: Senin, Selasa, Rabu
+const TAHSIN_DAYS = [1, 2, 3];
+
+function getDayOfWeek(dateStr: string): number {
+  const d = new Date(dateStr);
+  return d.getDay();
+}
 
 function getNilaiNumeric(nilai: string | null): number {
   if (!nilai) return 0;
@@ -29,7 +36,32 @@ function getSixMonthRange(): { label: string; key: string }[] {
   });
 }
 
-export async function GET(request: NextRequest) {
+function countExpectedSessions(year: number, month: number, days: number[]): number {
+  let count = 0;
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dow = new Date(year, month, d).getDay();
+    if (days.includes(dow)) count++;
+  }
+  return count;
+}
+
+function countWeekdays(year: number, month: number): number {
+  let count = 0;
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dow = new Date(year, month, d).getDay();
+    if (dow >= 1 && dow <= 5) count++;
+  }
+  return count;
+}
+
+function clampPercent(value: number): number {
+  if (value <= 0) return 0;
+  return Math.min(100, Math.max(1, Math.round(value)));
+}
+
+export async function GET(_request: NextRequest) {
   try {
     const supabase = createServerClient();
     const months = getSixMonthRange();
@@ -42,7 +74,6 @@ export async function GET(request: NextRequest) {
     const nextLastMonth = new Date(Number(lastYear), Number(lastMonthNumber), 1);
     const toDate = `${nextLastMonth.getFullYear()}-${String(nextLastMonth.getMonth() + 1).padStart(2, '0')}-01`;
 
-    // Ambil semua data tahfidz dalam 6 bulan terakhir
     const { data: tahfidzData, error: tahfidzError } = await supabase
       .from('hafalan')
       .select('tanggal, makhroj, tajwid, lancar')
@@ -51,13 +82,9 @@ export async function GET(request: NextRequest) {
 
     if (tahfidzError) {
       console.error('[Landing] Fetch tahfidz error:', tahfidzError);
-      return NextResponse.json(
-        { message: 'Gagal mengambil data tahfidz.' },
-        { status: 500 }
-      );
+      return NextResponse.json({ message: 'Gagal mengambil data tahfidz.' }, { status: 500 });
     }
 
-    // Ambil semua data tahsin dalam 6 bulan terakhir
     const { data: tahsinData, error: tahsinError } = await supabase
       .from('tahsin')
       .select('tanggal, makhroj, kelancaran, adab')
@@ -66,71 +93,59 @@ export async function GET(request: NextRequest) {
 
     if (tahsinError) {
       console.error('[Landing] Fetch tahsin error:', tahsinError);
-      return NextResponse.json(
-        { message: 'Gagal mengambil data tahsin.' },
-        { status: 500 }
-      );
+      return NextResponse.json({ message: 'Gagal mengambil data tahsin.' }, { status: 500 });
     }
 
-    // Proses tahfidz per bulan
     const tahfidzByMonth: Record<string, { count: number; total: number }> = {};
     for (const record of tahfidzData ?? []) {
       const dateStr = String(record.tanggal);
       const monthKey = dateStr.substring(0, 7);
-      const nilai = (
-        (getNilaiNumeric(record.makhroj) +
-          getNilaiNumeric(record.tajwid) +
-          getNilaiNumeric(record.lancar)) /
-        3
-      );
-
-      if (!tahfidzByMonth[monthKey]) {
-        tahfidzByMonth[monthKey] = { count: 0, total: 0 };
-      }
+      const nilai =
+        (getNilaiNumeric(record.makhroj) + getNilaiNumeric(record.tajwid) + getNilaiNumeric(record.lancar)) / 3;
+      if (!tahfidzByMonth[monthKey]) tahfidzByMonth[monthKey] = { count: 0, total: 0 };
       tahfidzByMonth[monthKey].count += 1;
       tahfidzByMonth[monthKey].total += nilai;
     }
 
-    // Proses tahsin per bulan
     const tahsinByMonth: Record<string, { count: number; total: number }> = {};
     for (const record of tahsinData ?? []) {
       const dateStr = String(record.tanggal);
+      if (!TAHSIN_DAYS.includes(getDayOfWeek(dateStr))) continue;
       const monthKey = dateStr.substring(0, 7);
-      const nilai = (
-        (getNilaiNumeric(record.makhroj) +
-          getNilaiNumeric(record.kelancaran) +
-          getNilaiNumeric(record.adab)) /
-        3
-      );
-
-      if (!tahsinByMonth[monthKey]) {
-        tahsinByMonth[monthKey] = { count: 0, total: 0 };
-      }
+      const nilai =
+        (getNilaiNumeric(record.makhroj) + getNilaiNumeric(record.kelancaran) + getNilaiNumeric(record.adab)) / 3;
+      if (!tahsinByMonth[monthKey]) tahsinByMonth[monthKey] = { count: 0, total: 0 };
       tahsinByMonth[monthKey].count += 1;
       tahsinByMonth[monthKey].total += nilai;
     }
 
-    // Susun data untuk chart
     const progressData = months.map((month) => {
+      const [y, m] = month.key.split('-').map(Number);
+      const expectedTahsin = countExpectedSessions(y, m - 1, TAHSIN_DAYS);
+      const totalWeekdays = countWeekdays(y, m - 1);
+
       const tahfidzStats = tahfidzByMonth[month.key];
       const tahsinStats = tahsinByMonth[month.key];
 
-      const tahfidzProgress = tahfidzStats ? Math.round(tahfidzStats.total / tahfidzStats.count) : 0;
-      const tahsinProgress = tahsinStats ? Math.round(tahsinStats.total / tahsinStats.count) : 0;
+      const tahfidzScore = tahfidzStats ? Math.round(tahfidzStats.total / tahfidzStats.count) : 0;
+      const tahsinScore = tahsinStats ? Math.round(tahsinStats.total / tahsinStats.count) : 0;
+
+      const tahfidzCompletion = totalWeekdays > 0 ? clampPercent(((tahfidzStats?.count ?? 0) / totalWeekdays) * 100) : 0;
+      const tahsinCompletion = expectedTahsin > 0 ? clampPercent(((tahsinStats?.count ?? 0) / expectedTahsin) * 100) : 0;
 
       return {
         month: month.label,
-        tahfidz: tahfidzProgress,
-        tahsin: tahsinProgress,
+        tahfidz: clampPercent(tahfidzScore),
+        tahsin: clampPercent(tahsinScore),
+        tahfidzCompletion,
+        tahsinCompletion,
+        tahsinSessions: `${tahsinStats?.count ?? 0}/${expectedTahsin}`,
       };
     });
 
     return NextResponse.json({ data: progressData }, { status: 200 });
   } catch (error) {
     console.error('[Landing] Monthly progress API error:', error);
-    return NextResponse.json(
-      { message: 'Terjadi kesalahan pada server.' },
-      { status: 500 }
-    );
+    return NextResponse.json({ message: 'Terjadi kesalahan pada server.' }, { status: 500 });
   }
 }

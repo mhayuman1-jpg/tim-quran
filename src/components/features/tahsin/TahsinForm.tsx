@@ -12,7 +12,7 @@ import Button from '@/components/ui/Button';
 import { ChevronDown } from 'lucide-react';
 import type { Tahsin, TahsinMetode } from '@/types';
 import type { NilaiTahfidz } from '@/lib/surahData';
-import { NILAI_TANPA_HAFAL, NILAI_LANCAR } from '@/lib/surahData';
+import { NILAI_TANPA_HAFAL, NILAI_LANCAR, SURAH_ALQURAN_LIST } from '@/lib/surahData';
 import { useSiswaList } from '@/hooks/useSWRFetcher';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -27,7 +27,7 @@ export interface TahsinFormData {
   tanggal: string;
   metode: TahsinMetode;
   buku: string;
-  halaman: number;
+  halaman: string;
   catatan: string;
   makhroj?: string;
   kelancaran?: string;
@@ -47,6 +47,10 @@ interface TahsinFormProps {
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const METODE_OPTIONS: TahsinMetode[] = ['Wafa', 'IWR', 'Al-Quran'];
+
+// Opsi buku/jilid berdasarkan metode tahsin
+const BUKU_WAFA_OPTIONS = ['WAFA 1', 'WAFA 2', 'WAFA 3', 'WAFA 4', 'WAFA 5', 'TAJWID', 'GHORIB'];
+const BUKU_IWR_OPTIONS = ['Jilid 1', 'Jilid 2', 'Jilid 3', 'Jilid 4', 'Panduan Tajwid & Ghorib'];
 
 const NILAI_MAKHROJ_TAJWID = NILAI_TANPA_HAFAL;
 
@@ -142,9 +146,8 @@ function validate(data: TahsinFormData): FormErrors {
   if (!data.buku.trim()) {
     errors.buku = 'Buku wajib diisi.';
   }
-  const halamanNum = Number(data.halaman);
-  if (isNaN(halamanNum) || halamanNum < 1) {
-    errors.halaman = 'Halaman harus berupa angka positif.';
+  if (!data.halaman || !data.halaman.trim()) {
+    errors.halaman = 'Halaman wajib diisi.';
   }
   return errors;
 }
@@ -166,7 +169,7 @@ export default function TahsinForm({
     tanggal: today,
     metode: 'Wafa',
     buku: '',
-    halaman: 1,
+    halaman: '',
     catatan: '',
     makhroj: '',
     kelancaran: '',
@@ -190,7 +193,7 @@ export default function TahsinForm({
         tanggal: initialData.tanggal,
         metode: initialData.metode,
         buku: initialData.buku ?? '',
-        halaman: initialData.halaman ?? 1,
+        halaman: initialData.halaman ?? '',
         catatan: initialData.catatan ?? '',
         makhroj: (initialData as any).makhroj ?? '',
         kelancaran: (initialData as any).kelancaran ?? '',
@@ -202,7 +205,7 @@ export default function TahsinForm({
         tanggal: today,
         metode: 'Wafa',
         buku: '',
-        halaman: 1,
+        halaman: '',
         catatan: '',
         makhroj: '',
         kelancaran: '',
@@ -276,7 +279,12 @@ export default function TahsinForm({
         </label>
         <select
           value={form.metode}
-          onChange={(e) => set('metode', e.target.value as TahsinMetode)}
+          onChange={(e) => {
+            const newMetode = e.target.value as TahsinMetode;
+            setForm((prev) => ({ ...prev, metode: newMetode, buku: '' }));
+            if (errors.metode) setErrors((prev) => ({ ...prev, metode: undefined }));
+            if (errors.buku) setErrors((prev) => ({ ...prev, buku: undefined }));
+          }}
           disabled={loading}
           className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 disabled:bg-slate-100 disabled:cursor-not-allowed"
         >
@@ -291,24 +299,45 @@ export default function TahsinForm({
         )}
       </div>
 
-      {/* Buku */}
-      <Input
-        label="Jilid / Surah"
-        required
-        value={form.buku}
-        onChange={(e) => set('buku', e.target.value)}
-        error={errors.buku}
-        placeholder="Contoh: Wafa Jilid 3, Nuraniyah"
-        disabled={loading}
-      />
+      {/* Buku / Jilid / Surah */}
+      {form.metode === 'Wafa' || form.metode === 'IWR' || form.metode === 'Al-Quran' ? (
+        <div className="flex flex-col gap-1">
+          <label className="text-sm font-medium text-slate-700">
+            Jilid / Surah <span className="text-red-500 ml-1">*</span>
+          </label>
+          <select
+            value={form.buku}
+            onChange={(e) => set('buku', e.target.value)}
+            disabled={loading}
+            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 disabled:bg-slate-100 disabled:cursor-not-allowed"
+          >
+            <option value="">— Pilih —</option>
+            {(form.metode === 'Wafa' ? BUKU_WAFA_OPTIONS : form.metode === 'IWR' ? BUKU_IWR_OPTIONS : SURAH_ALQURAN_LIST).map((opt) => (
+              <option key={opt} value={opt}>{opt}</option>
+            ))}
+          </select>
+          {errors.buku && <p className="text-xs text-red-600" role="alert">{errors.buku}</p>}
+        </div>
+      ) : (
+        <Input
+          label="Jilid / Surah"
+          required
+          value={form.buku}
+          onChange={(e) => set('buku', e.target.value)}
+          error={errors.buku}
+          placeholder="Contoh: Nuraniyah, Juz 30"
+          disabled={loading}
+        />
+      )}
 
       {/* Halaman */}
       <Input
         label="Halaman / Ayat"
         required
-        value={String(form.halaman)}
-        onChange={(e) => set('halaman', parseInt(e.target.value) || 1)}
+        value={form.halaman}
+        onChange={(e) => set('halaman', e.target.value)}
         error={errors.halaman}
+        placeholder="Contoh: 1, 1-20, atau ayat 1-5"
         helperText="Halaman atau ayat yang dipelajari"
         disabled={loading}
       />

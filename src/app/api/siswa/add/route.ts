@@ -38,15 +38,8 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    if (juz_terakhir === undefined || juz_terakhir === null) {
+    if (juz_terakhir === undefined || juz_terakhir === null || (typeof juz_terakhir === 'string' && juz_terakhir.trim() === '')) {
       return NextResponse.json({ message: 'Juz terakhir wajib diisi' }, { status: 400 });
-    }
-    const juzNum = Number(juz_terakhir);
-    if (isNaN(juzNum) || juzNum < 1 || juzNum > 30) {
-      return NextResponse.json(
-        { message: 'Juz terakhir harus berupa angka antara 1 dan 30' },
-        { status: 400 }
-      );
     }
 
     // Generate QR code unik sebagai UUID
@@ -58,7 +51,7 @@ export async function POST(request: NextRequest) {
       nisn: nisn.trim(),
       nama: nama.trim(),
       gender,
-      juz_terakhir: juzNum,
+      juz_terakhir: String(juz_terakhir).trim(),
       qr_code,
       status: status ?? 'Aktif',
     };

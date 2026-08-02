@@ -12,13 +12,6 @@ import { useProfil, useNavigation } from "@/hooks/useSWRFetcher";
 import useSWR from "swr";
 
 interface JuzSummary { juz: number; count: number; }
-interface DashboardStats {
-  totalSantriAktif: number;
-  kehadiranHariIni: { hadir: number; total: number; persentase: number; tanggal?: string; };
-  ringkasanJuz: JuzSummary[];
-  jumlahTimAktif: number;
-}
-
 function SkeletonCard() {
   return (
     <div className="shell-card animate-pulse">
@@ -161,7 +154,7 @@ export default function DashboardPage() {
   const { toast } = useToast();
   const [greetingPlayed, setGreetingPlayed] = useState(false);
   const [audioBlocked, setAudioBlocked] = useState(false);
-  const [audioReady, setAudioReady] = useState(false);
+  const [, setAudioReady] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {

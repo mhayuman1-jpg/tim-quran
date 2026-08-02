@@ -4,8 +4,7 @@
 // - Support query param `search` untuk filter nama (case-insensitive)
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { getAuthenticatedSession } from '@/lib/api-auth';
 import { createServerClient } from '@/lib/supabase/server';
 import { shouldFilterByTeacher, getTeacherFilterId, getTeacherClassIds, applyTeacherSantriFilter } from '@/lib/rbac';
 import { shuffleArray } from '@/lib/shuffle';
@@ -15,13 +14,8 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: NextRequest) {
   try {
     // Cek autentikasi
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
-      return NextResponse.json(
-        { message: 'Sesi tidak valid, silakan login kembali' },
-        { status: 401 }
-      );
-    }
+    const session = await getAuthenticatedSession(request);
+    if (session instanceof NextResponse) return session;
 
     const supabase = createServerClient();
     const { searchParams } = new URL(request.url);

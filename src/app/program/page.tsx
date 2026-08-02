@@ -1,6 +1,6 @@
 // src/app/program/page.tsx — Halaman Program Publik
 
-import { BookOpen, Users, Star, Mic, Globe, Heart, Shield, Award } from 'lucide-react';
+import { BookOpen } from 'lucide-react';
 import { createServerClient } from '@/lib/supabase/server';
 import ProgramCard from '@/components/program/ProgramCard';
 
@@ -18,10 +18,6 @@ interface Program {
   icon: string;
   urutan: number;
 }
-
-const ICON_MAP: Record<string, React.ElementType> = {
-  BookOpen, Users, Star, Mic, Globe, Heart, Shield, Award,
-};
 
 async function getPrograms(): Promise<Program[]> {
   try {
@@ -79,7 +75,6 @@ export default async function ProgramPage() {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {programs.map((p, i) => {
-              const IconComp = ICON_MAP[p.icon] || BookOpen;
               const s = CARD_STYLES[i % CARD_STYLES.length];
               return (
                 <ProgramCard

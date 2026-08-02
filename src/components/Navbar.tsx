@@ -18,7 +18,7 @@ export default function Navbar() {
     <header className="sticky top-0 z-50 bg-white border-b border-slate-200 shadow-sm">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
         <Link href="/" className="text-lg font-semibold text-amber-700">
-          Qur'an System
+          Qur&apos;an System
         </Link>
 
         <nav className="hidden gap-3 md:flex">

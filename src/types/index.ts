@@ -27,7 +27,7 @@ export interface Santri {
   gender: Gender;
   tanggal_lahir?: string;
   class_id?: string;
-  juz_terakhir: number;
+  juz_terakhir: string;
   qr_code: string;
   photo_url?: string;
   assigned_teacher_id?: string;
@@ -53,7 +53,7 @@ export interface Hafalan {
   teacher_id: string;
   tanggal: string;
   surah_juz: string;
-  halaman?: number;
+  halaman?: string;
   makhroj?: string;
   tajwid?: string;
   lancar?: string;
@@ -69,7 +69,7 @@ export interface Tahsin {
   tanggal: string;
   metode: TahsinMetode;
   buku?: string;
-  halaman?: number;
+  halaman?: string;
   makhroj?: string;
   kelancaran?: string;
   adab?: string;
@@ -93,7 +93,7 @@ export interface Tahfidz {
   teacher_id: string;
   tanggal: string;
   surah_juz: string;
-  halaman?: number;
+  halaman?: string;
   makhroj: string;
   tajwid: string;
   lancar: string;
@@ -110,7 +110,7 @@ export interface RaportQuran {
   tajwid?: number;
   lancar?: number;
   buku_surah?: string;
-  halaman?: number;
+  halaman?: string;
   catatan?: string;
   created_at?: string;
   updated_at?: string;

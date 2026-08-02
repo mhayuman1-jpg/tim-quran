@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint \"src/**/*.{js,ts,jsx,tsx}\" --ext .ts,.tsx,.js,.jsx || true",
+    "lint": "eslint \"src/**/*.{js,ts,jsx,tsx}\" || true",
     "create-admin": "node scripts/create-admin.js",
     "postinstall": "npx playwright install chromium",
     "cap:sync": "npx cap sync android",

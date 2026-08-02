@@ -12,7 +12,7 @@ import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   PieChart, Pie, Cell,
 } from 'recharts';
-import { Calendar, Users, BookOpen, CheckCircle, TrendingUp, ArrowLeftRight, Download } from 'lucide-react';
+import { Users, BookOpen, CheckCircle, TrendingUp, ArrowLeftRight, Download } from 'lucide-react';
 import { toPng } from 'html-to-image';
 import { toImageUrl } from '@/lib/storage/urls';
 
@@ -26,7 +26,7 @@ interface StudentRecap {
   nisn: string;
   class_name: string;
   gender: string;
-  juz_terakhir: number;
+  juz_terakhir: string;
   total_hafalan: number;
   total_tahsin: number;
   total_hadir: number;
@@ -162,7 +162,6 @@ export default function RekapPage() {
       let logoSekolah: string | null = null;
       let logoLembaga: string | null = null;
       let namaSekolah: string = '';
-      let namaLembaga: string = '';
       try {
         const profilRes = await fetch('/api/website/profil');
         const profilJson = await profilRes.json();
@@ -174,7 +173,6 @@ export default function RekapPage() {
             logoLembaga = toImageUrl(profilJson.data.logo_url);
           }
           namaSekolah = profilJson.data.nama_sekolah || '';
-          namaLembaga = profilJson.data.nama_lembaga || '';
         }
       } catch {
         // logos optional

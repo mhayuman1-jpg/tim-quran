@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 // Halaman Kirim Laporan untuk Tim Qur'an — auto-recap data siswa, lalu kirim ke Kabid/Sekretaris
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { Send, Loader2, FileText, Eye, CheckCircle, Clock, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
+import { Send, Loader2, FileText, Eye, RefreshCw, ChevronUp } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import Modal from '@/components/ui/Modal';
@@ -17,7 +17,7 @@ interface StudentRecap {
   nisn: string;
   gender: string;
   kelas: string;
-  juz_terakhir: number | null;
+  juz_terakhir: string | null;
   hafalan_count: number;
   hafalan_dinilai: number;
   tahsin_count: number;
@@ -57,7 +57,7 @@ interface ReportItem {
 }
 
 export default function KirimLaporanPage() {
-  const { isTimQuran } = useRole();
+  useRole();
 
   // Recap data
   const [recap, setRecap] = useState<RecapData | null>(null);
@@ -127,7 +127,6 @@ export default function KirimLaporanPage() {
           status,
         }),
       });
-      const json = await res.json();
       if (res.ok) {
         fetchReports();
         setJudul('');

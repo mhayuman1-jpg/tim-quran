@@ -3,8 +3,7 @@
 // cek hari libur, insert ke tabel attendances, return nama siswa.
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { getAuthenticatedSession } from '@/lib/api-auth';
 import { createServerClient } from '@/lib/supabase/server';
 import { requireActiveSemester } from '@/lib/semester';
 import { requireNoHoliday } from '@/lib/holiday';
@@ -17,11 +16,9 @@ import { getTeacherClassIds } from '@/lib/rbac';
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
-  // Verifikasi sesi â€” hanya pengguna terautentikasi
-  const session = await getServerSession(authOptions);
-  if (!session) {
-    return NextResponse.json({ message: 'Tidak terautentikasi.' }, { status: 401 });
-  }
+  // Verifikasi sesi — hanya pengguna terautentikasi
+  const session = await getAuthenticatedSession(request);
+  if (session instanceof NextResponse) return session;
 
   try {
     const body = await request.json();

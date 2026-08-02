@@ -1,13 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { getAuthenticatedSession } from '@/lib/api-auth';
 import { createServerClient } from '@/lib/supabase/server';
 
-export async function GET(_request: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
-    return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-  }
+export async function GET(request: NextRequest) {
+  const session = await getAuthenticatedSession(request);
+  if (session instanceof NextResponse) return session;
 
   try {
     const supabase = createServerClient();
@@ -15,7 +12,7 @@ export async function GET(_request: NextRequest) {
 
     let query = supabase
       .from('messages')
-      .select('*', { count: 'exact', head: true })
+      .select('id')
       .eq('is_read', false);
 
     // Kabid only sees unread messages from wali
@@ -25,20 +22,23 @@ export async function GET(_request: NextRequest) {
 
     // Wali murid sees unread replies from kabid
     if (role === 'Wali_Murid') {
-      const santriId = (session.user as any).santri_id;
+      const santriId = session.user.santri_id;
+      if (!santriId) {
+        return NextResponse.json({ count: 0 }, { status: 200 });
+      }
       query = query.eq('santri_id', santriId).eq('sender_type', 'kabid');
     }
 
-    const { count, error } = await query;
+    const { data, error } = await query;
 
     if (error) {
-      console.error('Unread count error:', error);
-      return NextResponse.json({ message: 'Gagal menghitung pesan' }, { status: 500 });
+      console.error('Unread count error:', JSON.stringify(error));
+      return NextResponse.json({ count: 0 }, { status: 200 });
     }
 
-    return NextResponse.json({ count: count ?? 0 }, { status: 200 });
+    return NextResponse.json({ count: data?.length ?? 0 }, { status: 200 });
   } catch (error) {
     console.error('Unread count API error:', error);
-    return NextResponse.json({ message: 'Terjadi kesalahan server' }, { status: 500 });
+    return NextResponse.json({ count: 0 }, { status: 200 });
   }
 }

@@ -186,7 +186,7 @@ export default async function ArtikelDetailPage({ params }: { params: { slug: st
           Kembali ke daftar artikel
         </Link>
         <div className="inline-flex items-center gap-2 rounded-full border border-amber-100 bg-white px-4 py-2 text-xs uppercase tracking-[0.32em] text-amber-600">
-          <BookOpen size={14} /> Artikel Qur'ani
+          <BookOpen size={14} /> Artikel Qur&apos;ani
         </div>
       </div>
 
@@ -214,7 +214,7 @@ export default async function ArtikelDetailPage({ params }: { params: { slug: st
             {artikel.judul}
           </h1>
           <p className="mt-5 max-w-3xl text-slate-700 leading-relaxed text-lg">
-            Artikel ini menjelaskan bagaimana pembelajaran Al-Qur'an dapat berjalan lebih menarik, modern, dan berwawasan anak di lingkungan sekolah.
+            Artikel ini menjelaskan bagaimana pembelajaran Al-Qur&apos;an dapat berjalan lebih menarik, modern, dan berwawasan anak di lingkungan sekolah.
           </p>
         </div>
 
@@ -263,7 +263,7 @@ export default async function ArtikelDetailPage({ params }: { params: { slug: st
         <aside className="hidden lg:block rounded-[28px] border border-amber-100 bg-white p-6 shadow-2xl shadow-amber-900/5">
           <p className="text-xs uppercase tracking-[0.3em] text-amber-600">Highlight</p>
           <h2 className="mt-4 text-2xl font-semibold text-slate-900">Intisari Artikel</h2>
-          <p className="mt-4 text-slate-600 leading-relaxed">Baca setiap bagian dengan nyaman, dari pendahuluan hingga kesimpulan, dengan tampilan fokus yang mendukung pembelajaran Qur'an modern.</p>
+          <p className="mt-4 text-slate-600 leading-relaxed">Baca setiap bagian dengan nyaman, dari pendahuluan hingga kesimpulan, dengan tampilan fokus yang mendukung pembelajaran Qur&apos;an modern.</p>
           <div className="mt-8 space-y-4">
             <div className="rounded-3xl border border-amber-100 bg-white p-4">
               <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Kategori</p>

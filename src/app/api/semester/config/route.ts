@@ -3,18 +3,15 @@
 // PUT: Simpan konfigurasi semester baru / update
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { getAuthenticatedSession } from '@/lib/api-auth';
 import { createServerClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
-      return NextResponse.json({ message: 'Sesi tidak valid, silakan login kembali.' }, { status: 401 });
-    }
+    const session = await getAuthenticatedSession(request);
+    if (session instanceof NextResponse) return session;
 
     const supabase = createServerClient();
     const { data, error } = await supabase
@@ -38,10 +35,8 @@ export async function GET() {
 
 export async function PUT(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
-      return NextResponse.json({ message: 'Sesi tidak valid, silakan login kembali.' }, { status: 401 });
-    }
+    const session = await getAuthenticatedSession(request);
+    if (session instanceof NextResponse) return session;
     if (session.user.role !== 'Kabid') {
       return NextResponse.json({ message: 'Akses tidak diizinkan.', status: 403 });
     }

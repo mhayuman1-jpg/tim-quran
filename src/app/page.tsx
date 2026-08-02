@@ -5,6 +5,7 @@ export const fetchCache = 'force-no-store';
 import type { Metadata } from 'next';
 import React from 'react';
 import { default as nextDynamic } from 'next/dynamic';
+import Image from 'next/image';
 import Link from 'next/link';
 import { AtSign, Mail, MapPin, Phone, PlayCircle, ArrowUpRight, BookOpen, Star, Users, TrendingUp, Calendar } from 'lucide-react';
 import PublicNavbar from '@/components/layout/PublicNavbar';
@@ -37,6 +38,9 @@ interface MonthlyProgressPoint {
   month: string;
   tahfidz: number;
   tahsin: number;
+  tahfidzCompletion?: number;
+  tahsinCompletion?: number;
+  tahsinSessions?: string;
 }
 
 function getSixMonthRange(): { label: string; key: string }[] {
@@ -168,13 +172,37 @@ export default async function LandingPage() {
             <div className="grid gap-10 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
               {/* Left: Text */}
               <div className="space-y-6 sm:space-y-8">
+                {(profil.logo_url || profil.logo_sekolah_url) && (
+                  <div className="flex items-center gap-4">
+                    {profil.logo_url && (
+                      <Image
+                        src={profil.logo_url}
+                        alt={profil.nama_lembaga ?? "Tim Qur'an"}
+                        width={72}
+                        height={72}
+                        className="rounded-2xl object-contain ring-2 ring-amber-200/40 shadow-md"
+                        priority
+                      />
+                    )}
+                    {profil.logo_sekolah_url && (
+                      <Image
+                        src={profil.logo_sekolah_url}
+                        alt={profil.nama_sekolah ?? "Logo Sekolah"}
+                        width={72}
+                        height={72}
+                        className="rounded-2xl object-contain ring-2 ring-amber-200/40 shadow-md"
+                        priority
+                      />
+                    )}
+                  </div>
+                )}
                 <div className="inline-flex items-center gap-2 rounded-full border border-amber-200/60 bg-white/80 px-3.5 py-1.5 text-[11px] sm:text-xs font-medium tracking-wide text-amber-700 shadow-sm">
                   <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
-                  Pendidikan Qur'ani Terpercaya
+                  Pendidikan Qur&apos;ani Terpercaya
                 </div>
                 <h1 className="text-3xl sm:text-5xl lg:text-6xl font-bold leading-[1.15] sm:leading-[1.1] tracking-tight text-slate-900">
                   Membangun Generasi{' '}
-                  <span className="text-gradient-gold">Qur'ani</span>
+                  <span className="text-gradient-gold">Qur&apos;ani</span>
                   <br />
                   dengan Misi Modern
                 </h1>
@@ -320,12 +348,12 @@ export default async function LandingPage() {
                 Program Unggulan
               </h2>
               <p className="mx-auto mt-2 sm:mt-3 max-w-xl text-sm sm:text-base text-slate-400">
-                Program dan fitur unggulan untuk mendukung pembelajaran Al-Qur'an.
+                Program dan fitur unggulan untuk mendukung pembelajaran Al-Qur&apos;an.
               </p>
             </div>
             {programCards.length > 0 ? (
               <div className="grid gap-4 sm:gap-5 sm:grid-cols-2 lg:grid-cols-4">
-                {programCards.map((program, idx) => (
+                {programCards.map((program, _idx) => (
                   <div key={program.id} className="group relative">
                     <div className="shell-card program-card">
                       <div className="inner-card flex flex-col min-h-[180px] sm:min-h-[220px] transition-all duration-300 group-hover:-translate-y-0.5">
@@ -530,7 +558,7 @@ export default async function LandingPage() {
                           </svg>
                         ))}
                       </div>
-                      <p className="text-sm text-slate-500 leading-relaxed italic">"{item.message}"</p>
+                      <p className="text-sm text-slate-500 leading-relaxed italic">&quot;{item.message}&quot;</p>
                       <div className="mt-5 flex items-center gap-3 border-t border-black/5 pt-4">
                         <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-amber-200 to-amber-100 text-sm font-bold text-amber-700">
                           {item.parent_name.charAt(0)}

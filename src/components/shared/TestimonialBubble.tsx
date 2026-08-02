@@ -243,7 +243,7 @@ export default function TestimonialBubble() {
                           {t.batch && ` · Angkatan ${t.batch}`}
                         </p>
                         <div className="flex items-center gap-0.5 mb-2">{renderStars(t.rating)}</div>
-                        <p className="text-xs text-slate-600 leading-relaxed italic">"{t.message}"</p>
+                        <p className="text-xs text-slate-600 leading-relaxed italic">&quot;{t.message}&quot;</p>
                       </div>
                     </div>
                   </div>

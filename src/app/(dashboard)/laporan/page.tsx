@@ -28,7 +28,7 @@ interface StudentProgress {
   nisn: string;
   nama: string;
   gender: string;
-  juz_terakhir: number;
+  juz_terakhir: string;
   kelas: string | null;
   total_hafalan: number;
   total_tahsin: number;

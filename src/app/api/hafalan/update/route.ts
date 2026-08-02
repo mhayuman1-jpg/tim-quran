@@ -5,8 +5,7 @@
 // - Tim_Quran hanya bisa update hafalan milik siswa tanggung jawabnya
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { getAuthenticatedSession } from '@/lib/api-auth';
 import { createServerClient } from '@/lib/supabase/server';
 import { requireActiveSemester } from '@/lib/semester';
 
@@ -14,13 +13,8 @@ export const dynamic = 'force-dynamic';
 
 export async function PUT(request: NextRequest) {
   // Verifikasi sesi
-  const session = await getServerSession(authOptions);
-  if (!session || !session.user) {
-    return NextResponse.json(
-      { message: 'Sesi tidak valid, silakan login kembali.' },
-      { status: 401 }
-    );
-  }
+  const session = await getAuthenticatedSession(request);
+  if (session instanceof NextResponse) return session;
 
   try {
     const body = await request.json();
@@ -44,10 +38,9 @@ export async function PUT(request: NextRequest) {
 
     // Validasi halaman jika diberikan
     if (halaman !== undefined && halaman !== null) {
-      const halamanNum = Number(halaman);
-      if (isNaN(halamanNum) || halamanNum < 1) {
+      if (typeof halaman !== 'string' || halaman.trim() === '') {
         return NextResponse.json(
-          { message: 'Halaman harus berupa angka positif.' },
+          { message: 'Halaman tidak valid.' },
           { status: 400 }
         );
       }
@@ -62,7 +55,7 @@ export async function PUT(request: NextRequest) {
     // Ambil data hafalan yang ada untuk validasi akses
     const { data: existingHafalan, error: fetchError } = await supabase
       .from('hafalan')
-      .select('id, student_id, teacher_id, surah_juz, edited_fields, santri ( id, assigned_teacher_id )')
+      .select('id, student_id, teacher_id, surah_juz, sort_order, edited_fields, santri ( id, assigned_teacher_id )')
       .eq('id', id.trim())
       .single();
 
@@ -96,7 +89,7 @@ export async function PUT(request: NextRequest) {
       editedFields.surah_juz = now;
     }
     if (halaman !== undefined && halaman !== null) {
-      updateData.halaman = Number(halaman);
+      updateData.halaman = String(halaman).trim();
       editedFields.halaman = now;
     }
     // catatan boleh dikosongkan (null)
@@ -130,6 +123,10 @@ export async function PUT(request: NextRequest) {
         : null;
       editedFields.buku = now;
     }
+
+    // ── sort_order TIDAK PERNAH diubah saat update ──
+    // sort_order hanya di-set saat insert (POST) berdasarkan posisi template.
+    // Update field apapun (tanggal, nilai, dll) tidak boleh menggeser urutan surah.    
 
     const shouldUpdateHafalan = Object.keys(updateData).length > 0;
 
@@ -184,11 +181,11 @@ export async function PUT(request: NextRequest) {
 
     // Jika diminta update juz_terakhir di tabel santri
     if (update_juz_terakhir === true && juz_baru !== undefined && juz_baru !== null) {
-      const juzNum = Number(juz_baru);
-      if (!isNaN(juzNum) && juzNum >= 1 && juzNum <= 30) {
+      const juzStr = String(juz_baru).trim();
+      if (juzStr) {
         const { error: santriUpdateError } = await supabase
           .from('santri')
-          .update({ juz_terakhir: juzNum, updated_at: new Date().toISOString() })
+          .update({ juz_terakhir: juzStr, updated_at: new Date().toISOString() })
           .eq('id', (existingHafalan as any).student_id);
 
         if (santriUpdateError) {

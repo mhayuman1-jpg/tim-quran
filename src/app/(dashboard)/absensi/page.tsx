@@ -466,7 +466,7 @@ export default function AbsensiPage() {
       if (viewAsTeacherId) h['x-view-as-teacher-id'] = viewAsTeacherId;
     }
     return h;
-  }, [viewAsRole]);
+  }, [viewAsRole, viewAsTeacherId]);
 
   const [activeTab, setActiveTab] = useState<TabKey>('harian');
   const [selectedClass, setSelectedClass] = useState<{ id: string; name: string } | null>(null);
