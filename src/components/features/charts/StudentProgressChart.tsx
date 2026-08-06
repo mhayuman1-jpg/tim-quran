@@ -109,22 +109,22 @@ export default function StudentProgressChart({ data }: StudentProgressChartProps
         <div style={cardStyle}>
           <p style={labelStyle}>Nilai Tahfidz</p>
           <p style={{ ...valueStyle, color: '#d97706' }}>{tahfidzAvg}%</p>
-          <p style={subStyle}>Sen–Kam · Makhroj, Tajwid, Lancar</p>
+          <p style={subStyle}>Fleksibel · Makhroj, Tajwid, Lancar</p>
         </div>
         <div style={cardStyle}>
           <p style={labelStyle}>Nilai Tahsin</p>
           <p style={{ ...valueStyle, color: '#059669' }}>{tahsinAvg}%</p>
-          <p style={subStyle}>Sen–Kam · Makhroj, Kelancaran, Adab</p>
+          <p style={subStyle}>Sen–Rab · Makhroj, Kelancaran, Adab</p>
         </div>
         <div style={cardStyle}>
           <p style={labelStyle}>Kehadiran Tahfidz</p>
           <p style={{ ...valueStyle, color: '#d97706' }}>{tahfidzCompletionAvg}%</p>
-          <p style={subStyle}>Sen–Kam · Semua hari</p>
+          <p style={subStyle}>Fleksibel · Semua hari</p>
         </div>
         <div style={cardStyle}>
           <p style={labelStyle}>Kehadiran Tahsin</p>
           <p style={{ ...valueStyle, color: '#059669' }}>{tahsinCompletionAvg}%</p>
-          <p style={subStyle}>Target: 4× per minggu</p>
+          <p style={subStyle}>Target: 3× per minggu</p>
         </div>
       </div>
 
@@ -189,19 +189,19 @@ export default function StudentProgressChart({ data }: StudentProgressChartProps
         <div style={{ borderRadius: '16px', border: '1px solid #fde68a', background: '#fffbeb', padding: '16px' }}>
           <div className="flex items-center gap-3 mb-2">
             <div className="h-3 w-3 rounded-full bg-amber-500"></div>
-            <p style={{ fontWeight: 600, color: '#1e293b', fontSize: '13px' }}>Tahfidz — Senin–Kamis</p>
+            <p style={{ fontWeight: 600, color: '#1e293b', fontSize: '13px' }}>Tahfidz — Fleksibel</p>
           </div>
           <p style={{ fontSize: '13px', color: '#94a3b8', lineHeight: '1.5' }}>
-            Jadwal 4× per minggu (Sen–Kam). Penilaian mencakup makhroj (pengucapan huruf), tajwid (aturan bacaan), dan kelancaran membaca Al-Qur&apos;an. Hari Jumat, Sabtu, dan Minggu tidak ada kegiatan tahfidz.
+            Jadwal fleksibel — santri boleh menyetor hafalan kapan saja selama minggu berjalan. Penilaian mencakup makhroj (pengucapan huruf), tajwid (aturan bacaan), dan kelancaran membaca Al-Qur&apos;an. Semua sesi terekam tanpa batasan hari.
           </p>
         </div>
         <div style={{ borderRadius: '16px', border: '1px solid #fde68a', background: '#fffbeb', padding: '16px' }}>
           <div className="flex items-center gap-3 mb-2">
             <div className="h-3 w-3 rounded-full bg-emerald-500"></div>
-            <p style={{ fontWeight: 600, color: '#1e293b', fontSize: '13px' }}>Tahsin — Senin–Kamis</p>
+            <p style={{ fontWeight: 600, color: '#1e293b', fontSize: '13px' }}>Tahsin — Senin, Selasa, Rabu</p>
           </div>
           <p style={{ fontSize: '13px', color: '#94a3b8', lineHeight: '1.5' }}>
-            Jadwal 4× per minggu (Sen–Kam). Penilaian mencakup makhroj, kelancaran, dan adab dalam membaca Al-Qur&apos;an. Kehadiran dihitung terhadap 4 sesi yang diharapkan setiap minggu.
+            Jadwal 3× per minggu (Sen–Rab). Penilaian mencakup makhroj, kelancaran, dan adab dalam membaca Al-Qur&apos;an. Kehadiran dihitung terhadap 3 sesi yang diharapkan setiap minggu.
           </p>
         </div>
       </div>

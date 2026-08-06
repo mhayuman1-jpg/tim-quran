@@ -37,8 +37,12 @@ export async function GET(request: NextRequest) {
       .from('hafalan')
       .select('id, tanggal, surah_juz, halaman, makhroj, tajwid, lancar, buku, catatan, created_at')
       .eq('student_id', studentId)
-      .not('catatan', 'is', null)
-      .neq('catatan', '')
+      .not('makhroj', 'is', null)
+      .neq('makhroj', '')
+      .not('tajwid', 'is', null)
+      .neq('tajwid', '')
+      .not('lancar', 'is', null)
+      .neq('lancar', '')
       .order('tanggal', { ascending: false });
 
     const { data: tahsin } = await supabase

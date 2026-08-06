@@ -11,7 +11,6 @@ import { AtSign, Mail, MapPin, Phone, PlayCircle, ArrowUpRight, BookOpen, Star, 
 import PublicNavbar from '@/components/layout/PublicNavbar';
 import { IslamicPatternBg, CornerOrnament } from '@/components/features/IslamicDecorations';
 import { createServerClient } from '@/lib/supabase/server';
-import { todayStr } from '@/lib/time';
 
 export const metadata: Metadata = {
   title: "Tim Qur'an — Platform Tahfidz & Tahsin Modern",
@@ -45,11 +44,14 @@ interface MonthlyProgressPoint {
 }
 
 function getSixMonthRange(): { label: string; key: string }[] {
-  const today = new Date(todayStr() + 'T00:00:00');
+  const todayStr = new Intl.DateTimeFormat('sv-SE', {
+    timeZone: 'Asia/Makassar',
+  }).format(new Date());
+  const today = new Date(todayStr + 'T00:00:00Z');
   return Array.from({ length: 6 }, (_, index) => {
-    const date = new Date(today.getFullYear(), today.getMonth() - (5 - index), 1);
-    const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-    const label = date.toLocaleDateString('id-ID', { month: 'short' });
+    const date = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() - (5 - index), 1));
+    const key = `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`;
+    const label = date.toLocaleDateString('id-ID', { timeZone: 'UTC', month: 'short' });
     return { label, key };
   });
 }
@@ -98,7 +100,9 @@ async function getMonthlyProgressData(): Promise<MonthlyProgressPoint[]> {
 
 async function getPageData() {
   try {
-    const today = todayStr();
+    const today = new Intl.DateTimeFormat('sv-SE', {
+      timeZone: 'Asia/Makassar',
+    }).format(new Date());
     const supabase = createServerClient();
     const [profilResult, programsResult, agendasResult, pengumumanResult, artikelResult, galeriResult, santriResult, navResult] = await Promise.all([
       supabase.from('profil_website').select('*').limit(1).maybeSingle(),

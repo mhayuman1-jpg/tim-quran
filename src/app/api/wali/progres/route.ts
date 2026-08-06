@@ -5,7 +5,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
-import { todayStr, dateToStrWITA } from '@/lib/time';
 
 export const dynamic = 'force-dynamic';
 
@@ -88,21 +87,24 @@ export async function GET(request: NextRequest) {
       users: undefined,
     }));
 
-    // Tentukan rentang tanggal untuk grafik (Senin - Minggu)
+    // Tentukan rentang tanggal untuk grafik (Senin - Minggu) — WITA (Asia/Makassar)
     const { searchParams } = new URL(request.url);
     const fromParam = searchParams.get('from');
+    const todayWitaStr = new Intl.DateTimeFormat('sv-SE', {
+      timeZone: 'Asia/Makassar',
+    }).format(new Date());
     let startDate: Date;
     if (fromParam) {
       startDate = new Date(fromParam + 'T00:00:00Z');
     } else {
-      startDate = new Date(todayStr() + 'T00:00:00Z');
+      startDate = new Date(todayWitaStr + 'T00:00:00Z');
       const day = startDate.getUTCDay();
       startDate.setUTCDate(startDate.getUTCDate() - (day === 0 ? 6 : day - 1));
     }
     const endDate = new Date(startDate);
     endDate.setUTCDate(endDate.getUTCDate() + 6);
-    const startDateStr = dateToStrWITA(startDate);
-    const endDateStr = dateToStrWITA(endDate);
+    const startDateStr = startDate.toISOString().split('T')[0];
+    const endDateStr = endDate.toISOString().split('T')[0];
 
     // Ambil data hari libur dalam rentang
     const { data: holidays } = await supabase
@@ -139,9 +141,8 @@ export async function GET(request: NextRequest) {
       .eq('student_id', santriId)
       .order('created_at', { ascending: false });
 
-    // Ambil ringkasan absensi (bulan berjalan)
-    const now = new Date();
-    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+    // Ambil ringkasan absensi (bulan berjalan) — WITA
+    const firstDay = todayWitaStr.slice(0, 7) + '-01';
     const { data: absensi } = await supabase
       .from('attendances')
       .select('status')
@@ -187,11 +188,12 @@ export async function GET(request: NextRequest) {
     for (let i = 0; i < 7; i++) {
       const d = new Date(startDate);
       d.setUTCDate(d.getUTCDate() + i);
-      const dateStr = dateToStrWITA(d);
-      const label = d.toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'Asia/Makassar' });
+      const dateStr = d.toISOString().split('T')[0];
+      const label = d.toLocaleDateString('id-ID', { timeZone: 'UTC', weekday: 'short', day: 'numeric', month: 'short' });
       const hData = chartHafalanPerDate[dateStr];
       const tData = chartTahsinPerDate[dateStr];
-      const isWeekend = d.getUTCDay() === 5 || d.getUTCDay() === 6 || d.getUTCDay() === 0;
+      const dow = d.getUTCDay();
+      const isWeekend = dow === 5 || dow === 6 || dow === 0;
       const kabidKeterangan = holidayMap[dateStr];
       chartData.push({
         tanggal: dateStr,

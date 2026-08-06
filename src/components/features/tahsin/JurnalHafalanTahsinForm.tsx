@@ -7,7 +7,6 @@ import Input from '@/components/ui/Input';
 import type { TahsinMetode } from '@/types';
 import type { NilaiTahfidz } from '@/lib/surahData';
 import { JUZ_TERSEDIA, SURAH_PER_JUZ, NILAI_TANPA_HAFAL, NILAI_LANCAR, SURAH_ALQURAN_LIST } from '@/lib/surahData';
-import { todayStr } from '@/lib/time';
 
 interface StudentOption {
   id: string;
@@ -151,7 +150,7 @@ const newSlide = (juz: number | '' = '', rows: JurnalDetailRow[] = [emptyRow()])
 
 const EMPTY_FORM: JurnalHafalanTahsinFormData = {
   student_id: '',
-  tanggal: todayStr(),
+  tanggal: new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Makassar' }).format(new Date()),
   tahsin_metode: '',
   tahsin_buku: '',
   tahsin_halaman: '',

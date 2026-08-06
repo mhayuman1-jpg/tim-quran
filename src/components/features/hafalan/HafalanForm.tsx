@@ -13,7 +13,6 @@ import type { Hafalan } from '@/types';
 import { useSiswaList } from '@/hooks/useSWRFetcher';
 import type { NilaiTahfidz } from '@/lib/surahData';
 import { NILAI_TANPA_HAFAL, NILAI_LANCAR } from '@/lib/surahData';
-import { todayStr } from '@/lib/time';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -67,9 +66,6 @@ function validate(data: HafalanFormData): FormErrors {
   if (!data.surah_juz.trim()) {
     errors.surah_juz = 'Surah/Juz wajib diisi.';
   }
-  if (!data.ayat.trim()) {
-    errors.ayat = 'Ayat wajib diisi.';
-  }
   if (data.update_juz_terakhir) {
     if (!data.juz_baru || !data.juz_baru.trim()) {
       errors.juz_baru = 'Juz wajib diisi.';
@@ -88,7 +84,9 @@ export default function HafalanForm({
   onCancel,
 }: HafalanFormProps) {
   const isEdit = Boolean(initialData);
-  const today = todayStr();
+  const today = new Intl.DateTimeFormat('sv-SE', {
+    timeZone: 'Asia/Makassar',
+  }).format(new Date());
 
   const [form, setForm] = useState<HafalanFormData>({
     student_id: preselectedStudentId ?? '',

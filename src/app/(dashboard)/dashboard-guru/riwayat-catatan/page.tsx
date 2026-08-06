@@ -6,6 +6,7 @@ import { useViewMode } from '@/hooks/useViewMode';
 import {
   ArrowLeft, ClipboardList, Users, School, BookOpen,
   Activity, ChevronRight, CalendarDays, FileText, MessageSquareText,
+  Trash2, SquareCheck, Square,
 } from 'lucide-react';
 
 interface KelasItem {
@@ -81,12 +82,31 @@ function SkeletonCatatan() {
   );
 }
 
-function CatatanCard({ item, formatDate }: { item: CatatanItem; formatDate: (s: string) => string }) {
+function CatatanCard({ item, formatDate, selected, onToggle }: {
+  item: CatatanItem;
+  formatDate: (s: string) => string;
+  selected?: boolean;
+  onToggle?: () => void;
+}) {
   const isHafalan = item.type === 'hafalan';
   return (
-    <div className="rounded-2xl p-5 transition-all duration-200"
-      style={{ background: 'white', border: '1px solid #f1f5f9', boxShadow: '0 2px 12px rgba(0,0,0,0.03)' }}>
+    <div className={`rounded-2xl p-5 transition-all duration-200 ${
+      selected ? 'ring-2 ring-violet-400 bg-violet-50/50' : ''
+    }`}
+      style={{ background: selected ? undefined : 'white', border: selected ? '1px solid #c4b5fd' : '1px solid #f1f5f9', boxShadow: '0 2px 12px rgba(0,0,0,0.03)' }}>
       <div className="flex items-start gap-3 mb-3">
+        {onToggle && (
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onToggle(); }}
+            className="mt-1 shrink-0"
+          >
+            {selected
+              ? <SquareCheck size={18} className="text-violet-500" />
+              : <Square size={18} className="text-slate-300 hover:text-slate-400" />
+            }
+          </button>
+        )}
         <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5 ${isHafalan ? 'bg-emerald-100' : 'bg-amber-100'
           }`}>
           {isHafalan
@@ -146,12 +166,69 @@ function CatatanCard({ item, formatDate }: { item: CatatanItem; formatDate: (s: 
   );
 }
 
-function DetailCatatan({ siswa, catatanList, loading, formatDate }: {
+function DetailCatatan({ siswa, catatanList, loading, formatDate, selectedIds, onToggle, onSelectAll, onDeleteSelected, deleting }: {
   siswa: SantriItem;
   catatanList: CatatanItem[];
   loading: boolean;
   formatDate: (s: string) => string;
+  selectedIds: Set<string>;
+  onToggle: (key: string) => void;
+  onSelectAll: (items: CatatanItem[]) => void;
+  onDeleteSelected: () => void;
+  deleting: boolean;
 }) {
+  const hafalanList = catatanList.filter(item => item.type === 'hafalan');
+  const tahsinList = catatanList.filter(item => item.type === 'tahsin');
+
+  const hasSelection = selectedIds.size > 0;
+
+  const renderColumn = (title: string, icon: React.ReactNode, accent: string, items: CatatanItem[]) => {
+    const allSelected = items.length > 0 && items.every(item => selectedIds.has(`${item.type}::${item.id}`));
+    return (
+    <div className="flex-1 min-w-0">
+      <div className="flex items-center gap-2 mb-3">
+        {icon}
+        <h3 className="text-sm font-bold text-slate-800">{title}</h3>
+        <span className="text-[10px] text-slate-400 font-medium bg-slate-50 px-1.5 py-0.5 rounded-full">{items.length} catatan</span>
+        {items.length > 0 && (
+          <button
+            type="button"
+            onClick={() => onSelectAll(items)}
+            className="ml-auto flex items-center gap-1 text-[10px] text-slate-400 hover:text-violet-600 transition-colors"
+          >
+            {allSelected
+              ? <SquareCheck size={12} className="text-violet-500" />
+              : <Square size={12} />
+            }
+            {allSelected ? 'Batal Pilih' : 'Pilih Semua'}
+          </button>
+        )}
+      </div>
+      {items.length === 0 ? (
+        <div className="rounded-2xl p-8 text-center" style={{ background: 'white', border: `1px solid ${accent}` }}>
+          <MessageSquareText size={28} className="text-slate-200 mx-auto mb-2" />
+          <p className="text-sm text-slate-400">Belum ada catatan {title.toLowerCase()}</p>
+        </div>
+      ) : (
+        <div className="space-y-3 max-h-[calc(100vh-18rem)] overflow-y-auto pr-1">
+          {items.map(item => {
+            const key = `${item.type}::${item.id}`;
+            return (
+              <CatatanCard
+                key={key}
+                item={item}
+                formatDate={formatDate}
+                selected={selectedIds.has(key)}
+                onToggle={() => onToggle(key)}
+              />
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+  };
+
   return (
     <div className="flex-1 min-w-0">
       <div className="rounded-2xl p-5 mb-4 relative overflow-hidden"
@@ -176,12 +253,35 @@ function DetailCatatan({ siswa, catatanList, loading, formatDate }: {
         </div>
       ) : (
         <>
-          <div className="space-y-3 max-h-[calc(100vh-18rem)] overflow-y-auto pr-1">
-            {catatanList.map(item => (
-              <CatatanCard key={`${item.type}-${item.id}`} item={item} formatDate={formatDate} />
-            ))}
+          {hasSelection && (
+            <div className="flex items-center gap-3 rounded-xl bg-violet-50 border border-violet-200 px-4 py-2.5 mb-4">
+              <SquareCheck size={16} className="text-violet-500" />
+              <span className="text-sm font-medium text-violet-700">{selectedIds.size} catatan dipilih</span>
+              <button
+                type="button"
+                onClick={onDeleteSelected}
+                disabled={deleting}
+                className="ml-auto flex items-center gap-1.5 rounded-lg bg-red-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-600 transition-colors disabled:opacity-50"
+              >
+                <Trash2 size={13} />
+                {deleting ? 'Menghapus...' : 'Hapus'}
+              </button>
+            </div>
+          )}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+            {renderColumn(
+              'Catatan Hafalan',
+              <BookOpen size={15} className="text-emerald-600" />,
+              '#d1fae5',
+              hafalanList
+            )}
+            {renderColumn(
+              'Catatan Tahsin',
+              <Activity size={15} className="text-amber-600" />,
+              '#fef3c7',
+              tahsinList
+            )}
           </div>
-          <p className="text-center text-[10px] text-slate-300 pt-3">{catatanList.length} catatan</p>
         </>
       )}
     </div>
@@ -205,6 +305,8 @@ export default function RiwayatCatatanPage() {
   const [loadingKelas, setLoadingKelas] = useState(true);
   const [loadingSiswa, setLoadingSiswa] = useState(false);
   const [loadingCatatan, setLoadingCatatan] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     fetch('/api/riwayat-catatan/classes', { headers: viewHeaders })
@@ -230,6 +332,7 @@ export default function RiwayatCatatanPage() {
   const selectSiswa = async (siswa: SantriItem) => {
     setSelectedSiswa(siswa);
     setCatatanList([]);
+    setSelectedIds(new Set());
     setLoadingCatatan(true);
     try {
       const res = await fetch(`/api/riwayat-catatan/notes?student_id=${siswa.id}`, { headers: viewHeaders });
@@ -244,6 +347,63 @@ export default function RiwayatCatatanPage() {
     setSelectedSiswa(null);
     setSiswaList([]);
     setCatatanList([]);
+    setSelectedIds(new Set());
+  };
+
+  const handleToggle = (key: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  const handleSelectAll = (items: CatatanItem[]) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      const allSelected = items.every(item => next.has(`${item.type}::${item.id}`));
+      if (allSelected) {
+        items.forEach(item => next.delete(`${item.type}::${item.id}`));
+      } else {
+        items.forEach(item => next.add(`${item.type}::${item.id}`));
+      }
+      return next;
+    });
+  };
+
+  const handleDeleteSelected = async () => {
+    if (selectedIds.size === 0) return;
+    if (!window.confirm(`Yakin ingin menghapus ${selectedIds.size} catatan yang dipilih? Tindakan ini tidak dapat dibatalkan.`)) return;
+
+    setDeleting(true);
+    try {
+      const items = Array.from(selectedIds).map(key => {
+        const sep = key.indexOf('::');
+        const type = key.substring(0, sep);
+        const id = key.substring(sep + 2);
+        return { type: type as 'hafalan' | 'tahsin', id };
+      });
+
+      const res = await fetch('/api/riwayat-catatan/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items }),
+      });
+
+      const json = await res.json();
+      if (!res.ok) {
+        alert(json.message ?? 'Gagal menghapus catatan.');
+        return;
+      }
+
+      setCatatanList(prev => prev.filter(item => !selectedIds.has(`${item.type}::${item.id}`)));
+      setSelectedIds(new Set());
+    } catch {
+      alert('Terjadi kesalahan. Silakan coba lagi.');
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const formatDate = (dateStr: string) => {
@@ -388,6 +548,11 @@ export default function RiwayatCatatanPage() {
               catatanList={catatanList}
               loading={loadingCatatan}
               formatDate={formatDate}
+              selectedIds={selectedIds}
+              onToggle={handleToggle}
+              onSelectAll={handleSelectAll}
+              onDeleteSelected={handleDeleteSelected}
+              deleting={deleting}
             />
           ) : (
             <div className="flex-1 min-w-0 flex items-center justify-center">

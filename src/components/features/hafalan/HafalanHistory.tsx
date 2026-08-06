@@ -334,10 +334,28 @@ export default function HafalanHistory({
     });
   }
 
-  // ── Group data by juz ──
+  // ── Deduplicate per surah_juz (keep latest) then group by juz ──
   const { juzGroups, ungrouped } = useMemo(() => {
     if (data.length === 0) return { juzGroups: new Map<number, HafalanRow[]>(), ungrouped: [] };
-    return groupDataByJuz(data);
+
+    // Deduplicate: for each surah_juz, keep only the latest record (by tanggal + created_at)
+    const latestBySurah = new Map<string, HafalanRow>();
+    for (const row of data) {
+      const key = row.surah_juz;
+      const existing = latestBySurah.get(key);
+      if (!existing) {
+        latestBySurah.set(key, row);
+      } else {
+        // Compare tanggal first, then created_at as tiebreaker
+        const rowDate = row.tanggal ?? '';
+        const existDate = existing.tanggal ?? '';
+        if (rowDate > existDate || (rowDate === existDate && (row.created_at ?? '') > (existing.created_at ?? ''))) {
+          latestBySurah.set(key, row);
+        }
+      }
+    }
+
+    return groupDataByJuz(Array.from(latestBySurah.values()));
   }, [data]);
 
   const sortedJuz = useMemo(() => Array.from(juzGroups.keys()).sort((a, b) => a - b), [juzGroups]);
@@ -465,7 +483,7 @@ export default function HafalanHistory({
       {/* Info jumlah data */}
       {!loading && data.length > 0 && (
         <p className="text-xs text-slate-400 text-right">
-          Menampilkan {data.length} catatan{sortedJuz.length > 0 ? ` dalam ${sortedJuz.length} Juz` : ''}
+          Menampilkan {Array.from(juzGroups.values()).reduce((sum, rows) => sum + rows.length, 0) + ungrouped.length} surah{sortedJuz.length > 0 ? ` dalam ${sortedJuz.length} Juz` : ''}
         </p>
       )}
     </div>

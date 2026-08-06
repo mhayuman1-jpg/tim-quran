@@ -12,7 +12,6 @@ import { createServerClient } from '@/lib/supabase/server';
 import { normalizeAttendanceRows } from '@/lib/attendance';
 import { getHolidaysInRange } from '@/lib/holiday';
 import { shouldFilterByTeacher, getTeacherFilterId, getTeacherClassIds, applyTeacherSantriFilter } from '@/lib/rbac';
-import { isActiveDay } from '@/lib/activeDays';
 
 export async function GET(request: NextRequest) {
   // Verifikasi sesi
@@ -112,9 +111,9 @@ export async function GET(request: NextRequest) {
     const holidaysInRange = await getHolidaysInRange(supabase, dateFrom, dateTo);
     const holidaySet = new Set(holidaysInRange);
 
-    // 4. Hitung total hari aktif = distinct dates (hanya Senin-Kamis, bukan libur)
-    const activeRecords = records.filter((r) => isActiveDay(r.date));
-    const uniqueDates = new Set(activeRecords.map((r) => r.date));
+    // 4. Hitung total hari aktif = distinct dates yang punya SETIDAKNYA satu record, dikurangi hari libur
+    const uniqueDates = new Set(records.map((r) => r.date));
+    // Hanya hitung hari yang bukan libur
     let totalHariAktif = 0;
     for (const d of Array.from(uniqueDates)) {
       if (!holidaySet.has(d)) totalHariAktif++;
@@ -122,7 +121,7 @@ export async function GET(request: NextRequest) {
 
     // 5. Hitung jumlah hadir per santri
     const hadiMap: Record<string, number> = {};
-    for (const r of activeRecords) {
+    for (const r of records) {
       hadiMap[r.santri_id] = (hadiMap[r.santri_id] ?? 0) + 1;
     }
 

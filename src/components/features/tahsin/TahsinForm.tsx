@@ -14,7 +14,6 @@ import type { Tahsin, TahsinMetode } from '@/types';
 import type { NilaiTahfidz } from '@/lib/surahData';
 import { NILAI_TANPA_HAFAL, NILAI_LANCAR, SURAH_ALQURAN_LIST } from '@/lib/surahData';
 import { useSiswaList } from '@/hooks/useSWRFetcher';
-import { todayStr } from '@/lib/time';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -163,7 +162,9 @@ export default function TahsinForm({
   onCancel,
 }: TahsinFormProps) {
   const isEdit = Boolean(initialData);
-  const today = todayStr();
+  const today = new Intl.DateTimeFormat('sv-SE', {
+    timeZone: 'Asia/Makassar',
+  }).format(new Date());
 
   const [form, setForm] = useState<TahsinFormData>({
     student_id: preselectedStudentId ?? '',

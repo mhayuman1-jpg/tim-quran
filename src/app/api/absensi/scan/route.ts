@@ -7,7 +7,6 @@ import { getAuthenticatedSession } from '@/lib/api-auth';
 import { createServerClient } from '@/lib/supabase/server';
 import { requireActiveSemester } from '@/lib/semester';
 import { requireNoHoliday } from '@/lib/holiday';
-import { requireActiveDay } from '@/lib/activeDays';
 import {
   insertAttendanceRecord,
   queryAttendanceByStudentMaybeSingle,
@@ -94,10 +93,6 @@ export async function POST(request: NextRequest) {
     // 2b. Cek hari libur — tolak scan jika hari ini libur
     const holidayCheck = await requireNoHoliday(supabase, today);
     if (holidayCheck.error) return holidayCheck.error;
-
-    // 2c. Cek hari aktif — tolak scan di Jumat, Sabtu, Minggu
-    const activeDayCheck = requireActiveDay(today);
-    if (activeDayCheck.error) return activeDayCheck.error;
 
     // 3. Cek duplikat: cari record absensi hari ini di kolom santri_id / student_id
     const { data: existing, error: checkError } = await queryAttendanceByStudentMaybeSingle(

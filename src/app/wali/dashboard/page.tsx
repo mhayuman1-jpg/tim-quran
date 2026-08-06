@@ -89,17 +89,6 @@ function getScoreBarColor(val: number): string {
   return "bg-red-500";
 }
 
-function todayWITA(): string {
-  return new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Makassar' }).format(new Date());
-}
-
-function mondayWITA(weeksAgo: number): string {
-  const d = new Date(todayWITA() + 'T00:00:00Z');
-  const day = d.getUTCDay();
-  d.setUTCDate(d.getUTCDate() - (day === 0 ? 6 : day - 1) - weeksAgo * 7);
-  return new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Makassar' }).format(d);
-}
-
 export default function WaliDashboardPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -423,9 +412,13 @@ export default function WaliDashboardPage() {
                   if (chartFrom) {
                     const d = new Date(chartFrom + 'T00:00:00Z');
                     d.setUTCDate(d.getUTCDate() - 7);
-                    setChartFrom(new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Makassar' }).format(d));
+                    setChartFrom(d.toISOString().split('T')[0]);
                   } else {
-                    setChartFrom(mondayWITA(1));
+                    const todayStr = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Makassar' }).format(new Date());
+                    const d = new Date(todayStr + 'T00:00:00Z');
+                    const day = d.getUTCDay();
+                    d.setUTCDate(d.getUTCDate() - (day === 0 ? 6 : day - 1) - 7);
+                    setChartFrom(d.toISOString().split('T')[0]);
                   }
                 }}
                 className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
@@ -447,10 +440,14 @@ export default function WaliDashboardPage() {
               <button
                 onClick={() => {
                   if (isMingguIni) return;
-                  const d = new Date(chartFrom + 'T00:00:00Z');
+                  const d = new Date(chartFrom! + 'T00:00:00Z');
                   d.setUTCDate(d.getUTCDate() + 7);
-                  const next = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Makassar' }).format(d);
-                  const seninIniStr = mondayWITA(0);
+                  const next = d.toISOString().split('T')[0];
+                  const todayStr = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Makassar' }).format(new Date());
+                  const seninIni = new Date(todayStr + 'T00:00:00Z');
+                  const day = seninIni.getUTCDay();
+                  seninIni.setUTCDate(seninIni.getUTCDate() - (day === 0 ? 6 : day - 1));
+                  const seninIniStr = seninIni.toISOString().split('T')[0];
                   if (next >= seninIniStr) setChartFrom(null);
                   else setChartFrom(next);
                 }}
@@ -468,8 +465,8 @@ export default function WaliDashboardPage() {
           </div>
           {startDate && (
             <p className="text-[11px] text-slate-400 mb-5 ml-1">
-              {new Date(startDate + 'T00:00:00').toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })} —{' '}
-              {new Date(endDate + 'T00:00:00').toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+              {new Date(startDate + 'T00:00:00Z').toLocaleDateString('id-ID', { timeZone: 'Asia/Makassar', day: 'numeric', month: 'short', year: 'numeric' })} —{' '}
+              {new Date(endDate + 'T00:00:00Z').toLocaleDateString('id-ID', { timeZone: 'Asia/Makassar', day: 'numeric', month: 'short', year: 'numeric' })}
             </p>
           )}
           {chartData.length === 0 ? (

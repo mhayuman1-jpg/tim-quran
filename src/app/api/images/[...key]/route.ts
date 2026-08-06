@@ -1,6 +1,12 @@
 // src/app/api/images/[...key]/route.ts
 // Proxy route: fetch gambar dari Tigris dan stream ke client.
 // Contoh: /api/images/timquran-assets/logo/default.svg → return gambar langsung
+//
+// CACHE STRATEGY (Fix 1 - Origin Transfer Reduction):
+// - timquran-assets: cache 7 hari (static assets: logo, default images)
+// - timquran-profile-photos: cache 1 jam (dynamic: foto profil siswa)
+// - timquran-rekap: cache 1 jam (dynamic: file rekap)
+// - timquran-raports: cache 1 jam (dynamic: raport PDF)
 
 import { NextRequest, NextResponse } from 'next/server';
 import { GetObjectCommand } from '@aws-sdk/client-s3';
@@ -9,6 +15,14 @@ import { getS3Client } from '@/lib/storage/tigris';
 export const dynamic = 'force-dynamic';
 
 const VALID_BUCKETS = ['timquran-assets', 'timquran-raports', 'timquran-rekap', 'timquran-profile-photos'];
+
+// Cache duration per bucket (in seconds)
+const CACHE_DURATIONS: Record<string, number> = {
+  'timquran-assets': 604800,         // 7 hari - static assets jarang berubah
+  'timquran-profile-photos': 2592000, // 30 hari - foto profil sangat jarang berubah
+  'timquran-rekap': 604800,           // 7 hari - file rekap per-bulan
+  'timquran-raports': 604800,         // 7 hari - raport per-semester
+};
 
 const MIME_MAP: Record<string, string> = {
   '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png',
@@ -55,11 +69,14 @@ export async function GET(
     // Stream body dari S3 response
     const body = response.Body.transformToWebStream();
 
+    // Cache duration berdasarkan bucket
+    const maxAge = CACHE_DURATIONS[resolved.bucket] || 3600;
+
     return new Response(body, {
       status: 200,
       headers: {
         'Content-Type': response.ContentType || getMime(resolved.key),
-        'Cache-Control': 'public, max-age=3600',
+        'Cache-Control': `public, max-age=${maxAge}, immutable`,
       },
     });
   } catch (error: any) {

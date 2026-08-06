@@ -9,7 +9,6 @@ import { getAuthenticatedSession } from '@/lib/api-auth';
 import { createServerClient } from '@/lib/supabase/server';
 import { requireActiveSemester } from '@/lib/semester';
 import { requireNoHoliday } from '@/lib/holiday';
-import { requireActiveDay } from '@/lib/activeDays';
 import type { TahsinMetode } from '@/types';
 import type { NilaiTahfidz } from '@/lib/surahData';
 import { SURAH_PER_JUZ } from '@/lib/surahData';
@@ -163,10 +162,6 @@ export async function POST(request: NextRequest) {
     const holidayCheck = await requireNoHoliday(supabase, tanggal);
     if (holidayCheck.error) return holidayCheck.error;
 
-    // Cek hari aktif — tolak input di Jumat, Sabtu, Minggu
-    const activeDayCheck = requireActiveDay(tanggal);
-    if (activeDayCheck.error) return activeDayCheck.error;
-
     if (session.user.role === 'Tim_Quran') {
       const { data: assigned, error: assignedError } = await supabase
         .from('santri')
@@ -206,16 +201,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Insert hafalan hanya jika ada data
+    // Insert hafalan — SELALU buat record baru, jangan menimpa riwayat lama
     if (hasHafalan) {
-      // Hapus record hafalan lama untuk siswa+tanggal ini, lalu insert baru
-      // agar urutan surah selalu sesuai template dan tidak ada duplikasi
-      await supabase
-        .from('hafalan')
-        .delete()
-        .eq('student_id', student_id.trim())
-        .eq('tanggal', tanggal);
-
       // ── Hitung sort_order berdasarkan urutan template ──
       // Iterasi Juz 30→1 agar template Juz 30 (lengkap) override Juz 25-27
       const SURAH_POSITION: Record<string, number> = {};
@@ -229,7 +216,7 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      const hafalanRecords = detailRows.map((row, index) => {
+      const hafalanRecords = detailRows.map((row) => {
         const halamanValue = typeof row.halaman === 'string' ? row.halaman.trim() : (row.halaman ? String(row.halaman) : null);
         const surahKey = row.nama_surah.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
         return {

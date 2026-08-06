@@ -2,7 +2,6 @@
 
 import { Calendar, Clock, MapPin } from 'lucide-react';
 import { createServerClient } from '@/lib/supabase/server';
-import { todayStr } from '@/lib/time';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,7 +23,9 @@ interface Agenda {
 
 async function getAgenda(): Promise<{ upcoming: Agenda[]; past: Agenda[] }> {
   try {
-    const today = todayStr();
+    const today = new Intl.DateTimeFormat('sv-SE', {
+      timeZone: 'Asia/Makassar',
+    }).format(new Date());
     const supabase = createServerClient();
     const { data, error } = await supabase
       .from('agenda')
@@ -96,7 +97,7 @@ function AgendaCard({ ag, past = false }: { ag: Agenda; past?: boolean }) {
           {waktu && (
             <span className="flex items-center gap-1.5">
               <Clock size={12} className="shrink-0 text-amber-600" />
-              {waktu} WIB
+              {waktu} WITA
             </span>
           )}
           {ag.lokasi && (

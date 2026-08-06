@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
-import { todayStr } from '@/lib/time';
 import { revalidatePath } from 'next/cache';
 
 export const dynamic = 'force-dynamic';
@@ -15,7 +14,9 @@ export async function GET(request: NextRequest) {
 
     let query = supabase.from('agenda').select('*').order('tanggal', { ascending: true });
     if (!all) {
-      const today = todayStr();
+      const today = new Intl.DateTimeFormat('sv-SE', {
+        timeZone: 'Asia/Makassar',
+      }).format(new Date());
       query = query.eq('is_published', true).gte('tanggal', today);
     }
 

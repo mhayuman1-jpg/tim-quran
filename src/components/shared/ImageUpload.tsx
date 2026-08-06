@@ -171,7 +171,7 @@ export default function ImageUpload({
               fill
               className="object-cover"
               sizes="300px"
-              unoptimized={currentImage.startsWith('data:') || currentImage.startsWith('http')}
+              unoptimized
               onError={() => setHasLoadError(true)}
               onLoadingComplete={() => setHasLoadError(false)}
             />
