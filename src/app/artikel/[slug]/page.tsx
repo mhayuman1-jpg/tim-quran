@@ -8,14 +8,9 @@ import { notFound } from 'next/navigation';
 import { Calendar, User, ArrowLeft, BookOpen } from 'lucide-react';
 import { createServerClient } from '@/lib/supabase/server';
 import { toImageUrl } from '@/lib/storage/urls';
+import { getBaseUrl } from '@/lib/url';
 
 export const dynamic = 'force-dynamic';
-
-function getBaseUrl(): string {
-  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
-  if (process.env.NEXTAUTH_URL) return process.env.NEXTAUTH_URL;
-  return 'http://localhost:3000';
-}
 
 interface ArtikelDetail {
   id: string;

@@ -1,9 +1,8 @@
 // src/app/layout.tsx — Enhanced for PWA & Mobile
 import type { Metadata } from "next";
 import { Outfit, Amiri } from "next/font/google";
-import { Analytics } from "@vercel/analytics/react";
-import { SpeedInsights } from "@vercel/speed-insights/react";
 import { ConditionalProviders } from "./conditional-providers";
+import { getBaseUrl } from "@/lib/url";
 import "./globals.css";
 
 const outfit = Outfit({
@@ -18,12 +17,6 @@ const amiri = Amiri({
   variable: "--font-amiri",
   display: "swap",
 });
-
-function getBaseUrl(): string {
-  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
-  if (process.env.NEXTAUTH_URL) return process.env.NEXTAUTH_URL;
-  return 'http://localhost:3000';
-}
 
 export const metadata: Metadata = {
   metadataBase: new URL(getBaseUrl()),
@@ -120,8 +113,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ConditionalProviders>
           {children}
         </ConditionalProviders>
-        <Analytics />
-        <SpeedInsights />
       </body>
     </html>
   );

@@ -11,6 +11,7 @@ import { AtSign, Mail, MapPin, Phone, PlayCircle, ArrowUpRight, BookOpen, Star, 
 import PublicNavbar from '@/components/layout/PublicNavbar';
 import { IslamicPatternBg, CornerOrnament } from '@/components/features/IslamicDecorations';
 import { createServerClient } from '@/lib/supabase/server';
+import { getBaseUrl } from '@/lib/url';
 
 export const metadata: Metadata = {
   title: "Tim Qur'an — Platform Tahfidz & Tahsin Modern",
@@ -54,12 +55,6 @@ function getSixMonthRange(): { label: string; key: string }[] {
     const label = date.toLocaleDateString('id-ID', { timeZone: 'UTC', month: 'short' });
     return { label, key };
   });
-}
-
-function getBaseUrl(): string {
-  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
-  if (process.env.NEXTAUTH_URL) return process.env.NEXTAUTH_URL;
-  return 'http://localhost:3000';
 }
 
 interface TestimonialItem {

@@ -1,11 +1,6 @@
 import type { MetadataRoute } from 'next';
 import { createServerClient } from '@/lib/supabase/server';
-
-function getBaseUrl(): string {
-  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
-  if (process.env.NEXTAUTH_URL) return process.env.NEXTAUTH_URL;
-  return 'http://localhost:3000';
-}
+import { getBaseUrl } from '@/lib/url';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = getBaseUrl();
