@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic';
 
 import React, { useCallback, useEffect, useState } from 'react';
 import Image from 'next/image';
-import { Globe, BookOpen, Calendar, Images, Plus, Pencil, Trash2, ToggleLeft, ToggleRight, Save, Menu as MenuIcon, GripVertical } from 'lucide-react';
+import { Globe, BookOpen, Calendar, Images, Plus, Pencil, Trash2, ToggleLeft, ToggleRight, Save, Menu as MenuIcon, GripVertical, Album, ArrowLeft } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Modal from '@/components/ui/Modal';
@@ -12,6 +12,7 @@ import ConfirmDialog from '@/components/shared/ConfirmDialog';
 import ImageUpload from '@/components/shared/ImageUpload';
 import { useToast } from '@/lib/toast';
 import { toImageUrl } from '@/lib/storage/urls';
+import MultiUploadDrop from '@/components/features/galeri/MultiUploadDrop';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 interface Profil {
@@ -22,7 +23,8 @@ interface Profil {
 }
 interface Program { id: string; nama: string; deskripsi: string; icon: string; urutan: number; is_active: boolean; }
 interface Agenda { id: string; judul: string; deskripsi: string; tanggal: string; waktu_mulai: string; waktu_selesai: string; lokasi: string; is_published: boolean; }
-interface GaleriItem { id: string; judul: string; deskripsi?: string; foto_url: string; urutan: number; is_published: boolean; }
+interface GaleriItem { id: string; judul: string; deskripsi?: string; foto_url: string; urutan: number; is_published: boolean; album_id?: string; }
+interface AlbumItem { id: string; judul: string; deskripsi?: string; cover_url: string | null; urutan: number; is_published: boolean; foto_count: number; }
 interface NavigationItem { id: string; label: string; href: string; urutan: number; is_active: boolean; }
 
 const EMPTY_PROFIL: Profil = { nama_lembaga: '', deskripsi: '', visi: '', misi: [], logo_url: '', logo_sekolah_url: '', nama_sekolah: '', alamat: '', email: '', telepon: '', instagram: '', facebook: '', youtube: '' };
@@ -31,7 +33,7 @@ const EMPTY_AGENDA: Omit<Agenda, 'id'> = { judul: '', deskripsi: '', tanggal: ''
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function WebsitePage() {
-  const [tab, setTab] = useState<'profil' | 'program' | 'agenda' | 'galeri' | 'menu'>('profil');
+  const [tab, setTab] = useState<'profil' | 'program' | 'agenda' | 'galeri' | 'album' | 'menu'>('profil');
   const { toast } = useToast();
 
   return (
@@ -51,6 +53,7 @@ export default function WebsitePage() {
             { id: 'program', label: 'Program', icon: BookOpen },
             { id: 'agenda', label: 'Agenda', icon: Calendar },
             { id: 'galeri', label: 'Galeri', icon: Images },
+            { id: 'album', label: 'Album', icon: Album },
             { id: 'menu', label: 'Navigasi Menu', icon: MenuIcon },
           ] as const).map(({ id, label, icon: Icon }) => (
             <button
@@ -73,6 +76,7 @@ export default function WebsitePage() {
         {tab === 'program' && <ProgramTab toast={toast} />}
         {tab === 'agenda' && <AgendaTab toast={toast} />}
         {tab === 'galeri' && <GaleriTab toast={toast} />}
+        {tab === 'album' && <AlbumTab toast={toast} />}
         {tab === 'menu' && <MenuTab toast={toast} />}
       </div>
     </div>
@@ -678,6 +682,306 @@ function GaleriTab({ toast }: { toast: ReturnType<typeof useToast>['toast'] }) {
       <ConfirmDialog open={!!deleteTarget} onClose={() => !deleteLoading && setDeleteTarget(null)} onConfirm={confirmDelete}
         title="Hapus Foto" message={`Hapus foto "${deleteTarget?.judul}"?`} confirmLabel="Hapus" loading={deleteLoading} />
     </div>
+  );
+}
+
+// ── Tab Album ──────────────────────────────────────────────────────────────
+function AlbumTab({ toast }: { toast: ReturnType<typeof useToast>['toast'] }) {
+  const [albums, setAlbums] = useState<AlbumItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editItem, setEditItem] = useState<AlbumItem | null>(null);
+  const [form, setForm] = useState({ judul: '', deskripsi: '', cover_url: '', urutan: 0, is_published: true });
+  const [saving, setSaving] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<AlbumItem | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
+  // Album detail state
+  const [detailAlbum, setDetailAlbum] = useState<AlbumItem | null>(null);
+  const [detailPhotos, setDetailPhotos] = useState<GaleriItem[]>([]);
+  const [detailLoading, setDetailLoading] = useState(false);
+
+  const fetchAlbums = useCallback(async () => {
+    setLoading(true);
+    const r = await fetch('/api/website/album?all=true');
+    const j = await r.json();
+    setAlbums(j.data ?? []);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { fetchAlbums(); }, [fetchAlbums]);
+
+  const openAdd = () => {
+    setEditItem(null);
+    setForm({ judul: '', deskripsi: '', cover_url: '', urutan: 0, is_published: true });
+    setModalOpen(true);
+  };
+
+  const openEdit = (a: AlbumItem) => {
+    setEditItem(a);
+    setForm({
+      judul: a.judul,
+      deskripsi: a.deskripsi ?? '',
+      cover_url: a.cover_url ?? '',
+      urutan: a.urutan,
+      is_published: a.is_published,
+    });
+    setModalOpen(true);
+  };
+
+  const save = async () => {
+    if (!form.judul.trim()) { toast.error('Judul album wajib diisi.'); return; }
+    setSaving(true);
+    try {
+      const body = editItem ? { id: editItem.id, ...form } : form;
+      const res = await fetch('/api/website/album', {
+        method: editItem ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const j = await res.json();
+      if (res.ok) { toast.success(j.message); setModalOpen(false); fetchAlbums(); }
+      else toast.error(j.message);
+    } catch { toast.error('Terjadi kesalahan.'); }
+    finally { setSaving(false); }
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleteLoading(true);
+    const res = await fetch('/api/website/album', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: deleteTarget.id }),
+    });
+    const j = await res.json();
+    if (res.ok) { toast.success(j.message); setDeleteTarget(null); fetchAlbums(); if (detailAlbum?.id === deleteTarget.id) setDetailAlbum(null); }
+    else toast.error(j.message);
+    setDeleteLoading(false);
+  };
+
+  // Open album detail (fetch photos)
+  const openDetail = async (album: AlbumItem) => {
+    setDetailAlbum(album);
+    setDetailLoading(true);
+    try {
+      const r = await fetch(`/api/website/galeri?all=true`);
+      const j = await r.json();
+      const photos = (j.data ?? []).filter((p: GaleriItem) => (p as any).album_id === album.id);
+      setDetailPhotos(photos);
+    } catch { toast.error('Gagal memuat foto album.'); }
+    finally { setDetailLoading(false); }
+  };
+
+  const handlePhotoDelete = async (photo: GaleriItem) => {
+    const res = await fetch('/api/website/galeri', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: photo.id }),
+    });
+    const j = await res.json();
+    if (res.ok) {
+      toast.success('Foto dihapus.');
+      setDetailPhotos(prev => prev.filter(p => p.id !== photo.id));
+      fetchAlbums();
+    } else {
+      toast.error(j.message);
+    }
+  };
+
+  // Detail view for a specific album
+  if (detailAlbum) {
+    return (
+      <div className="space-y-6">
+        {/* Back button + header */}
+        <div className="flex items-center gap-4">
+          <button onClick={() => { setDetailAlbum(null); fetchAlbums(); }}
+            className="p-2 rounded-lg hover:bg-slate-100 text-slate-500 transition-colors">
+            <ArrowLeft size={20} />
+          </button>
+          <div>
+            <h2 className="text-xl font-bold text-slate-900">{detailAlbum.judul}</h2>
+            {detailAlbum.deskripsi && <p className="text-sm text-slate-500">{detailAlbum.deskripsi}</p>}
+            <div className="flex items-center gap-2 mt-1">
+              <Badge variant={detailAlbum.is_published ? 'green' : 'red'}>
+                {detailAlbum.is_published ? 'Publik' : 'Draft'}
+              </Badge>
+              <span className="text-xs text-slate-400">{detailPhotos.length} foto</span>
+            </div>
+          </div>
+          <div className="ml-auto flex gap-2">
+            <Button variant="ghost" size="sm" leftIcon={<Pencil size={13} />} onClick={() => openEdit(detailAlbum)}>Edit</Button>
+            <Button variant="ghost" size="sm" leftIcon={<Trash2 size={13} />} onClick={() => setDeleteTarget(detailAlbum)} className="text-red-600">Hapus</Button>
+          </div>
+        </div>
+
+        {/* Drop zone */}
+        <div className="bg-white rounded-xl border border-slate-200 p-6">
+          <h3 className="font-semibold text-slate-800 mb-4">Tambah Foto ke Album</h3>
+          <MultiUploadDrop
+            albumId={detailAlbum.id}
+            onUploadComplete={() => { openDetail(detailAlbum); }}
+          />
+        </div>
+
+        {/* Existing photos grid */}
+        <div className="bg-white rounded-xl border border-slate-200 p-6">
+          <h3 className="font-semibold text-slate-800 mb-4">Foto dalam Album ({detailPhotos.length})</h3>
+          {detailLoading ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+              {[...Array(4)].map((_, i) => <div key={i} className="aspect-square bg-slate-200 rounded-xl animate-pulse" />)}
+            </div>
+          ) : detailPhotos.length === 0 ? (
+            <p className="text-sm text-slate-400 py-8 text-center">Belum ada foto. Seret & lepas foto di atas.</p>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+              {detailPhotos.map(photo => (
+                <div key={photo.id} className="group relative rounded-xl overflow-hidden border border-slate-200">
+                  <div className="aspect-square relative">
+                    <Image src={toImageUrl(photo.foto_url) || ''} alt={photo.judul} fill className="object-cover" sizes="25vw" />
+                  </div>
+                  <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button onClick={() => handlePhotoDelete(photo)}
+                      className="p-1.5 bg-white rounded-lg shadow text-red-500 hover:text-red-700">
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                  <div className="p-2">
+                    <p className="text-xs text-slate-700 truncate">{photo.judul}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Modals (same as below) */}
+        <AlbumFormModal modalOpen={modalOpen} setModalOpen={setModalOpen} form={form} setForm={setForm}
+          editItem={editItem} saving={saving} save={save} />
+        <ConfirmDialog open={!!deleteTarget} onClose={() => !deleteLoading && setDeleteTarget(null)} onConfirm={confirmDelete}
+          title="Hapus Album" message={`Hapus album "${deleteTarget?.judul}"? Foto-foto di dalamnya akan tetap ada tanpa album.`} confirmLabel="Hapus" loading={deleteLoading} />
+      </div>
+    );
+  }
+
+  // Main album list view
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-end">
+        <Button variant="primary" leftIcon={<Plus size={15} />} onClick={openAdd}>Buat Album</Button>
+      </div>
+
+      {loading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[...Array(3)].map((_, i) => <div key={i} className="aspect-[4/3] bg-slate-200 rounded-xl animate-pulse" />)}
+        </div>
+      ) : albums.length === 0 ? (
+        <div className="py-16 text-center text-slate-400 bg-white rounded-xl border border-slate-200">
+          <Album size={48} className="mx-auto mb-3 text-slate-300" />
+          <p className="text-sm font-medium">Belum ada album</p>
+          <p className="text-xs mt-1">Buat album untuk mengelompokkan foto galeri.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {albums.map(album => {
+            const coverSrc = album.cover_url
+              ? toImageUrl(album.cover_url)
+              : null;
+
+            return (
+              <div key={album.id} className="group cursor-pointer rounded-xl overflow-hidden border border-slate-200 bg-white shadow-sm hover:shadow-md transition-all"
+                onClick={() => openDetail(album)}>
+                <div className="aspect-[4/3] relative bg-slate-100">
+                  {coverSrc ? (
+                    <Image src={coverSrc} alt={album.judul} fill className="object-cover" sizes="33vw" />
+                  ) : (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <Album size={40} className="text-slate-300" />
+                    </div>
+                  )}
+                  {/* Gradient overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                  {/* Info at bottom */}
+                  <div className="absolute bottom-0 left-0 right-0 p-4">
+                    <h3 className="text-white font-semibold text-base">{album.judul}</h3>
+                    <p className="text-white/70 text-xs">{album.foto_count} foto</p>
+                    {!album.is_published && (
+                      <span className="inline-block mt-1 text-[10px] bg-amber-500 text-white px-2 py-0.5 rounded-full">Draft</span>
+                    )}
+                  </div>
+                </div>
+                {/* Hover edit/delete buttons */}
+                <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
+                  <button onClick={(e) => { e.stopPropagation(); openEdit(album); }}
+                    className="p-1.5 bg-white rounded-lg shadow text-slate-600 hover:text-blue-600">
+                    <Pencil size={13} />
+                  </button>
+                  <button onClick={(e) => { e.stopPropagation(); setDeleteTarget(album); }}
+                    className="p-1.5 bg-white rounded-lg shadow text-slate-600 hover:text-red-600">
+                    <Trash2 size={13} />
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Create/Edit Album Modal */}
+      <AlbumFormModal modalOpen={modalOpen} setModalOpen={setModalOpen} form={form} setForm={setForm}
+        editItem={editItem} saving={saving} save={save} />
+
+      {/* Delete Confirmation */}
+      <ConfirmDialog open={!!deleteTarget} onClose={() => !deleteLoading && setDeleteTarget(null)} onConfirm={confirmDelete}
+        title="Hapus Album" message={`Hapus album "${deleteTarget?.judul}"? Foto-foto di dalamnya akan tetap ada tanpa album.`} confirmLabel="Hapus" loading={deleteLoading} />
+    </div>
+  );
+}
+
+// Helper component for the Album form modal (avoids code duplication)
+function AlbumFormModal({
+  modalOpen, setModalOpen, form, setForm, editItem, saving, save,
+}: {
+  modalOpen: boolean;
+  setModalOpen: (v: boolean) => void;
+  form: { judul: string; deskripsi: string; cover_url: string; urutan: number; is_published: boolean };
+  setForm: (f: any) => void;
+  editItem: AlbumItem | null;
+  saving: boolean;
+  save: () => void;
+}) {
+  return (
+    <Modal open={modalOpen} onClose={() => !saving && setModalOpen(false)} title={editItem ? 'Edit Album' : 'Buat Album Baru'} size="md">
+      <div className="space-y-4">
+        <Input label="Judul Album" value={form.judul}
+          onChange={e => setForm((f: any) => ({ ...f, judul: e.target.value }))} required />
+        <div className="space-y-1.5">
+          <label className="text-sm font-medium text-slate-700">Deskripsi (opsional)</label>
+          <textarea rows={2} value={form.deskripsi}
+            onChange={e => setForm((f: any) => ({ ...f, deskripsi: e.target.value }))}
+            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 resize-none" />
+        </div>
+        <ImageUpload
+          label="Foto Cover Album (opsional)"
+          value={form.cover_url || null}
+          onUpload={(url) => setForm((f: any) => ({ ...f, cover_url: url }))}
+          bucket="timquran-assets" folder="galeri" shape="wide"
+          helperText="Kosongkan untuk menggunakan foto pertama sebagai cover"
+        />
+        <Input label="Urutan" type="number" value={String(form.urutan)}
+          onChange={e => setForm((f: any) => ({ ...f, urutan: parseInt(e.target.value) || 0 }))} />
+        <div className="flex items-center gap-3">
+          <button onClick={() => setForm((f: any) => ({ ...f, is_published: !f.is_published }))}>
+            {form.is_published ? <ToggleRight size={28} className="text-amber-600" /> : <ToggleLeft size={28} className="text-slate-400" />}
+          </button>
+          <span className="text-sm text-slate-700">Tampilkan di website publik</span>
+        </div>
+        <div className="flex justify-end gap-2 pt-2">
+          <Button variant="ghost" onClick={() => setModalOpen(false)} disabled={saving}>Batal</Button>
+          <Button variant="primary" loading={saving} onClick={save}>Simpan</Button>
+        </div>
+      </div>
+    </Modal>
   );
 }
 
