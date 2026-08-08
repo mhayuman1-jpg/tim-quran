@@ -24,11 +24,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: 'Tindakan AI wajib dipilih.' }, { status: 400 });
     }
 
-    const openRouterKey = process.env.OPENROUTER_API_KEY;
+    const opencodeKey = process.env.OPENCODE_API_KEY;
 
-    if (!openRouterKey) {
+    if (!opencodeKey) {
       return NextResponse.json(
-        { message: 'API key OpenRouter belum dikonfigurasi.' },
+        { message: 'API key AI belum dikonfigurasi.' },
         { status: 500 }
       );
     }
@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
     const systemPrompt = buildSystemPrompt(action);
     const userPrompt   = buildUserPrompt(action, text);
 
-    const result = await callOpenRouter(systemPrompt, userPrompt, openRouterKey);
+    const result = await callOpenCode(systemPrompt, userPrompt, opencodeKey);
 
     // Konversi markdown ke HTML Tiptap-friendly
     const html = markdownToHtml(result);
@@ -100,9 +100,9 @@ function buildUserPrompt(action: string, text: string): string {
   return actions[action] ?? `Perbaiki tulisan berikut:\n\n${text}`;
 }
 
-// ─── OpenRouter ───────────────────────────────────────────────────────────────────
+// ─── OpenCode Zen ────────────────────────────────────────────────────────────────
 
-async function callOpenRouter(
+async function callOpenCode(
   systemPrompt: string,
   userPrompt: string,
   apiKey: string
@@ -111,16 +111,14 @@ async function callOpenRouter(
   const timeout = setTimeout(() => controller.abort(), 30000);
 
   try {
-    const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    const res = await fetch('https://opencode.ai/zen/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${apiKey}`,
-        'HTTP-Referer': 'https://timquran.my.id',
-        'X-Title': 'Tim Quran - Artikel',
       },
       body: JSON.stringify({
-        model: 'inclusionai/ling-3.0-tiny:free',
+        model: 'gpt-4o-mini',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user',   content: userPrompt },
@@ -137,18 +135,18 @@ async function callOpenRouter(
       const retryAfter = res.headers.get('Retry-After');
       const waitMs = retryAfter ? parseInt(retryAfter, 10) * 1000 : 5000;
       await new Promise(r => setTimeout(r, waitMs));
-      throw new Error('OpenRouter rate limit. Silakan coba lagi.');
+      throw new Error('OpenCode Zen rate limit. Silakan coba lagi.');
     }
 
     if (!res.ok) {
       const errBody = await res.text().catch(() => '');
-      console.error('[callOpenRouter] HTTP', res.status, errBody.slice(0, 300));
-      throw new Error(`OpenRouter API error ${res.status}: ${errBody.slice(0, 100)}`);
+      console.error('[callOpenCode] HTTP', res.status, errBody.slice(0, 300));
+      throw new Error(`OpenCode Zen API error ${res.status}: ${errBody.slice(0, 100)}`);
     }
 
     const data = await res.json();
     const content = data?.choices?.[0]?.message?.content;
-    if (!content) throw new Error('OpenRouter tidak menghasilkan konten.');
+    if (!content) throw new Error('OpenCode Zen tidak menghasilkan konten.');
     return content.trim();
 
   } finally {

@@ -21,9 +21,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: 'Topik artikel wajib diisi.' }, { status: 400 });
     }
 
-    const openrouterKey = process.env.OPENROUTER_API_KEY;
+    const opencodeKey = process.env.OPENCODE_API_KEY;
 
-    if (!openrouterKey) {
+    if (!opencodeKey) {
       return NextResponse.json(
         { message: 'API key AI belum dikonfigurasi.' },
         { status: 500 }
@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
     const systemPrompt = buildSystemPrompt(gaya, panjang);
     const userPrompt = buildUserPrompt(topik, instruksi);
 
-    const result = await callOpenRouter(systemPrompt, userPrompt, openrouterKey);
+    const result = await callOpenCode(systemPrompt, userPrompt, opencodeKey);
 
     const html = markdownToHtml(result);
 
@@ -110,23 +110,21 @@ Topik: ${topik}`;
   return prompt;
 }
 
-// ─── OpenRouter API Call ───────────────────────────────────────────────────
+// ─── OpenCode Zen API Call ─────────────────────────────────────────────────
 
-async function callOpenRouter(
+async function callOpenCode(
   systemPrompt: string,
   userPrompt: string,
   apiKey: string
 ): Promise<string> {
-  const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+  const res = await fetch('https://opencode.ai/zen/v1/chat/completions', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${apiKey}`,
-      'HTTP-Referer': 'https://timquran.my.id',
-      'X-Title': 'Tim Quran - Artikel',
     },
     body: JSON.stringify({
-      model: 'inclusionai/ling-3.0-tiny:free',
+      model: 'gpt-4o-mini',
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
@@ -138,12 +136,12 @@ async function callOpenRouter(
 
   if (!res.ok) {
     const errBody = await res.text().catch(() => '');
-    throw new Error(`OpenRouter API error ${res.status}: ${errBody.slice(0, 100)}`);
+    throw new Error(`OpenCode Zen API error ${res.status}: ${errBody.slice(0, 100)}`);
   }
 
   const data = await res.json();
   const content = data?.choices?.[0]?.message?.content;
-  if (!content) throw new Error('OpenRouter tidak menghasilkan konten.');
+  if (!content) throw new Error('OpenCode Zen tidak menghasilkan konten.');
   return content.trim();
 }
 

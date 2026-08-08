@@ -22,11 +22,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: 'student_id wajib diisi.' }, { status: 400 });
     }
 
-    const openrouterKey = process.env.OPENROUTER_API_KEY;
+    const opencodeKey = process.env.OPENCODE_API_KEY;
 
-    if (!openrouterKey) {
+    if (!opencodeKey) {
       return NextResponse.json(
-        { message: 'API key AI belum dikonfigurasi. Set OPENROUTER_API_KEY di environment.' },
+        { message: 'API key AI belum dikonfigurasi. Set OPENCODE_API_KEY di environment.' },
         { status: 500 }
       );
     }
@@ -194,7 +194,7 @@ export async function POST(request: NextRequest) {
     });
 
     // ── Panggil OpenRouter ───────────────────────────────────────────────
-    const catatan = await callOpenRouter(systemPrompt, userPrompt, openrouterKey);
+    const catatan = await callOpenCode(systemPrompt, userPrompt, opencodeKey);
 
     return NextResponse.json({
       catatan,
@@ -289,23 +289,21 @@ Tulis catatan ustadz/ah untuk "${data.panggilan}" ini dalam 3-5 kalimat narasi.
   Fokus pada capaian yang SUDAH DINILAI saja, jangan sebutkan yang belum ada nilainya.`;
 }
 
-// ─── OpenRouter API Call ─────────────────────────────────────────────────────
+// ─── OpenCode Zen API Call ─────────────────────────────────────────────────
 
-async function callOpenRouter(
+async function callOpenCode(
   systemPrompt: string,
   userPrompt: string,
   apiKey: string
 ): Promise<string> {
-  const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+  const res = await fetch('https://opencode.ai/zen/v1/chat/completions', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${apiKey}`,
-      'HTTP-Referer': 'https://timquran.my.id',
-      'X-Title': 'Tim Quran - Catatan Raport',
     },
     body: JSON.stringify({
-      model: 'inclusionai/ling-3.0-tiny:free',
+      model: 'gpt-4o-mini',
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
@@ -317,11 +315,11 @@ async function callOpenRouter(
 
   if (!res.ok) {
     const errBody = await res.text().catch(() => '');
-    throw new Error(`OpenRouter API error ${res.status}: ${errBody.slice(0, 200)}`);
+    throw new Error(`OpenCode Zen API error ${res.status}: ${errBody.slice(0, 200)}`);
   }
 
   const data = await res.json();
   const content = data?.choices?.[0]?.message?.content;
-  if (!content) throw new Error('OpenRouter tidak menghasilkan konten.');
+  if (!content) throw new Error('OpenCode Zen tidak menghasilkan konten.');
   return content.trim();
 }
