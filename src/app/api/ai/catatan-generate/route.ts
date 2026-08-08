@@ -305,7 +305,7 @@ async function callOpenRouter(
       'X-Title': 'Tim Quran - Catatan Raport',
     },
     body: JSON.stringify({
-      model: 'qwen/qwen-2-7b-instruct:free',
+      model: 'inclusionai/ling-3.0-tiny:free',
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
