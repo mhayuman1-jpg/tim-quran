@@ -14,7 +14,7 @@ import Input from '@/components/ui/Input';
 import Button from '@/components/ui/Button';
 import type { Tahfidz } from '@/types';
 import type { NilaiTahfidz } from '@/lib/surahData';
-import { NILAI_TANPA_HAFAL, NILAI_LANCAR } from '@/lib/surahData';
+import { NILAI_TANPA_HAFAL, NILAI_LANCAR, SURAH_ALQURAN_LIST } from '@/lib/surahData';
 
 // Format for <select> dropdown (maps v -> value, label -> label)
 const NILAI_MAKHROJ_TAJWID_OPTS = NILAI_TANPA_HAFAL.map(o => ({ value: o.v, label: o.label }));
@@ -192,15 +192,28 @@ export default function TahfidzForm({
         disabled={loading}
       />
 
-      <Input
-        label="Surah / Juz"
-        required
-        value={form.surah_juz}
-        onChange={(e) => set('surah_juz', e.target.value)}
-        error={errors.surah_juz}
-        placeholder="Contoh: Juz 30 / An-Naba'"
-        disabled={loading}
-      />
+      <div className="flex flex-col gap-1">
+        <label className="text-sm font-medium text-slate-700">
+          Surah / Juz <span className="text-red-500">*</span>
+        </label>
+        <input
+          list="surah-datalist"
+          type="text"
+          value={form.surah_juz}
+          onChange={(e) => set('surah_juz', e.target.value)}
+          placeholder="Ketik atau pilih surah... (contoh: An-Naba' 1-20)"
+          disabled={loading}
+          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 disabled:bg-slate-100 disabled:cursor-not-allowed"
+        />
+        <datalist id="surah-datalist">
+          {SURAH_ALQURAN_LIST.map((surah) => (
+            <option key={surah} value={surah} />
+          ))}
+        </datalist>
+        {errors.surah_juz && (
+          <p className="text-xs text-red-600" role="alert">{errors.surah_juz}</p>
+        )}
+      </div>
 
       <Input
         label="Halaman"
