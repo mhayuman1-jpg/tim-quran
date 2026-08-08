@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
     }).format(new Date());
 
     // 2b. Cek hari libur — tolak scan jika hari ini libur
-    const holidayCheck = await requireNoHoliday(supabase, today);
+    const holidayCheck = await requireNoHoliday(supabase, today, session.user.role);
     if (holidayCheck.error) return holidayCheck.error;
 
     // 3. Cek duplikat: cari record absensi hari ini di kolom santri_id / student_id

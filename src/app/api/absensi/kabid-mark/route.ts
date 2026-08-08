@@ -143,7 +143,7 @@ export async function POST(request: NextRequest) {
     if (semesterCheck.error) return semesterCheck.error;
 
     // Cek hari libur
-    const holidayCheck = await requireNoHoliday(supabase, date);
+    const holidayCheck = await requireNoHoliday(supabase, date, session.user.role);
     if (holidayCheck.error) return holidayCheck.error;
 
     // Validasi siswa exists

@@ -39,14 +39,23 @@ export async function isHoliday(
  * Cek apakah tanggal libur, dengan Return { ok, error? } pattern
  * seperti requireActiveSemester. Digunakan di API routes POST/scan.
  *
+ * Kabid (Kepala Bidang) dapat menambahkan/mengedit jurnal kapanpun,
+ * termasuk saat hari libur — bypass otomatis jika userRole === 'Kabid'.
+ *
  * Cara pakai di API route:
- *   const holidayCheck = await requireNoHoliday(supabase, tanggal);
+ *   const holidayCheck = await requireNoHoliday(supabase, tanggal, session.user.role);
  *   if (holidayCheck.error) return holidayCheck.error;
  */
 export async function requireNoHoliday(
   supabase: SupabaseClient,
-  date: string
+  date: string,
+  userRole?: string
 ): Promise<{ ok: boolean; error?: Response }> {
+  // Kabid bypass: dapat menambahkan jurnal kapanpun, termasuk hari libur
+  if (userRole === 'Kabid') {
+    return { ok: true };
+  }
+
   const { data, error } = await supabase
     .from('holiday_calendar')
     .select('keterangan')

@@ -159,7 +159,7 @@ export async function POST(request: NextRequest) {
     if (semesterCheck.error) return semesterCheck.error;
 
     // Cek hari libur — tolak input jika tanggal libur
-    const holidayCheck = await requireNoHoliday(supabase, tanggal);
+    const holidayCheck = await requireNoHoliday(supabase, tanggal, session.user.role);
     if (holidayCheck.error) return holidayCheck.error;
 
     if (session.user.role === 'Tim_Quran') {
