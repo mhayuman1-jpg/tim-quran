@@ -118,7 +118,7 @@ async function callOpenCode(
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: 'big-pickle',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user',   content: userPrompt },
