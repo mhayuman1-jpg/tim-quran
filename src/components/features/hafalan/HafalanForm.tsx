@@ -12,7 +12,7 @@ import Button from '@/components/ui/Button';
 import type { Hafalan } from '@/types';
 import { useSiswaList } from '@/hooks/useSWRFetcher';
 import type { NilaiTahfidz } from '@/lib/surahData';
-import { NILAI_TANPA_HAFAL, NILAI_LANCAR } from '@/lib/surahData';
+import { NILAI_TANPA_HAFAL, NILAI_LANCAR, SURAH_ALQURAN_LIST } from '@/lib/surahData';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -220,15 +220,28 @@ export default function HafalanForm({
       />
 
       {/* Surah/Juz */}
-      <Input
-        label="Surah / Juz"
-        required
-        value={form.surah_juz}
-        onChange={(e) => set('surah_juz', e.target.value)}
-        error={errors.surah_juz}
-        placeholder="Contoh: Al-Mulk 1-15 / Juz 29"
-        disabled={loading}
-      />
+      <div className="flex flex-col gap-1">
+        <label className="text-sm font-medium text-slate-700">
+          Surah / Juz <span className="text-red-500">*</span>
+        </label>
+        <input
+          list="surah-datalist-hafalan"
+          type="text"
+          value={form.surah_juz}
+          onChange={(e) => set('surah_juz', e.target.value)}
+          placeholder="Ketik atau pilih surah... (contoh: Al-Mulk 1-15)"
+          disabled={loading}
+          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 disabled:bg-slate-100 disabled:cursor-not-allowed"
+        />
+        <datalist id="surah-datalist-hafalan">
+          {SURAH_ALQURAN_LIST.map((surah) => (
+            <option key={surah} value={surah} />
+          ))}
+        </datalist>
+        {errors.surah_juz && (
+          <p className="text-xs text-red-600" role="alert">{errors.surah_juz}</p>
+        )}
+      </div>
 
       {/* Ayat */}
       <Input

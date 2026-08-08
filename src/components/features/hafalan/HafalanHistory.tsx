@@ -5,11 +5,12 @@
 // Tabel terpisah per Juz (slide-like)
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { CalendarDays, Pencil, RotateCcw, Trash2 } from 'lucide-react';
+import { CalendarDays, Pencil, Plus, RotateCcw, Trash2 } from 'lucide-react';
 import DataTable, { type ColumnDef } from '@/components/shared/DataTable';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
-import { SURAH_PER_JUZ } from '@/lib/surahData';
+import Modal from '@/components/ui/Modal';
+import { SURAH_PER_JUZ, SURAH_ALQURAN_LIST } from '@/lib/surahData';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -64,6 +65,12 @@ function formatDate(dateStr: string): string {
   } catch {
     return dateStr;
   }
+}
+
+function getTodayWITA(): string {
+  return new Intl.DateTimeFormat('sv-SE', {
+    timeZone: 'Asia/Makassar',
+  }).format(new Date());
 }
 
 function EditIndicator({ editedFields: _editedFields, field: _field }: { editedFields?: Record<string, string> | null; field: string }) {
@@ -122,6 +129,12 @@ export default function HafalanHistory({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [resetting, setResetting] = useState(false);
+
+  // Modal Tambah Surah
+  const [addSurahOpen, setAddSurahOpen] = useState(false);
+  const [addSurahForm, setAddSurahForm] = useState({ surah_juz: '', ayat: '', tanggal: getTodayWITA(), catatan: '' });
+  const [addSurahLoading, setAddSurahLoading] = useState(false);
+  const [addSurahError, setAddSurahError] = useState<string | null>(null);
 
   // Filter tanggal
   const [dateFrom, setDateFrom] = useState('');
@@ -193,6 +206,47 @@ export default function HafalanHistory({
       alert('Terjadi kesalahan. Silakan coba lagi.');
     } finally {
       setResetting(false);
+    }
+  };
+
+  const handleAddSurah = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!studentId || !addSurahForm.surah_juz.trim()) {
+      setAddSurahError('Surah / Juz wajib diisi.');
+      return;
+    }
+
+    setAddSurahLoading(true);
+    setAddSurahError(null);
+
+    try {
+      const res = await fetch('/api/hafalan/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          student_id: studentId,
+          tanggal: addSurahForm.tanggal || getTodayWITA(),
+          surah_juz: addSurahForm.surah_juz.trim(),
+          halaman: addSurahForm.ayat.trim() || null,
+          catatan: addSurahForm.catatan.trim() || null,
+        }),
+      });
+
+      const json = await res.json();
+
+      if (!res.ok) {
+        setAddSurahError(json.message ?? 'Gagal menambahkan surah.');
+        return;
+      }
+
+      setAddSurahOpen(false);
+      setAddSurahForm({ surah_juz: '', ayat: '', tanggal: getTodayWITA(), catatan: '' });
+      fetchHafalan();
+      onReset?.();
+    } catch {
+      setAddSurahError('Terjadi kesalahan. Silakan coba lagi.');
+    } finally {
+      setAddSurahLoading(false);
     }
   };
 
@@ -398,7 +452,7 @@ export default function HafalanHistory({
             </div>
           )}
           {studentId && (
-            <div className="flex items-end ml-auto">
+            <div className="flex items-end ml-auto gap-2">
               <Button
                 variant="ghost"
                 size="sm"
@@ -408,6 +462,19 @@ export default function HafalanHistory({
                 className="text-red-600 hover:text-red-700 hover:bg-red-50"
               >
                 Reset Jurnal
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setAddSurahForm({ surah_juz: '', ayat: '', tanggal: getTodayWITA(), catatan: '' });
+                  setAddSurahError(null);
+                  setAddSurahOpen(true);
+                }}
+                leftIcon={<Plus size={14} />}
+                className="text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+              >
+                Tambah Surah
               </Button>
             </div>
           )}
@@ -486,6 +553,92 @@ export default function HafalanHistory({
           Menampilkan {Array.from(juzGroups.values()).reduce((sum, rows) => sum + rows.length, 0) + ungrouped.length} surah{sortedJuz.length > 0 ? ` dalam ${sortedJuz.length} Juz` : ''}
         </p>
       )}
+
+      {/* Modal Tambah Surah */}
+      <Modal
+        open={addSurahOpen}
+        onClose={() => { if (!addSurahLoading) setAddSurahOpen(false); }}
+        title="Tambah Surah"
+        size="sm"
+        closeOnBackdrop={!addSurahLoading}
+      >
+        {addSurahError && (
+          <div className="mb-4 rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-600">
+            {addSurahError}
+          </div>
+        )}
+        <form onSubmit={handleAddSurah} noValidate className="space-y-4">
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium text-slate-700">
+              Surah / Juz <span className="text-red-500">*</span>
+            </label>
+            <input
+              list="surah-datalist-add"
+              type="text"
+              value={addSurahForm.surah_juz}
+              onChange={(e) => setAddSurahForm((prev) => ({ ...prev, surah_juz: e.target.value }))}
+              placeholder="Ketik atau pilih surah..."
+              disabled={addSurahLoading}
+              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 disabled:bg-slate-100 disabled:cursor-not-allowed"
+              autoFocus
+            />
+            <datalist id="surah-datalist-add">
+              {SURAH_ALQURAN_LIST.map((surah) => (
+                <option key={surah} value={surah} />
+              ))}
+            </datalist>
+          </div>
+
+          <Input
+            label="Ayat"
+            value={addSurahForm.ayat}
+            onChange={(e) => setAddSurahForm((prev) => ({ ...prev, ayat: e.target.value }))}
+            placeholder="Contoh: 1-5"
+            helperText="Opsional"
+            disabled={addSurahLoading}
+          />
+
+          <Input
+            label="Tanggal"
+            type="date"
+            value={addSurahForm.tanggal}
+            onChange={(e) => setAddSurahForm((prev) => ({ ...prev, tanggal: e.target.value }))}
+            disabled={addSurahLoading}
+          />
+
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium text-slate-700">
+              Catatan <span className="text-xs font-normal text-slate-400">(opsional)</span>
+            </label>
+            <textarea
+              value={addSurahForm.catatan}
+              onChange={(e) => setAddSurahForm((prev) => ({ ...prev, catatan: e.target.value }))}
+              rows={3}
+              disabled={addSurahLoading}
+              placeholder="Catatan singkat..."
+              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 disabled:bg-slate-100 disabled:cursor-not-allowed resize-none"
+            />
+          </div>
+
+          <div className="flex justify-end gap-3 pt-2 border-t border-slate-200">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setAddSurahOpen(false)}
+              disabled={addSurahLoading}
+            >
+              Batal
+            </Button>
+            <Button
+              type="submit"
+              variant="primary"
+              loading={addSurahLoading}
+            >
+              Simpan
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }
