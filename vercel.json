@@ -1,0 +1,33 @@
+{
+  "framework": "nextjs",
+  "buildCommand": "npm run build",
+  "outputDirectory": ".next",
+  "installCommand": "npm install",
+  "env": {
+    "PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD": "1"
+  },
+  "functions": {
+    "src/app/api/raport/render-pdf/route.ts": {
+      "maxDuration": 60,
+      "memory": 2048
+    },
+    "src/app/api/raport/export-docx/route.ts": {
+      "maxDuration": 60,
+      "memory": 2048
+    },
+    "src/app/api/rekap/download/route.ts": {
+      "maxDuration": 30,
+      "memory": 1024
+    }
+  },
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        { "key": "Access-Control-Allow-Credentials", "value": "true" },
+        { "key": "Access-Control-Allow-Methods", "value": "GET,POST,PUT,DELETE,OPTIONS" },
+        { "key": "Access-Control-Allow-Headers", "value": "Content-Type, Authorization, Cookie, x-view-mode, x-view-as-teacher-id" }
+      ]
+    }
+  ]
+}

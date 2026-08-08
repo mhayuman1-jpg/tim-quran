@@ -86,23 +86,38 @@ export default function ImageUpload({
     setUploading(true);
 
     try {
-      const formData = new FormData();
-      formData.append('file', file);
+      // Step 1: Get presigned URL dari server
+      const presignedRes = await fetch(
+        `/api/upload/presigned?bucket=${bucket}&folder=${folder}&contentType=${encodeURIComponent(file.type)}&fileName=${encodeURIComponent(file.name)}`,
+        { method: 'POST' }
+      );
 
-      const res = await fetch(`/api/upload?bucket=${bucket}&folder=${folder}`, {
-        method: 'POST',
-        body: formData,
-      });
-
-      const json = await res.json();
-
-      if (!res.ok) {
-        setError(json.message || 'Gagal mengunggah gambar.');
+      if (!presignedRes.ok) {
+        const errData = await presignedRes.json();
+        setError(errData.message || 'Gagal mendapatkan URL upload.');
         setPreview(null);
         return;
       }
 
-      onUpload(json.url);
+      const { uploadUrl, proxyUrl } = await presignedRes.json();
+
+      // Step 2: Upload langsung ke Tigris (bypass Vercel)
+      const uploadRes = await fetch(uploadUrl, {
+        method: 'PUT',
+        body: file,
+        headers: {
+          'Content-Type': file.type,
+        },
+      });
+
+      if (!uploadRes.ok) {
+        setError('Gagal mengunggah gambar ke storage.');
+        setPreview(null);
+        return;
+      }
+
+      // Step 3: Return proxy URL
+      onUpload(proxyUrl);
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
     } catch {

@@ -106,38 +106,6 @@ export default function WaliDashboardPage() {
   const [isMingguIni, setIsMingguIni] = useState(true);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [greetingPlayed, setGreetingPlayed] = useState(false);
-  const [audioBlocked, setAudioBlocked] = useState(false);
-
-  // Simpan audio instance di ref agar tidak recreated
-  const audioRef = useMemo(() => {
-    if (typeof window === "undefined") return null;
-    const a = new Audio("/audio/greeting.mp3");
-    a.volume = 1;
-    a.preload = "auto";
-    return a;
-  }, []);
-
-  // Coba autoplay segera
-  useEffect(() => {
-    if (!santri || !audioRef || greetingPlayed) return;
-
-    const tryAutoplay = () => {
-      // Coba play muted dulu (browser izinkan)
-      audioRef.muted = true;
-      audioRef.play().then(() => {
-        // Berhasil play muted, langsung unmute
-        audioRef.muted = false;
-        audioRef.currentTime = 0;
-        audioRef.play().then(() => setGreetingPlayed(true)).catch(() => {});
-      }).catch(() => {
-        setAudioBlocked(true);
-      });
-    };
-
-    // Coba langsung
-    tryAutoplay();
-  }, [santri, audioRef, greetingPlayed]);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -247,35 +215,6 @@ export default function WaliDashboardPage() {
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
-      {/* Audio element */}
-      {!greetingPlayed && audioRef && (
-        <audio
-          ref={(el) => { if (el && audioRef) { el.src = audioRef.src; } }}
-          autoPlay
-          onPlay={() => setGreetingPlayed(true)}
-          className="hidden"
-        />
-      )}
-
-      {/* Audio Play Banner */}
-      {!greetingPlayed && audioBlocked && (
-        <button
-          onClick={() => {
-            if (audioRef) {
-              audioRef.muted = false;
-              audioRef.currentTime = 0;
-              audioRef.play().then(() => setGreetingPlayed(true)).catch(() => {});
-            }
-          }}
-          className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl p-4 flex items-center justify-center gap-3 hover:from-emerald-600 hover:to-teal-600 transition-all shadow-lg cursor-pointer animate-pulse"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
-            <path fillRule="evenodd" d="M4.5 5.653c0-1.427 1.529-2.33 2.779-1.643l11.54 6.347c1.295.712 1.295 2.573 0 3.286L7.28 19.99c-1.25.687-2.779-.217-2.779-1.643V5.653Z" clipRule="evenodd" />
-          </svg>
-          <span className="text-lg font-semibold">Klik untuk mendengarkan sapaan</span>
-        </button>
-      )}
-
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">

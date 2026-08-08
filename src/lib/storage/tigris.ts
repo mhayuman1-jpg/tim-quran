@@ -113,3 +113,48 @@ export async function storagePresignedUrl(
   });
   return getSignedUrl(s3, command, { expiresIn });
 }
+
+/**
+ * Generate presigned PUT URL untuk direct upload dari client.
+ * Client bisa upload langsung ke Tigris tanpa lewat Vercel.
+ * @param bucket nama bucket
+ * @param key object key
+ * @param contentType MIME type file
+ * @param expiresIn durasi URL valid dalam detik (default: 3600 = 1 jam)
+ * @returns presigned PUT URL string
+ */
+export async function storagePresignedPutUrl(
+  bucket: string,
+  key: string,
+  contentType: string,
+  expiresIn: number = 3600,
+): Promise<string> {
+  const s3 = getS3Client();
+  const command = new PutObjectCommand({
+    Bucket: bucket,
+    Key: key,
+    ContentType: contentType,
+  });
+  return getSignedUrl(s3, command, { expiresIn });
+}
+
+/**
+ * Generate presigned GET URL untuk direct download dari client.
+ * Berguna untuk file yang tidak perlu proxy (asets statis).
+ * @param bucket nama bucket
+ * @param key object key
+ * @param expiresIn durasi URL valid dalam detik (default: 3600 = 1 jam)
+ * @returns presigned GET URL string
+ */
+export async function storagePresignedGetUrl(
+  bucket: string,
+  key: string,
+  expiresIn: number = 3600,
+): Promise<string> {
+  const s3 = getS3Client();
+  const command = new GetObjectCommand({
+    Bucket: bucket,
+    Key: key,
+  });
+  return getSignedUrl(s3, command, { expiresIn });
+}
