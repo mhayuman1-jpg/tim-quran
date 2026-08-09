@@ -53,3 +53,8 @@ local.properties
 
 # build logs
 build.log
+
+# Local Netlify folder
+.netlify
+
+.vercel

@@ -72,8 +72,16 @@ export const SURAH_PER_JUZ: Record<number, SurahTemplate[]> = {
     { nama: 'Al Maidah' },
   ],
   5: [
-    { nama: 'Al Maidah' },
-    { nama: 'Al Anam' },
+    { nama: 'An Nisa (24-33)' },
+    { nama: 'An Nisa (34-44)' },
+    { nama: 'An Nisa (45-59)' },
+    { nama: 'An Nisa (60-74)' },
+    { nama: 'An Nisa (75-86)' },
+    { nama: 'An Nisa (87-94)' },
+    { nama: 'An Nisa (95-105)' },
+    { nama: 'An Nisa (106-121)' },
+    { nama: 'An Nisa (122-134)' },
+    { nama: 'An Nisa (135-147)' },
   ],
   6: [
     { nama: 'Al Araf' },

@@ -1,7 +1,7 @@
 "use client";
 export const dynamic = 'force-dynamic';
 
-import { useEffect, useMemo, useRef, useState, memo } from "react";
+import { useMemo, useRef, useState, memo } from "react";
 import { useSession } from "next-auth/react";
 import { Users, CheckCircle, UserCheck, BookOpen, Activity, FileImage, FileText, CreditCard, Repeat, TrendingUp, Megaphone, Newspaper, ArrowRight } from "lucide-react";
 import Link from "next/link";
@@ -152,37 +152,6 @@ export default function DashboardPage() {
   const cardRef = useRef<HTMLDivElement>(null);
   const [downloading, setDownloading] = useState<'png' | 'pdf' | null>(null);
   const { toast } = useToast();
-  const [greetingPlayed, setGreetingPlayed] = useState(false);
-  const [audioBlocked, setAudioBlocked] = useState(false);
-  const [, setAudioReady] = useState(false);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-
-  useEffect(() => {
-    if (typeof window !== 'undefined' && !audioRef.current) {
-      const a = new Audio("/audio/dashboard-login.mp3");
-      a.volume = 1;
-      a.preload = "auto";
-      audioRef.current = a;
-      setAudioReady(true);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!session?.user || greetingPlayed || !audioRef.current) return;
-    const tryAutoPlay = async () => {
-      try {
-        audioRef.current!.muted = true;
-        await audioRef.current!.play();
-        audioRef.current!.muted = false;
-        audioRef.current!.currentTime = 0;
-        await audioRef.current!.play();
-        setGreetingPlayed(true);
-      } catch {
-        setAudioBlocked(true);
-      }
-    };
-    tryAutoPlay();
-  }, [session?.user, greetingPlayed]);
 
   const { profil: profilData } = useProfil();
   const { items: navItems } = useNavigation();
@@ -302,33 +271,6 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
-
-      {/* Audio greeting fallback */}
-      {audioBlocked && session?.user && (
-        <button
-          onClick={async () => {
-            if (audioRef.current) {
-              try {
-                audioRef.current.muted = true;
-                await audioRef.current.play();
-                audioRef.current.muted = false;
-                audioRef.current.currentTime = 0;
-                await audioRef.current.play();
-                setGreetingPlayed(true);
-                setAudioBlocked(false);
-              } catch {
-                setAudioBlocked(true);
-              }
-            }
-          }}
-          className="w-full bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-2xl p-4 flex items-center justify-center gap-3 hover:from-amber-600 hover:to-orange-600 transition-all shadow-lg shadow-amber-500/20 animate-pulse"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
-            <path fillRule="evenodd" d="M4.5 5.653c0-1.427 1.529-2.33 2.779-1.643l11.54 6.347c1.295.712 1.295 2.573 0 3.286L7.28 19.99c-1.25.687-2.779-.217-2.779-1.643V5.653Z" clipRule="evenodd" />
-          </svg>
-          <span className="text-sm font-semibold">Klik untuk mendengarkan sapaan</span>
-        </button>
-      )}
 
       {/* Error */}
       {errorMessage && (

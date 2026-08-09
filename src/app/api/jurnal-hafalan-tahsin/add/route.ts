@@ -201,6 +201,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Hapus hafalan lama untuk student_id + tanggal ini (agar edit menggantikan data lama)
+    if (hasHafalan) {
+      await supabase
+        .from('hafalan')
+        .delete()
+        .eq('student_id', student_id.trim())
+        .eq('tanggal', tanggal);
+    }
+
     // Insert hafalan — SELALU buat record baru, jangan menimpa riwayat lama
     if (hasHafalan) {
       // ── Hitung sort_order berdasarkan urutan template ──
@@ -248,8 +257,15 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Insert tahsin hanya jika ada data tahsin
+    // Insert / update tahsin hanya jika ada data tahsin
     if (hasTahsinData && tahsin_metode && tahsin_buku) {
+      // Hapus tahsin lama untuk student_id + tanggal ini (agar edit menggantikan data lama)
+      await supabase
+        .from('tahsin')
+        .delete()
+        .eq('student_id', student_id.trim())
+        .eq('tanggal', tanggal);
+
       const tahsinData: Record<string, unknown> = {
         student_id: student_id.trim(),
         teacher_id: teacherId,
