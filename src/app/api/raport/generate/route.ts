@@ -26,6 +26,82 @@ function normalizeSurahName(name: string): string {
   return n;
 }
 
+// ── Helper pencocokan nama surah antar format ──────────────────────────────
+// Masalah asli: jurnal setoran mencatat "An Nisa" + ayat "24-33" (terpisah),
+// sedangkan template Juz 5 memakai "An Nisa (24-33)". Keduanya harus dianggap
+// potongan yang sama agar nilai makhroj/tajwid/lancar bisa diisi otomatis.
+
+interface DetailRow {
+  nama_surah: string;
+  makhroj: string;
+  tajwid: string;
+  lancar: string;
+  wafa_buku: string;
+  wafa_halaman: string;
+  tanggal: string;
+  urutan: number;
+}
+
+// Kunci "dasar" tanpa angka/rentang: "An Nisa (24-33)", "An Nisa", "An Nisa 24-33"
+// → semuanya "annisa"
+function baseSurahKey(name: string): string {
+  return normalizeSurahName(name).replace(/\d+/g, '');
+}
+
+// Ekstrak rentang "X-Y" dari nama surah atau kolom halaman/ayat
+function extractRange(str?: string | number | null): string {
+  const m = String(str ?? '').trim().match(/(\d+)\s*[-–—]\s*(\d+)/);
+  return m ? `${m[1]}-${m[2]}` : '';
+}
+
+// Kunci detail: nama dasar + rentang ayat (jika ada) agar potongan surah tetap terpisah.
+// Jurnal "An Nisa" + ayat "24-33" → "annisa:24-33", cocok dengan template "An Nisa (24-33)".
+function detailKey(name: string, ayat?: string | number | null): string {
+  const base = baseSurahKey(name);
+  const range = extractRange(name) || extractRange(ayat);
+  return range ? `${base}:${range}` : base;
+}
+
+// Pilih juz terbaik dari kandidat: jumlah kecocokan terbanyak menang;
+// jika imbang, dekati juz_terakhir siswa.
+function pickBestJuz(candidates: { juz: number; matches: number }[], fallbackJuz: number | null): number | null {
+  if (!candidates.length) return null;
+  const max = Math.max(...candidates.map((c) => c.matches));
+  const top = candidates.filter((c) => c.matches === max);
+  if (top.length > 1 && fallbackJuz !== null) {
+    top.sort((a, b) => Math.abs(a.juz - fallbackJuz) - Math.abs(b.juz - fallbackJuz));
+  }
+  return top[0].juz;
+}
+
+// Kelompokkan baris detail yang cocok dengan template juz tertentu:
+// 1) nama + rentang persis (mis. jurnal "An Nisa"+"24-33" ↔ template "An Nisa (24-33)")
+// 2) fallback nama dasar (semua potongan surah yang sama).
+// Nama baris diselaraskan dengan nama template juz.
+function buildJuzGroupDetail(juz: number, detailSurah: DetailRow[]): DetailRow[] {
+  const templateRows: SurahTemplate[] = SURAH_PER_JUZ[juz] ?? [];
+  const exactTemplate = new Map<string, string>(); // detailKey → nama template
+  const baseTemplate = new Map<string, string>();   // baseKey → nama template pertama
+  for (const s of templateRows) {
+    const dk = detailKey(s.nama, '');
+    if (!exactTemplate.has(dk)) exactTemplate.set(dk, s.nama);
+    const bk = baseSurahKey(s.nama);
+    if (!baseTemplate.has(bk)) baseTemplate.set(bk, s.nama);
+  }
+  return detailSurah
+    .filter((s) => {
+      const dk = detailKey(s.nama_surah, s.wafa_halaman);
+      const bk = baseSurahKey(s.nama_surah);
+      return exactTemplate.has(dk) || baseTemplate.has(bk);
+    })
+    .map((s, i) => {
+      const dk = detailKey(s.nama_surah, s.wafa_halaman);
+      const bk = baseSurahKey(s.nama_surah);
+      const tplName = exactTemplate.get(dk) ?? baseTemplate.get(bk) ?? s.nama_surah;
+      return { ...s, nama_surah: tplName, urutan: i + 1 };
+    });
+}
+
 export async function GET(request: NextRequest) {
   const session = await getAuthenticatedSession(request);
   if (session instanceof NextResponse) return session;
@@ -155,7 +231,9 @@ export async function GET(request: NextRequest) {
     }
 
     // ── 3. Susun detail surah dari hafalan ─────────────────────────────────
-    // Group by nama surah, ambil yang terbaru
+    // Group by nama surah + rentang ayat (detailKey), ambil nilai terlengkap dari semua jurnal.
+    // detailKey membedakan potongan surah ber-rentang (mis. "An Nisa (24-33)" vs "(34-44)")
+    // namun tetap menggabungkan catatan yang sama persis (termasuk jurnal polos "An Nisa").
     const surahMap = new Map<string, {
       nama_surah: string;
       makhroj: string;
@@ -169,8 +247,12 @@ export async function GET(request: NextRequest) {
     for (const h of (hafalanData ?? [])) {
       const surahName = h.surah_juz?.trim();
       if (!surahName) continue;
-      if (!surahMap.has(surahName)) {
-        surahMap.set(surahName, {
+
+      const key = detailKey(surahName, h.halaman);
+      const existing = surahMap.get(key);
+      if (!existing) {
+        // Surah belum ada, masukkan langsung
+        surahMap.set(key, {
           nama_surah: surahName,
           makhroj: h.makhroj || '',
           tajwid: h.tajwid || '',
@@ -178,6 +260,18 @@ export async function GET(request: NextRequest) {
           wafa_buku: '',
           wafa_halaman: h.halaman ? String(h.halaman) : '',
           tanggal: h.tanggal,
+        });
+      } else {
+        // Surah sudah ada, update nilai yang kosong dengan nilai dari jurnal ini.
+        // Prefer nama berformat template (mengandung "(") sebagai tampilan.
+        surahMap.set(key, {
+          nama_surah: existing.nama_surah.includes('(') ? existing.nama_surah : surahName,
+          makhroj: existing.makhroj || h.makhroj || '',
+          tajwid: existing.tajwid || h.tajwid || '',
+          lancar: existing.lancar || h.lancar || '',
+          wafa_buku: existing.wafa_buku,
+          wafa_halaman: existing.wafa_halaman || (h.halaman ? String(h.halaman) : ''),
+          tanggal: existing.tanggal, // Pertahankan tanggal dari entry pertama (terbaru)
         });
       }
     }
@@ -203,19 +297,19 @@ export async function GET(request: NextRequest) {
     for (let j = 30; j >= 1; j--) {
       const surahsInJuz = SURAH_PER_JUZ[j] ?? [];
       for (let idx = 0; idx < surahsInJuz.length; idx++) {
-        const key = normalizeSurahName(surahsInJuz[idx].nama);
+        const key = detailKey(surahsInJuz[idx].nama, '');
         if (!surahOrderMap.has(key)) {
           surahOrderMap.set(key, j * 1000 + idx);
         }
       }
     }
     surahEntries.sort((a, b) => {
-      const orderA = surahOrderMap.get(normalizeSurahName(a.nama_surah)) ?? 999999;
-      const orderB = surahOrderMap.get(normalizeSurahName(b.nama_surah)) ?? 999999;
+      const orderA = surahOrderMap.get(detailKey(a.nama_surah, a.wafa_halaman)) ?? 999999;
+      const orderB = surahOrderMap.get(detailKey(b.nama_surah, b.wafa_halaman)) ?? 999999;
       return orderA - orderB;
     });
 
-    const detailSurah = surahEntries.map((s, i) => ({
+    let detailSurah = surahEntries.map((s, i) => ({
       ...s,
       urutan: i + 1,
     }));
@@ -238,68 +332,85 @@ export async function GET(request: NextRequest) {
     }] : [];
 
     // ── 6. Deteksi Juz Otomatis dari Jurnal ────────────────────────────────
-    // Kumpulkan surah siswa (normalized) — map normalized → original
-    const studentSurahNormToOriginal = new Map<string, string>();
+    // Kumpulkan key surah siswa — detailKey (nama + rentang) bila tersedia,
+    // fallback ke baseKey (nama dasar tanpa angka).
+    const studentSurahKeys = new Set<string>();
     for (const h of (hafalanData ?? [])) {
       if (h.surah_juz) {
-        const norm = normalizeSurahName(h.surah_juz);
-        if (!studentSurahNormToOriginal.has(norm)) {
-          studentSurahNormToOriginal.set(norm, h.surah_juz.trim());
-        }
+        studentSurahKeys.add(detailKey(h.surah_juz, h.halaman));
+        studentSurahKeys.add(baseSurahKey(h.surah_juz));
       }
     }
 
-    // Detect ALL juz with matches using normalized names
+    // Detect ALL juz with matches. Exact key (nama + rentang) selalu dihitung,
+    // sedangkan base key (nama dasar) dihitung SEKALI per surah — mencegah Juz 5
+    // (10 baris "An Nisa (X-Y)" ber-base sama) menang hanya karena inflasi baris.
     const juzMatchCounts: { juz: number; matches: number }[] = [];
     for (let j = 1; j <= 30; j++) {
       const surahsInJuz = SURAH_PER_JUZ[j] ?? [];
       let matches = 0;
+      const seenBase = new Set<string>();
       for (const s of surahsInJuz) {
-        if (studentSurahNormToOriginal.has(normalizeSurahName(s.nama))) {
-          matches++;
+        const dk = detailKey(s.nama, '');
+        const bk = baseSurahKey(s.nama);
+        if (studentSurahKeys.has(dk)) {
+          matches += 2; // kecocokan eksplisit (rentang) — selalu dihitung
+        } else if (studentSurahKeys.has(bk) && !seenBase.has(bk)) {
+          matches += 1; // nama dasar saja — hitung sekali per surah
+          seenBase.add(bk);
         }
       }
       if (matches > 0) {
         juzMatchCounts.push({ juz: j, matches });
       }
     }
-    // Sort by matches descending
-    juzMatchCounts.sort((a, b) => b.matches - a.matches);
 
-    let detectedJuz: number | null = null;
-    let maxMatches = 0;
-    for (const jc of juzMatchCounts) {
-      if (jc.matches > maxMatches) {
-        maxMatches = jc.matches;
-        detectedJuz = jc.juz;
-      }
-    }
+    // Pilih juz: kecocokan terbanyak menang; jika imbang, dekati juz_terakhir siswa.
+    // Ambil dulu juz_terakhir untuk tie-break di bawah.
+    const { data: santriJuzRow } = await supabase
+      .from('santri')
+      .select('juz_terakhir')
+      .eq('id', studentId)
+      .maybeSingle();
+    const fallbackJuz = santriJuzRow?.juz_terakhir ? parseInt(String(santriJuzRow.juz_terakhir).match(/\d+/)?.[0] ?? '', 10) : null;
+
+    const detectedJuz = pickBestJuz(juzMatchCounts, fallbackJuz);
 
     // Build juz_groups using greedy exclusive assignment:
     // Each surah is assigned to exactly ONE juz (the best match),
     // preventing false-positive juz groups from overlapping surah names.
-    // Uses normalized names to handle spelling variations between juz templates.
+    // Nama surah diselaraskan dengan template juz (mis. "An Nisa" → "An Nisa (24-33)")
+    // sehingga nilai jurnal (makhroj/tajwid/lancar) ikut terbawa.
     const juzGroups: { juz: number; detail: typeof detailSurah; matches: number }[] = [];
-    const assignedSurahs = new Set<string>(); // track normalized surah keys already assigned
+    const assignedSurahs = new Set<string>(); // track detail keys already assigned
 
-    for (const jc of juzMatchCounts) {
-      const surahsInJuz: SurahTemplate[] = SURAH_PER_JUZ[jc.juz] ?? [];
-      const juzNormKeys = new Set(surahsInJuz.map((sj: SurahTemplate) => normalizeSurahName(sj.nama)));
-      // Only include surahs that belong to this juz AND haven't been assigned yet
-      const groupDetail = detailSurah.filter((s) => {
-        const key = normalizeSurahName(s.nama_surah);
-        if (assignedSurahs.has(key)) return false;
-        return juzNormKeys.has(key);
-      });
-      if (groupDetail.length > 0) {
+    // Urutkan kandidat juz: kecocokan terbanyak dulu; jika imbang, yang terdekat
+    // ke juz_terakhir siswa. Ini memastikan greedy assignment memproses juz
+    // terbaik lebih dulu — penting untuk nama polos seperti "An Nisa" yang
+    // juga ada di template Juz 3 & 4 (tanpa rentang ayat).
+    const sortedJuzCandidates = [...juzMatchCounts].sort((a, b) => {
+      if (b.matches !== a.matches) return b.matches - a.matches;
+      if (fallbackJuz !== null) {
+        return Math.abs(a.juz - fallbackJuz) - Math.abs(b.juz - fallbackJuz);
+      }
+      return a.juz - b.juz;
+    });
+
+    for (const jc of sortedJuzCandidates) {
+      // Cocokkan baris yang belum ter-assign dengan template juz ini,
+      // lalu selaraskan nama surah ke format template juz.
+      const matched = buildJuzGroupDetail(jc.juz, detailSurah).filter(
+        (s) => !assignedSurahs.has(detailKey(s.nama_surah, s.wafa_halaman))
+      );
+      if (matched.length > 0) {
         // Mark these surahs as assigned
-        for (const s of groupDetail) {
-          assignedSurahs.add(normalizeSurahName(s.nama_surah));
+        for (const s of matched) {
+          assignedSurahs.add(detailKey(s.nama_surah, s.wafa_halaman));
         }
         juzGroups.push({
           juz: jc.juz,
-          detail: groupDetail.map((d, i) => ({ ...d, urutan: i + 1 })),
-          matches: groupDetail.length,
+          detail: matched,
+          matches: matched.length,
         });
       }
     }
@@ -319,36 +430,43 @@ export async function GET(request: NextRequest) {
     }
 
     // Jika tidak ada kecocokan, ambil juz_terakhir dari data santri
-    if (detectedJuz === null) {
-      const { data: santriJuz } = await supabase
-        .from('santri')
-        .select('juz_terakhir')
-        .eq('id', studentId)
-        .maybeSingle();
-      if (santriJuz?.juz_terakhir) {
-        const match = String(santriJuz.juz_terakhir).match(/\d+/);
-        detectedJuz = match ? parseInt(match[0], 10) : null;
-        // Add as single juz group (only unassigned surahs)
-        if (detectedJuz) {
-          const surahsInJuz: SurahTemplate[] = SURAH_PER_JUZ[detectedJuz] ?? [];
-          const fallbackNormKeys = new Set(surahsInJuz.map((sj: SurahTemplate) => normalizeSurahName(sj.nama)));
-          const groupDetail = detailSurah.filter((s) => {
-            const key = normalizeSurahName(s.nama_surah);
-            if (assignedSurahs.has(key)) return false;
-            return fallbackNormKeys.has(key);
-          });
-          if (groupDetail.length > 0) {
-            for (const s of groupDetail) {
-              assignedSurahs.add(normalizeSurahName(s.nama_surah));
-            }
-            juzGroups.push({
-              juz: detectedJuz,
-              detail: groupDetail.map((d, i) => ({ ...d, urutan: i + 1 })),
-              matches: groupDetail.length,
-            });
-          }
+    // (juz_terakhir sudah diambil di atas untuk tie-break deteksi juz)
+    if (detectedJuz === null && fallbackJuz !== null) {
+      // Add as single juz group (only unassigned surahs), selaraskan nama surah
+      const fallbackDetail = buildJuzGroupDetail(fallbackJuz, detailSurah);
+      const unassigned = fallbackDetail.filter((s) => !assignedSurahs.has(detailKey(s.nama_surah, s.wafa_halaman)));
+      if (unassigned.length > 0) {
+        for (const s of unassigned) {
+          assignedSurahs.add(detailKey(s.nama_surah, s.wafa_halaman));
         }
+        juzGroups.push({
+          juz: fallbackJuz,
+          detail: unassigned,
+          matches: unassigned.length,
+        });
       }
+    }
+
+    // Selaraskan nama surah di detail_surah (tampilan form/preview) ke template
+    // juz terdeteksi — tanpa menghapus baris. Mis. "An Nisa" → "An Nisa (24-33)".
+    if (detectedJuz !== null) {
+      const tplRows: SurahTemplate[] = SURAH_PER_JUZ[detectedJuz] ?? [];
+      const exactTpl = new Map<string, string>();
+      const baseTpl = new Map<string, string>();
+      for (const s of tplRows) {
+        const dk = detailKey(s.nama, '');
+        if (!exactTpl.has(dk)) exactTpl.set(dk, s.nama);
+        const bk = baseSurahKey(s.nama);
+        if (!baseTpl.has(bk)) baseTpl.set(bk, s.nama);
+      }
+      detailSurah = detailSurah.map((s, i) => {
+        const dk = detailKey(s.nama_surah, s.wafa_halaman);
+        const bk = baseSurahKey(s.nama_surah);
+        const tplName = exactTpl.get(dk) ?? baseTpl.get(bk);
+        return tplName
+          ? { ...s, nama_surah: tplName, urutan: i + 1 }
+          : { ...s, urutan: i + 1 };
+      });
     }
 
     // ── 7. Ringkasan Absensi Kehadiran ────────────────────────────────────
