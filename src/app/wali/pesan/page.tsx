@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useSession } from "next-auth/react";
-import { Send, MessageCircle, ArrowLeft, Smile, Trash2 } from "lucide-react";
+import { Send, MessageCircle, ArrowLeft, Trash2 } from "lucide-react";
 import Link from "next/link";
 import EmojiPicker from "@/components/features/chat/EmojiPicker";
 
@@ -19,7 +19,7 @@ interface Message {
 }
 
 export default function WaliPesanPage() {
-  const { data: session } = useSession();
+  useSession();
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
   const [input, setInput] = useState("");

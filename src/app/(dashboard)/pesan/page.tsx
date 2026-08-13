@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic';
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useSession } from "next-auth/react";
-import { MessageCircle, Send, Search, User, Trash2, Smile, CheckCheck } from "lucide-react";
+import { MessageCircle, Send, Search, User, Trash2 } from "lucide-react";
 import EmojiPicker from "@/components/features/chat/EmojiPicker";
 
 interface Message {
