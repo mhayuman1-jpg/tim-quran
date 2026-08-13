@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useSession } from "next-auth/react";
-import { Send, MessageCircle, ArrowLeft, Clock, CheckCheck, Trash2 } from "lucide-react";
+import { Send, MessageCircle, ArrowLeft, Smile, Trash2 } from "lucide-react";
 import Link from "next/link";
+import EmojiPicker from "@/components/features/chat/EmojiPicker";
 
 interface Message {
   id: string;
@@ -13,9 +14,6 @@ interface Message {
   sender_name: string;
   message: string;
   is_read: boolean;
-  reply: string | null;
-  replied_by: string | null;
-  replied_at: string | null;
   created_at: string;
   santri?: { nama: string; nisn: string; classes?: { name: string } | null };
 }
@@ -24,9 +22,20 @@ export default function WaliPesanPage() {
   const { data: session } = useSession();
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
-  const [newMessage, setNewMessage] = useState("");
+  const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [toast, setToast] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  const markRead = useCallback(async () => {
+    try {
+      await fetch("/api/messages/read", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+    } catch {}
+  }, []);
 
   const fetchMessages = useCallback(async () => {
     try {
@@ -43,44 +52,53 @@ export default function WaliPesanPage() {
   }, []);
 
   useEffect(() => {
-    fetchMessages();
-
-    const es = new EventSource("/api/messages/stream");
-    es.onmessage = () => fetchMessages();
-    es.onerror = (e) => console.warn("SSE wali error", e);
-
-    // Fallback polling bila SSE terputus
-    const fallback = setInterval(fetchMessages, 30000);
-
-    return () => {
-      es.close();
-      clearInterval(fallback);
-    };
-  }, [fetchMessages]);
-
-  useEffect(() => {
     if (toast) {
       const t = setTimeout(() => setToast(null), 4000);
       return () => clearTimeout(t);
     }
   }, [toast]);
 
+  useEffect(() => {
+    fetchMessages();
+    markRead();
+
+    const es = new EventSource("/api/messages/stream");
+    es.onmessage = () => {
+      fetchMessages();
+      markRead();
+    };
+    es.onerror = (e) => console.warn("SSE wali error", e);
+
+    const fallback = setInterval(() => {
+      fetchMessages();
+      markRead();
+    }, 30000);
+
+    return () => {
+      es.close();
+      clearInterval(fallback);
+    };
+  }, [fetchMessages, markRead]);
+
+  useEffect(() => {
+    const el = bottomRef.current;
+    if (!el) return;
+    const nearBottom =
+      window.innerHeight + window.scrollY >= document.body.scrollHeight - 120;
+    if (nearBottom) el.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
   const sendMessage = async () => {
-    if (!newMessage.trim() || sending) return;
-
-    const santriId = (session?.user as any)?.santri_id;
-    if (!santriId) return;
-
+    if (!input.trim() || sending) return;
     setSending(true);
     try {
-      const res = await fetch("/api/messages/send", {
+      const res = await fetch("/api/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ santri_id: santriId, message: newMessage.trim() }),
+        body: JSON.stringify({ message: input.trim() }),
       });
-
       if (res.ok) {
-        setNewMessage("");
+        setInput("");
         setToast({ type: "success", text: "Pesan berhasil dikirim!" });
         fetchMessages();
       } else {
@@ -113,12 +131,17 @@ export default function WaliPesanPage() {
   };
 
   const formatDate = (d: string) => {
-    const date = new Date(d);
-    return date.toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+    return new Date(d).toLocaleDateString("id-ID", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   };
 
   return (
-    <div className="min-h-screen" style={{ background: "linear-gradient(180deg, #f0faf5 0%, #e6f2ec 100%)" }}>
+    <div className="min-h-screen flex flex-col" style={{ background: "linear-gradient(180deg, #f0faf5 0%, #e6f2ec 100%)" }}>
       {/* Header */}
       <div style={{ background: "linear-gradient(135deg, #0d3b2e, #1a6b4f)" }} className="px-4 py-4">
         <div className="max-w-2xl mx-auto flex items-center gap-3">
@@ -135,8 +158,7 @@ export default function WaliPesanPage() {
         </div>
       </div>
 
-      <div className="max-w-2xl mx-auto px-4 py-4">
-        {/* Toast */}
+      <div className="flex-1 max-w-2xl mx-auto w-full px-4 py-4">
         {toast && (
           <div className={`mb-3 px-4 py-2.5 rounded-xl text-sm font-medium text-white ${
             toast.type === "success" ? "bg-emerald-600" : "bg-red-500"
@@ -145,7 +167,6 @@ export default function WaliPesanPage() {
           </div>
         )}
 
-        {/* Messages List */}
         {loading ? (
           <div className="text-center py-12">
             <div className="w-8 h-8 border-3 border-emerald-200 border-t-emerald-600 rounded-full animate-spin mx-auto" />
@@ -158,80 +179,51 @@ export default function WaliPesanPage() {
             <p className="text-emerald-500 text-sm mt-1">Kirim pesan pertama Anda ke admin</p>
           </div>
         ) : (
-          <div className="space-y-3">
-            {messages.map((msg) => (
-              <div key={msg.id} className="bg-white rounded-2xl border border-emerald-100 overflow-hidden relative"
-                style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
-                {/* Delete button */}
-                <button
-                  onClick={() => deleteMessage(msg.id)}
-                  className="absolute top-3 right-3 w-7 h-7 rounded-lg flex items-center justify-center opacity-40 hover:opacity-100 hover:bg-red-50 transition-all"
-                  title="Hapus pesan"
-                >
-                  <Trash2 size={13} className="text-red-400" />
-                </button>
-
-                {/* Message from wali */}
-                <div className="p-4">
-                  <div className="flex items-start gap-3">
-                    <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
-                      style={{ background: "linear-gradient(135deg, #d4a843, #b8922f)" }}>
-                      <span className="text-white text-xs font-bold">W</span>
+          <div className="space-y-3 pb-4">
+            {messages.map((msg) => {
+              const isWali = msg.sender_type === "wali";
+              return (
+                <div key={msg.id} className={`flex items-end gap-2 ${isWali ? "" : "flex-row-reverse"}`}>
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-white text-xs font-bold ${
+                    isWali ? "" : ""
+                  }`} style={{ background: isWali ? "linear-gradient(135deg, #d4a843, #b8922f)" : "linear-gradient(135deg, #0d3b2e, #1a6b4f)" }}>
+                    {isWali ? "W" : "A"}
+                  </div>
+                  <div className={`group relative max-w-[78%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
+                    isWali ? "text-white" : "text-white"
+                  }`} style={{
+                    background: isWali ? "linear-gradient(135deg, #d4a843, #b8922f)" : "linear-gradient(135deg, #0d3b2e, #1a6b4f)",
+                    borderBottomRightRadius: isWali ? "4px" : "16px",
+                    borderBottomLeftRadius: isWali ? "16px" : "4px",
+                  }}>
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <span className="text-[11px] font-semibold opacity-90">{msg.sender_name}</span>
+                      <span className="text-[10px] opacity-70">{formatDate(msg.created_at)}</span>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-xs font-semibold text-emerald-800">Anda</span>
-                        <span className="text-xs text-emerald-400">•</span>
-                        <span className="text-xs text-emerald-400 flex items-center gap-1">
-                          <Clock size={10} /> {formatDate(msg.created_at)}
-                        </span>
-                      </div>
-                      <p className="text-sm text-slate-700 leading-relaxed">{msg.message}</p>
-                    </div>
+                    <p className="whitespace-pre-wrap break-words">{msg.message}</p>
+                    <button
+                      onClick={() => deleteMessage(msg.id)}
+                      className="absolute -top-2 -left-2 w-6 h-6 rounded-full bg-white shadow flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                      title="Hapus pesan"
+                    >
+                      <Trash2 size={11} className="text-red-400" />
+                    </button>
                   </div>
                 </div>
-
-                {/* Reply from kabid */}
-                {msg.reply && (
-                  <div className="px-4 py-3 border-t border-emerald-50" style={{ background: "#f8faf8" }}>
-                    <div className="flex items-start gap-3">
-                      <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
-                        style={{ background: "linear-gradient(135deg, #0d3b2e, #1a6b4f)" }}>
-                        <span className="text-white text-xs font-bold">A</span>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="text-xs font-semibold text-emerald-800">Admin (Kabid)</span>
-                          <span className="text-xs text-emerald-400">•</span>
-                          <span className="text-xs text-emerald-400 flex items-center gap-1">
-                            <CheckCheck size={10} /> {msg.replied_at ? formatDate(msg.replied_at) : ""}
-                          </span>
-                        </div>
-                        <p className="text-sm text-slate-700 leading-relaxed">{msg.reply}</p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {!msg.reply && (
-                  <div className="px-4 py-2 border-t border-emerald-50" style={{ background: "#f8faf8" }}>
-                    <p className="text-xs text-emerald-400 italic flex items-center gap-1">
-                      <Clock size={10} /> Menunggu balasan admin...
-                    </p>
-                  </div>
-                )}
-              </div>
-            ))}
+              );
+            })}
+            <div ref={bottomRef} />
           </div>
         )}
       </div>
 
       {/* Input */}
-      <div className="fixed bottom-0 left-0 right-0 p-4" style={{ background: "rgba(255,255,255,0.95)", borderTop: "1px solid #e6f2ec", backdropFilter: "blur(8px)" }}>
+      <div className="sticky bottom-0 left-0 right-0 p-4" style={{ background: "rgba(255,255,255,0.95)", borderTop: "1px solid #e6f2ec", backdropFilter: "blur(8px)" }}>
         <div className="max-w-2xl mx-auto flex items-center gap-2">
+          <EmojiPicker onSelect={(e) => setInput((v) => v + e)} />
           <input
-            value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && sendMessage()}
             placeholder="Ketik pesan Anda..."
             className="flex-1 text-sm px-4 py-3 rounded-xl outline-none"
@@ -239,7 +231,7 @@ export default function WaliPesanPage() {
           />
           <button
             onClick={sendMessage}
-            disabled={!newMessage.trim() || sending}
+            disabled={!input.trim() || sending}
             className="w-11 h-11 rounded-full flex items-center justify-center shrink-0 transition-opacity disabled:opacity-40"
             style={{ background: "linear-gradient(135deg, #0d3b2e, #1a6b4f)" }}
           >
