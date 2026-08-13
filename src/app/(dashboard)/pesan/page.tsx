@@ -1,9 +1,11 @@
 "use client";
 export const dynamic = 'force-dynamic';
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useSession } from "next-auth/react";
-import { MessageCircle, Send, Search, CheckCheck, Clock, User, Trash2 } from "lucide-react";
+import { MessageCircle, Send, Search, User, Trash2, Smile, CheckCheck } from "lucide-react";
+import EmojiPicker from "@/components/features/chat/EmojiPicker";
+
 interface Message {
   id: string;
   santri_id: string;
@@ -12,53 +14,70 @@ interface Message {
   sender_name: string;
   message: string;
   is_read: boolean;
-  reply: string | null;
-  replied_by: string | null;
-  replied_at: string | null;
   created_at: string;
   santri?: { nama: string; nisn: string; classes?: { name: string } | null };
 }
 
+interface Conversation {
+  santri_id: string;
+  santri?: { nama: string; nisn: string; classes?: { name: string } | null } | null;
+  last_message: string | null;
+  last_at: string | null;
+  unread_count: number;
+}
+
 export default function PesanPage() {
   useSession();
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [selectedSantriId, setSelectedSantriId] = useState<string | null>(null);
+  const [selectedSantri, setSelectedSantri] = useState<any>(null);
   const [messages, setMessages] = useState<Message[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedMsg, setSelectedMsg] = useState<Message | null>(null);
-  const [replyText, setReplyText] = useState("");
+  const [loadingConv, setLoadingConv] = useState(true);
+  const [loadingMsg, setLoadingMsg] = useState(false);
+  const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [search, setSearch] = useState("");
   const [toast, setToast] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
 
-  const fetchMessages = useCallback(async () => {
+  const fetchConversations = useCallback(async () => {
     try {
-      const res = await fetch("/api/messages/list", { cache: "no-store" });
+      const res = await fetch("/api/messages/conversations", { cache: "no-store" });
+      if (res.ok) {
+        const data = await res.json();
+        setConversations(data);
+      }
+    } catch {
+      console.error("Gagal memuat percakapan");
+    } finally {
+      setLoadingConv(false);
+    }
+  }, []);
+
+  const markRead = useCallback(async (santriId: string) => {
+    try {
+      await fetch("/api/messages/read", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ santri_id: santriId }),
+      });
+    } catch {}
+  }, []);
+
+  const fetchMessages = useCallback(async (santriId: string) => {
+    setLoadingMsg(true);
+    try {
+      const res = await fetch(`/api/messages/list?santri_id=${santriId}`, { cache: "no-store" });
       if (res.ok) {
         const data = await res.json();
         setMessages(data);
-        setSelectedMsg((prev) => (prev ? data.find((m: Message) => m.id === prev.id) ?? null : prev));
       }
     } catch {
       console.error("Gagal memuat pesan");
     } finally {
-      setLoading(false);
+      setLoadingMsg(false);
     }
   }, []);
-
-  useEffect(() => {
-    fetchMessages();
-
-    const es = new EventSource("/api/messages/stream");
-    es.onmessage = () => fetchMessages();
-    es.onerror = (e) => console.warn("SSE kabid error", e);
-
-    // Fallback polling bila SSE terputus
-    const fallback = setInterval(fetchMessages, 30000);
-
-    return () => {
-      es.close();
-      clearInterval(fallback);
-    };
-  }, [fetchMessages]);
 
   useEffect(() => {
     if (toast) {
@@ -67,37 +86,58 @@ export default function PesanPage() {
     }
   }, [toast]);
 
-  const markAsRead = async (msgId: string) => {
-    try {
-      await fetch("/api/messages/read", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message_id: msgId }),
-      });
-      setMessages((prev) =>
-        prev.map((m) => (m.id === msgId ? { ...m, is_read: true } : m))
-      );
-    } catch {}
+  useEffect(() => {
+    fetchConversations();
+    const es = new EventSource("/api/messages/stream");
+    es.onmessage = () => {
+      fetchConversations();
+      if (selectedSantriId) {
+        fetchMessages(selectedSantriId);
+        markRead(selectedSantriId);
+      }
+    };
+    es.onerror = (e) => console.warn("SSE kabid error", e);
+
+    const fallback = setInterval(fetchConversations, 30000);
+    return () => {
+      es.close();
+      clearInterval(fallback);
+    };
+  }, [fetchConversations, fetchMessages, markRead, selectedSantriId]);
+
+  useEffect(() => {
+    const el = bottomRef.current;
+    if (!el) return;
+    const container = el.parentElement;
+    if (!container) return;
+    const nearBottom =
+      container.scrollHeight - container.scrollTop - container.clientHeight < 120;
+    if (nearBottom) el.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  const selectConversation = (c: Conversation) => {
+    setSelectedSantriId(c.santri_id);
+    setSelectedSantri(c.santri);
+    fetchMessages(c.santri_id);
+    markRead(c.santri_id);
   };
 
-  const sendReply = async () => {
-    if (!selectedMsg || !replyText.trim() || sending) return;
-
+  const sendMessage = async () => {
+    if (!selectedSantriId || !input.trim() || sending) return;
     setSending(true);
     try {
-      const res = await fetch("/api/messages/reply", {
+      const res = await fetch("/api/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message_id: selectedMsg.id, reply: replyText.trim() }),
+        body: JSON.stringify({ santri_id: selectedSantriId, message: input.trim() }),
       });
-
       if (res.ok) {
-        setReplyText("");
-        setToast({ type: "success", text: "Balasan berhasil dikirim!" });
-        fetchMessages();
-        setSelectedMsg(null);
+        setInput("");
+        setToast({ type: "success", text: "Pesan berhasil dikirim!" });
+        fetchMessages(selectedSantriId);
+        fetchConversations();
       } else {
-        setToast({ type: "error", text: "Gagal mengirim balasan" });
+        setToast({ type: "error", text: "Gagal mengirim pesan" });
       }
     } catch {
       setToast({ type: "error", text: "Terjadi kesalahan" });
@@ -108,6 +148,7 @@ export default function PesanPage() {
 
   const deleteMessage = async (msgId: string) => {
     if (!confirm("Hapus pesan ini?")) return;
+    if (!selectedSantriId) return;
     try {
       const res = await fetch("/api/messages/delete", {
         method: "POST",
@@ -116,8 +157,8 @@ export default function PesanPage() {
       });
       if (res.ok) {
         setToast({ type: "success", text: "Pesan berhasil dihapus" });
-        if (selectedMsg?.id === msgId) setSelectedMsg(null);
-        fetchMessages();
+        fetchMessages(selectedSantriId);
+        fetchConversations();
       } else {
         setToast({ type: "error", text: "Gagal menghapus pesan" });
       }
@@ -127,26 +168,28 @@ export default function PesanPage() {
   };
 
   const formatDate = (d: string) => {
-    const date = new Date(d);
-    return date.toLocaleDateString("id-ID", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+    return new Date(d).toLocaleDateString("id-ID", {
+      day: "numeric",
+      month: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   };
 
-  const filteredMessages = messages.filter((m) => {
+  const filteredConversations = conversations.filter((c) => {
     if (!search) return true;
     const q = search.toLowerCase();
     return (
-      m.message.toLowerCase().includes(q) ||
-      m.sender_name.toLowerCase().includes(q) ||
-      m.santri?.nama?.toLowerCase().includes(q) ||
-      m.santri?.nisn?.includes(q)
+      c.santri?.nama?.toLowerCase().includes(q) ||
+      c.santri?.nisn?.includes(q) ||
+      c.last_message?.toLowerCase().includes(q)
     );
   });
 
-  const unreadFromWali = messages.filter((m) => m.sender_type === "wali" && !m.is_read).length;
+  const unreadTotal = conversations.reduce((s, c) => s + (c.unread_count || 0), 0);
 
   return (
     <div className="space-y-6">
-      {/* Toast */}
       {toast && (
         <div className={`fixed top-4 right-4 z-50 px-4 py-2.5 rounded-xl text-sm font-medium text-white ${
           toast.type === "success" ? "bg-emerald-600" : "bg-red-500"
@@ -155,7 +198,6 @@ export default function PesanPage() {
         </div>
       )}
 
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl flex items-center justify-center"
@@ -165,17 +207,16 @@ export default function PesanPage() {
           <div>
             <h1 className="text-xl font-bold text-slate-900">Pesan Masuk</h1>
             <p className="text-sm text-slate-500">
-              {unreadFromWali > 0 ? `${unreadFromWali} pesan belum dibaca` : "Semua pesan sudah dibaca"}
+              {unreadTotal > 0 ? `${unreadTotal} pesan belum dibaca` : "Semua pesan sudah dibaca"}
             </p>
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[350px_1fr] gap-4" style={{ minHeight: "500px" }}>
-        {/* Left: Message list */}
-        <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden"
+      <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-4" style={{ minHeight: "520px" }}>
+        {/* Left: conversation list */}
+        <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden flex flex-col"
           style={{ boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }}>
-          {/* Search */}
           <div className="p-3 border-b border-slate-100">
             <div className="flex items-center gap-2 px-3 py-2 rounded-xl"
               style={{ background: "#f8fafc", border: "1px solid #e2e8f0" }}>
@@ -183,189 +224,150 @@ export default function PesanPage() {
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Cari pesan..."
+                placeholder="Cari santri..."
                 className="flex-1 text-sm bg-transparent outline-none text-slate-700"
               />
             </div>
           </div>
-
-          {/* List */}
-          <div className="overflow-y-auto" style={{ maxHeight: "460px" }}>
-            {loading ? (
+          <div className="overflow-y-auto flex-1" style={{ maxHeight: "480px" }}>
+            {loadingConv ? (
               <div className="text-center py-12">
                 <div className="w-6 h-6 border-2 border-emerald-200 border-t-emerald-600 rounded-full animate-spin mx-auto" />
               </div>
-            ) : filteredMessages.length === 0 ? (
+            ) : filteredConversations.length === 0 ? (
               <div className="text-center py-12 px-4">
                 <MessageCircle size={36} className="text-slate-200 mx-auto mb-2" />
-                <p className="text-slate-400 text-sm">Tidak ada pesan</p>
+                <p className="text-slate-400 text-sm">Tidak ada percakapan</p>
               </div>
             ) : (
-              filteredMessages.map((msg) => (
-                <div
-                  key={msg.id}
-                  className={`flex items-center border-b border-slate-50 transition-colors ${
-                    selectedMsg?.id === msg.id ? "bg-emerald-50" : "hover:bg-slate-50"
+              filteredConversations.map((c) => (
+                <button
+                  key={c.santri_id}
+                  onClick={() => selectConversation(c)}
+                  className={`w-full text-left px-4 py-3 flex items-center gap-3 border-b border-slate-50 transition-colors ${
+                    selectedSantriId === c.santri_id ? "bg-emerald-50" : "hover:bg-slate-50"
                   }`}
                 >
-                  <button
-                    onClick={() => {
-                      setSelectedMsg(msg);
-                      if (!msg.is_read && msg.sender_type === "wali") markAsRead(msg.id);
-                    }}
-                    className="flex-1 text-left px-4 py-3"
-                  >
-                    <div className="flex items-start gap-3">
-                      <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0"
-                        style={{ background: msg.sender_type === "wali" ? "linear-gradient(135deg, #d4a843, #b8922f)" : "linear-gradient(135deg, #0d3b2e, #1a6b4f)" }}>
-                        <User size={14} className="text-white" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between mb-0.5">
-                          <span className={`text-sm font-semibold truncate ${!msg.is_read && msg.sender_type === "wali" ? "text-slate-900" : "text-slate-600"}`}>
-                            {msg.santri?.nama ?? msg.sender_name}
-                          </span>
-                          {!msg.is_read && msg.sender_type === "wali" && (
-                            <span className="w-2.5 h-2.5 rounded-full bg-red-500 shrink-0 ml-2"
-                              style={{ boxShadow: "0 0 6px rgba(239,68,68,0.5)" }} />
-                          )}
-                        </div>
-                        <p className="text-xs text-slate-400 truncate">{msg.message}</p>
-                        <div className="flex items-center gap-1 mt-1">
-                          {msg.reply ? (
-                            <CheckCheck size={10} className="text-emerald-500" />
-                          ) : (
-                            <Clock size={10} className="text-slate-300" />
-                          )}
-                          <span className="text-[10px] text-slate-400">{formatDate(msg.created_at)}</span>
-                        </div>
-                      </div>
+                  <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 text-white text-sm font-bold"
+                    style={{ background: "linear-gradient(135deg, #d4a843, #b8922f)" }}>
+                    {c.santri?.nama?.charAt(0)?.toUpperCase() || "?"}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-sm font-semibold text-slate-800 truncate">
+                        {c.santri?.nama ?? "Santri"}
+                      </span>
+                      {c.last_at && (
+                        <span className="text-[10px] text-slate-400 shrink-0">{formatDate(c.last_at)}</span>
+                      )}
                     </div>
-                  </button>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); deleteMessage(msg.id); }}
-                    className="shrink-0 w-7 h-7 rounded-lg flex items-center justify-center mr-2 opacity-30 hover:opacity-100 hover:bg-red-50 transition-all"
-                    title="Hapus pesan"
-                  >
-                    <Trash2 size={12} className="text-red-400" />
-                  </button>
-                </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-xs text-slate-400 truncate">{c.last_message || "—"}</p>
+                      {c.unread_count > 0 && (
+                        <span className="w-5 h-5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center shrink-0"
+                          style={{ boxShadow: "0 0 6px rgba(239,68,68,0.5)" }}>
+                          {c.unread_count}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </button>
               ))
             )}
           </div>
         </div>
 
-        {/* Right: Message detail */}
+        {/* Right: thread */}
         <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden flex flex-col"
           style={{ boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }}>
-          {selectedMsg ? (
+          {selectedSantri ? (
             <>
-              {/* Detail header */}
               <div className="px-5 py-4 border-b border-slate-100 flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full flex items-center justify-center"
                   style={{ background: "linear-gradient(135deg, #d4a843, #b8922f)" }}>
                   <User size={16} className="text-white" />
                 </div>
                 <div className="flex-1">
-                  <p className="font-semibold text-slate-900 text-sm">{selectedMsg.santri?.nama ?? selectedMsg.sender_name}</p>
+                  <p className="font-semibold text-slate-900 text-sm">{selectedSantri?.nama}</p>
                   <p className="text-xs text-slate-400">
-                    NIS/NISN: {selectedMsg.santri?.nisn} · Kelas: {selectedMsg.santri?.classes?.name?.replace(/^\d+\s*/i, '') || "—"}
+                    NIS/NISN: {selectedSantri?.nisn} · Kelas: {selectedSantri?.classes?.name?.replace(/^\d+\s*/i, '') || "—"}
                   </p>
                 </div>
-                <button
-                  onClick={() => deleteMessage(selectedMsg.id)}
-                  className="w-8 h-8 rounded-lg flex items-center justify-center opacity-40 hover:opacity-100 hover:bg-red-50 transition-all"
-                  title="Hapus pesan"
-                >
-                  <Trash2 size={14} className="text-red-400" />
-                </button>
               </div>
 
-              {/* Messages */}
-              <div className="flex-1 overflow-y-auto p-5 space-y-4">
-                {/* Wali message */}
-                <div className="flex gap-3">
-                  <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
-                    style={{ background: "linear-gradient(135deg, #d4a843, #b8922f)" }}>
-                    <span className="text-white text-xs font-bold">W</span>
+              <div className="flex-1 overflow-y-auto p-5 space-y-3" style={{ maxHeight: "420px" }}>
+                {loadingMsg ? (
+                  <div className="text-center py-8">
+                    <div className="w-6 h-6 border-2 border-emerald-200 border-t-emerald-600 rounded-full animate-spin mx-auto" />
                   </div>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-xs font-semibold text-slate-700">{selectedMsg.sender_name}</span>
-                      <span className="text-xs text-slate-400">{formatDate(selectedMsg.created_at)}</span>
-                    </div>
-                    <div className="px-4 py-2.5 rounded-xl text-sm text-slate-700 leading-relaxed"
-                      style={{ background: "#f8fafc", border: "1px solid #e2e8f0" }}>
-                      {selectedMsg.message}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Kabid reply */}
-                {selectedMsg.reply && (
-                  <div className="flex gap-3">
-                    <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
-                      style={{ background: "linear-gradient(135deg, #0d3b2e, #1a6b4f)" }}>
-                      <span className="text-white text-xs font-bold">A</span>
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-xs font-semibold text-slate-700">Admin (Kabid)</span>
-                        <span className="text-xs text-slate-400">
-                          {selectedMsg.replied_at ? formatDate(selectedMsg.replied_at) : ""}
-                        </span>
+                ) : messages.length === 0 ? (
+                  <p className="text-center text-slate-400 text-sm py-8">Belum ada pesan</p>
+                ) : (
+                  messages.map((msg) => {
+                    const isWali = msg.sender_type === "wali";
+                    return (
+                      <div key={msg.id} className={`flex items-end gap-2 ${isWali ? "" : "flex-row-reverse"} group`}>
+                        <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-white text-xs font-bold"
+                          style={{ background: isWali ? "linear-gradient(135deg, #d4a843, #b8922f)" : "linear-gradient(135deg, #0d3b2e, #1a6b4f)" }}>
+                          {isWali ? "W" : "A"}
+                        </div>
+                        <div className={`relative max-w-[78%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed text-white`} style={{
+                          background: isWali ? "linear-gradient(135deg, #d4a843, #b8922f)" : "linear-gradient(135deg, #0d3b2e, #1a6b4f)",
+                          borderBottomRightRadius: isWali ? "4px" : "16px",
+                          borderBottomLeftRadius: isWali ? "16px" : "4px",
+                        }}>
+                          <div className="flex items-center gap-2 mb-0.5">
+                            <span className="text-[11px] font-semibold opacity-90">{msg.sender_name}</span>
+                            <span className="text-[10px] opacity-70">{formatDate(msg.created_at)}</span>
+                          </div>
+                          <p className="whitespace-pre-wrap break-words">{msg.message}</p>
+                          <button
+                            onClick={() => deleteMessage(msg.id)}
+                            className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-white shadow flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                            title="Hapus pesan"
+                          >
+                            <Trash2 size={11} className="text-red-400" />
+                          </button>
+                        </div>
                       </div>
-                      <div className="px-4 py-2.5 rounded-xl text-sm text-white leading-relaxed"
-                        style={{ background: "linear-gradient(135deg, #0d3b2e, #1a6b4f)" }}>
-                        {selectedMsg.reply}
-                      </div>
-                    </div>
-                  </div>
+                    );
+                  })
                 )}
+                <div ref={bottomRef} />
               </div>
 
-              {/* Reply input */}
-              {!selectedMsg.reply && (
-                <div className="p-4 border-t border-slate-100">
-                  <div className="flex items-center gap-2">
-                    <input
-                      value={replyText}
-                      onChange={(e) => setReplyText(e.target.value)}
-                      onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && sendReply()}
-                      placeholder="Ketik balasan..."
-                      className="flex-1 text-sm px-4 py-2.5 rounded-xl outline-none"
-                      style={{ background: "#f8fafc", border: "1px solid #e2e8f0", color: "#1e293b" }}
-                    />
-                    <button
-                      onClick={sendReply}
-                      disabled={!replyText.trim() || sending}
-                      className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-opacity disabled:opacity-40"
-                      style={{ background: "linear-gradient(135deg, #0d3b2e, #1a6b4f)" }}
-                    >
-                      {sending ? (
-                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      ) : (
-                        <Send size={15} className="text-white" />
-                      )}
-                    </button>
-                  </div>
+              <div className="p-4 border-t border-slate-100">
+                <div className="flex items-center gap-2">
+                  <EmojiPicker onSelect={(e) => setInput((v) => v + e)} />
+                  <input
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && sendMessage()}
+                    placeholder="Ketik balasan..."
+                    className="flex-1 text-sm px-4 py-2.5 rounded-xl outline-none"
+                    style={{ background: "#f8fafc", border: "1px solid #e2e8f0", color: "#1e293b" }}
+                  />
+                  <button
+                    onClick={sendMessage}
+                    disabled={!input.trim() || sending}
+                    className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-opacity disabled:opacity-40"
+                    style={{ background: "linear-gradient(135deg, #0d3b2e, #1a6b4f)" }}
+                  >
+                    {sending ? (
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    ) : (
+                      <Send size={15} className="text-white" />
+                    )}
+                  </button>
                 </div>
-              )}
-
-              {selectedMsg.reply && (
-                <div className="p-4 border-t border-slate-100 text-center">
-                  <p className="text-xs text-emerald-600 font-medium flex items-center justify-center gap-1">
-                    <CheckCheck size={12} /> Balasan sudah dikirim
-                  </p>
-                </div>
-              )}
+              </div>
             </>
           ) : (
             <div className="flex-1 flex items-center justify-center">
               <div className="text-center">
                 <MessageCircle size={48} className="text-slate-200 mx-auto mb-3" />
-                <p className="text-slate-400 font-medium">Pilih pesan untuk dibaca</p>
-                <p className="text-slate-300 text-sm mt-1">Klik pesan dari daftar di sebelah kiri</p>
+                <p className="text-slate-400 font-medium">Pilih percakapan</p>
+                <p className="text-slate-300 text-sm mt-1">Klik santri dari daftar di sebelah kiri</p>
               </div>
             </div>
           )}
