@@ -26,6 +26,7 @@ export default function WaliPesanPage() {
   const [sending, setSending] = useState(false);
   const [toast, setToast] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const markingRef = useRef(false);
 
   const markRead = useCallback(async () => {
     try {
@@ -37,19 +38,28 @@ export default function WaliPesanPage() {
     } catch {}
   }, []);
 
-  const fetchMessages = useCallback(async () => {
+  const fetchMessages = useCallback(async (opts?: { loading?: boolean }) => {
+    const showLoading = opts?.loading !== false;
+    if (showLoading) setLoading(true);
     try {
       const res = await fetch("/api/messages/list", { cache: "no-store" });
       if (res.ok) {
         const data = await res.json();
         setMessages(data);
+        // Tandai balasan admin yang belum dibaca sebagai sudah dibaca (maksimal sekali per siklus)
+        const hasUnread = data.some((m: Message) => m.sender_type === "kabid" && !m.is_read);
+        if (hasUnread && !markingRef.current) {
+          markingRef.current = true;
+          await markRead();
+          markingRef.current = false;
+        }
       }
     } catch {
       console.error("Gagal memuat pesan");
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
-  }, []);
+  }, [markRead]);
 
   useEffect(() => {
     if (toast) {
@@ -60,18 +70,15 @@ export default function WaliPesanPage() {
 
   useEffect(() => {
     fetchMessages();
-    markRead();
 
     const es = new EventSource("/api/messages/stream");
     es.onmessage = () => {
-      fetchMessages();
-      markRead();
+      fetchMessages({ loading: false });
     };
     es.onerror = (e) => console.warn("SSE wali error", e);
 
     const fallback = setInterval(() => {
-      fetchMessages();
-      markRead();
+      fetchMessages({ loading: false });
     }, 30000);
 
     return () => {

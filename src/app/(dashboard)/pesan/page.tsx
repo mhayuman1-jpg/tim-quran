@@ -39,6 +39,7 @@ export default function PesanPage() {
   const [search, setSearch] = useState("");
   const [toast, setToast] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const markingRef = useRef(false);
 
   const fetchConversations = useCallback(async () => {
     try {
@@ -64,20 +65,28 @@ export default function PesanPage() {
     } catch {}
   }, []);
 
-  const fetchMessages = useCallback(async (santriId: string) => {
-    setLoadingMsg(true);
+  const fetchMessages = useCallback(async (santriId: string, opts?: { loading?: boolean }) => {
+    const showLoading = opts?.loading !== false;
+    if (showLoading) setLoadingMsg(true);
     try {
       const res = await fetch(`/api/messages/list?santri_id=${santriId}`, { cache: "no-store" });
       if (res.ok) {
         const data = await res.json();
         setMessages(data);
+        // Tandai pesan wali yang belum dibaca sebagai sudah dibaca (maksimal sekali per siklus)
+        const hasUnread = data.some((m: Message) => m.sender_type === "wali" && !m.is_read);
+        if (hasUnread && !markingRef.current) {
+          markingRef.current = true;
+          await markRead(santriId);
+          markingRef.current = false;
+        }
       }
     } catch {
       console.error("Gagal memuat pesan");
     } finally {
-      setLoadingMsg(false);
+      if (showLoading) setLoadingMsg(false);
     }
-  }, []);
+  }, [markRead]);
 
   useEffect(() => {
     if (toast) {
@@ -92,13 +101,15 @@ export default function PesanPage() {
     es.onmessage = () => {
       fetchConversations();
       if (selectedSantriId) {
-        fetchMessages(selectedSantriId);
-        markRead(selectedSantriId);
+        fetchMessages(selectedSantriId, { loading: false });
       }
     };
     es.onerror = (e) => console.warn("SSE kabid error", e);
 
-    const fallback = setInterval(fetchConversations, 30000);
+    const fallback = setInterval(() => {
+      fetchConversations();
+      if (selectedSantriId) fetchMessages(selectedSantriId, { loading: false });
+    }, 30000);
     return () => {
       es.close();
       clearInterval(fallback);
