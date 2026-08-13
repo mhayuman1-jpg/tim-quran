@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
+import { emitMessageUpdate } from '@/lib/message-events';
 
 export async function POST(request: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -49,6 +50,8 @@ export async function POST(request: NextRequest) {
       console.error('Delete message error:', error);
       return NextResponse.json({ message: 'Gagal menghapus pesan' }, { status: 500 });
     }
+
+    emitMessageUpdate();
 
     return NextResponse.json({ message: 'Pesan berhasil dihapus' });
   } catch (error) {

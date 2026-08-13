@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthenticatedSession } from '@/lib/api-auth';
 import { createServerClient } from '@/lib/supabase/server';
+import { emitMessageUpdate } from '@/lib/message-events';
 
 export async function POST(request: NextRequest) {
   const session = await getAuthenticatedSession(request);
@@ -28,6 +29,8 @@ export async function POST(request: NextRequest) {
       console.error('Send message error:', error);
       return NextResponse.json({ message: 'Gagal mengirim pesan' }, { status: 500 });
     }
+
+    emitMessageUpdate();
 
     return NextResponse.json({ message: 'Pesan berhasil dikirim' }, { status: 201 });
   } catch (error) {

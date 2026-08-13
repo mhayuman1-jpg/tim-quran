@@ -35,6 +35,7 @@ export default function PesanPage() {
       if (res.ok) {
         const data = await res.json();
         setMessages(data);
+        setSelectedMsg((prev) => (prev ? data.find((m: Message) => m.id === prev.id) ?? null : prev));
       }
     } catch {
       console.error("Gagal memuat pesan");
@@ -45,6 +46,17 @@ export default function PesanPage() {
 
   useEffect(() => {
     fetchMessages();
+
+    const es = new EventSource("/api/messages/stream");
+    es.onmessage = () => fetchMessages();
+
+    // Fallback polling bila SSE terputus
+    const fallback = setInterval(fetchMessages, 30000);
+
+    return () => {
+      es.close();
+      clearInterval(fallback);
+    };
   }, [fetchMessages]);
 
   useEffect(() => {

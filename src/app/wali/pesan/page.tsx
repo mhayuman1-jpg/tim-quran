@@ -44,6 +44,17 @@ export default function WaliPesanPage() {
 
   useEffect(() => {
     fetchMessages();
+
+    const es = new EventSource("/api/messages/stream");
+    es.onmessage = () => fetchMessages();
+
+    // Fallback polling bila SSE terputus
+    const fallback = setInterval(fetchMessages, 30000);
+
+    return () => {
+      es.close();
+      clearInterval(fallback);
+    };
   }, [fetchMessages]);
 
   useEffect(() => {

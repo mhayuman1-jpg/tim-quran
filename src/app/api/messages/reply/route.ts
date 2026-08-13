@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
+import { emitMessageUpdate } from '@/lib/message-events';
 
 export async function POST(request: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -30,7 +31,7 @@ export async function POST(request: NextRequest) {
         reply: reply.trim(),
         replied_by: session.user.id,
         replied_at: new Date().toISOString(),
-        is_read: false,
+        is_read: true,
       })
       .eq('id', message_id);
 
@@ -38,6 +39,8 @@ export async function POST(request: NextRequest) {
       console.error('Reply message error:', error);
       return NextResponse.json({ message: 'Gagal membalas pesan' }, { status: 500 });
     }
+
+    emitMessageUpdate();
 
     return NextResponse.json({ message: 'Balasan berhasil dikirim' }, { status: 200 });
   } catch (error) {
