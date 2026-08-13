@@ -9,19 +9,24 @@ export async function GET(request: NextRequest) {
   try {
     const supabase = createServerClient();
     const role = session.user.role;
+    const { searchParams } = new URL(request.url);
 
-    let query = supabase
-      .from('messages')
-      .select('*, santri(nama, nisn, classes(name))')
-      .order('created_at', { ascending: false });
-
-    // Wali murid only sees their own messages
+    let santriId: string | undefined;
     if (role === 'Wali_Murid') {
-      const santriId = (session.user as any).santri_id;
-      query = query.eq('santri_id', santriId);
+      santriId = (session.user as any).santri_id;
+    } else {
+      santriId = searchParams.get('santri_id') || undefined;
     }
 
-    const { data, error } = await query;
+    if (!santriId) {
+      return NextResponse.json({ message: 'santri_id diperlukan' }, { status: 400 });
+    }
+
+    const { data, error } = await supabase
+      .from('messages')
+      .select('*, santri(nama, nisn, classes(name))')
+      .eq('santri_id', santriId)
+      .order('created_at', { ascending: true });
 
     if (error) {
       console.error('List messages error:', error);
