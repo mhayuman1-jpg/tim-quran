@@ -112,16 +112,18 @@ export async function getAuthenticatedSession(
   try {
     const session = await getServerSession(authOptions);
     const u = session?.user as any;
-    if (u?.id) {
-      return {
-        user: {
-          id: u.id as string,
-          email: u.email as string,
-          name: u.name as string | undefined,
-          role: u.role as string | undefined,
-        },
-      };
-    }
+      if (u?.id) {
+        return {
+          user: {
+            id: u.id as string,
+            email: u.email as string,
+            name: u.name as string | undefined,
+            role: u.role as string | undefined,
+            santri_id: (u as any).santri_id as string | undefined,
+            wali_nis: (u as any).wali_nis as string | undefined,
+          },
+        };
+      }
   } catch {
     // Continue to Bearer token
   }
