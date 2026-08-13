@@ -31,7 +31,7 @@ export default function PesanPage() {
 
   const fetchMessages = useCallback(async () => {
     try {
-      const res = await fetch("/api/messages/list");
+      const res = await fetch("/api/messages/list", { cache: "no-store" });
       if (res.ok) {
         const data = await res.json();
         setMessages(data);
@@ -49,6 +49,7 @@ export default function PesanPage() {
 
     const es = new EventSource("/api/messages/stream");
     es.onmessage = () => fetchMessages();
+    es.onerror = (e) => console.warn("SSE kabid error", e);
 
     // Fallback polling bila SSE terputus
     const fallback = setInterval(fetchMessages, 30000);
