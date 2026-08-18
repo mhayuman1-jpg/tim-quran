@@ -5,10 +5,11 @@ import React from 'react';
 interface SearchInputProps {
   defaultValue?: string;
   placeholder?: string;
+  disabled?: boolean;
   onSearch: (value: string) => void;
 }
 
-export default function SearchInput({ defaultValue, placeholder, onSearch }: SearchInputProps) {
+export default function SearchInput({ defaultValue, placeholder, disabled, onSearch }: SearchInputProps) {
   const [value, setValue] = React.useState(defaultValue ?? '');
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -29,7 +30,8 @@ export default function SearchInput({ defaultValue, placeholder, onSearch }: Sea
         value={value}
         onChange={handleChange}
         placeholder={placeholder ?? 'Cari...'}
-        className="pl-8 pr-8 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent w-full"
+        disabled={disabled}
+        className="pl-8 pr-8 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent w-full disabled:bg-slate-100 disabled:cursor-not-allowed"
       />
       <svg
         className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"
