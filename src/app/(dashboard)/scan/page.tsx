@@ -96,7 +96,7 @@ export default function ScanPage() {
     setLoadingList(true);
     setPageError(null);
     try {
-      const res = await fetch('/api/absensi/today');
+      const res = await fetch('/api/absensi/today', { cache: 'no-store' });
       if (!res.ok) {
         setPageError(`Error ${res.status}: Gagal memuat data hari ini`);
         return;
@@ -112,6 +112,14 @@ export default function ScanPage() {
 
   useEffect(() => { fetchTodayList(); }, [fetchTodayList]);
 
+  // Polling otomatis setiap 30 detik agar daftar tetap akurat dan responsif
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchTodayList();
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [fetchTodayList]);
+
   useEffect(() => {
     if (!feedback) return;
     const t = setTimeout(() => setFeedback(null), 3500);
@@ -124,15 +132,25 @@ export default function ScanPage() {
     playSuccessBeep();
     setFeedback({ type: 'success', message: `${siswa.nama} — Absen berhasil!` });
     const jam = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
-    setScannedList(prev => [{ nama: siswa.nama, scanned_at: jam, id: siswa.id }, ...prev]);
-    fetchTodayList();
-  }, [fetchTodayList]);
+    setScannedList(prev => {
+      // Hindari duplikat jika siswa sudah ada di list
+      const exists = prev.some((item) => item.id === siswa.id);
+      if (exists) return prev;
+      return [{ nama: siswa.nama, scanned_at: jam, id: siswa.id }, ...prev];
+    });
+  }, []);
 
   const handleScanError = useCallback((pesan: string) => {
     const isWarning = pesan.toLowerCase().includes('sudah absen');
-    if (isWarning) playWarningBeep(); else playErrorBeep();
+    if (isWarning) {
+      playWarningBeep();
+      // Refresh data agar tombol jurnal muncul untuk siswa yang sudah absen
+      fetchTodayList();
+    } else {
+      playErrorBeep();
+    }
     setFeedback({ type: isWarning ? 'warning' : 'error', message: pesan });
-  }, []);
+  }, [fetchTodayList]);
 
   // ─── Journal Modal Handlers ────────────────────────────────────────────────────
 

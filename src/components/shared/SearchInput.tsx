@@ -1,92 +1,57 @@
-'use client';
-
 // src/components/shared/SearchInput.tsx
-// Input pencarian dengan debounce 300ms.
-
-import React, { useState, useEffect, useRef } from 'react';
-import { Search, X } from 'lucide-react';
+// SearchInput komponen untuk pencarian di halaman siswa dan tahsin.
+import React from 'react';
 
 interface SearchInputProps {
-  /** Nilai awal (controlled dari luar, opsional) */
   defaultValue?: string;
-  /** Delay debounce dalam ms (default: 300) */
-  debounceMs?: number;
-  /** Callback dipanggil setelah debounce */
-  onSearch: (value: string) => void;
   placeholder?: string;
-  className?: string;
-  disabled?: boolean;
+  onSearch: (value: string) => void;
 }
 
-export default function SearchInput({
-  defaultValue = '',
-  debounceMs = 300,
-  onSearch,
-  placeholder = 'Cari...',
-  className = '',
-  disabled = false,
-}: SearchInputProps) {
-  const [value, setValue] = useState(defaultValue);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Sync external defaultValue changes
-  useEffect(() => {
-    setValue(defaultValue);
-  }, [defaultValue]);
+export default function SearchInput({ defaultValue, placeholder, onSearch }: SearchInputProps) {
+  const [value, setValue] = React.useState(defaultValue ?? '');
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newValue = e.target.value;
-    setValue(newValue);
-
-    if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => {
-      onSearch(newValue);
-    }, debounceMs);
+    const v = e.target.value;
+    setValue(v);
+    onSearch(v);
   };
 
   const handleClear = () => {
     setValue('');
-    if (timerRef.current) clearTimeout(timerRef.current);
     onSearch('');
   };
 
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
-    };
-  }, []);
-
   return (
-    <div className={['relative flex items-center', className].join(' ')}>
-      <Search
-        size={16}
-        className="absolute left-3 text-slate-400 pointer-events-none"
-      />
-
+    <div className="relative">
       <input
-        type="search"
+        type="text"
         value={value}
         onChange={handleChange}
-        placeholder={placeholder}
-        disabled={disabled}
-        className={[
-          'w-full pl-9 pr-8 py-2 text-sm rounded-lg border border-slate-300 bg-white',
-          'text-slate-800 placeholder-slate-400',
-          'focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500',
-          'disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed',
-          'transition-colors',
-        ].join(' ')}
+        placeholder={placeholder ?? 'Cari...'}
+        className="pl-8 pr-8 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent w-full"
       />
-
-      {value && !disabled && (
+      <svg
+        className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+        />
+      </svg>
+      {value && (
         <button
-          type="button"
           onClick={handleClear}
-          className="absolute right-2.5 p-0.5 rounded text-slate-400 hover:text-slate-600 transition-colors"
-          aria-label="Hapus pencarian"
+          className="absolute right-1 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+          aria-label="Hapus"
         >
-          <X size={14} />
+          x
         </button>
       )}
     </div>

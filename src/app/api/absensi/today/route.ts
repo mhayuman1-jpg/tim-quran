@@ -19,9 +19,11 @@ export async function GET(request: NextRequest) {
       timeZone: 'Asia/Makassar',
     }).format(new Date());
 
+    // JOIN langsung ke tabel santri — satu query, hindari .in() dengan ratusan ID
+    // yang membuat URL PostgREST terlalu panjang hingga gagal di proxy/CDN.
     const { data: attData, error } = await supabase
       .from('attendances')
-      .select('id, student_id, date, status, scanned_by, created_at')
+      .select('*, santri(id, nama, assigned_teacher_id, class_id)')
       .eq('date', today)
       .eq('status', 'Hadir')
       .order('created_at', { ascending: false });
@@ -34,41 +36,39 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Ambil nama santri
     const normalized = normalizeAttendanceRows(attData);
-    const rawIds = normalized.map((r: any) => r.santri_id).filter(Boolean);
-    const santriIds = Array.from(new Set(rawIds));
-    const namaMap: Record<string, string> = {};
-    let allowedIds: Set<string> | null = null;
-    if (santriIds.length > 0) {
-      const { data: santriData } = await supabase
-        .from('santri').select('id, nama, assigned_teacher_id, class_id').in('id', santriIds);
-      for (const s of santriData ?? []) namaMap[s.id] = s.nama;
 
-      // Filter untuk Tim_Quran: hanya tampilkan siswa binaan
-      if (session.user.role === 'Tim_Quran') {
-        const teacherClassIds = await getTeacherClassIds(supabase, session.user.id);
-        allowedIds = new Set(
-          (santriData ?? [])
-            .filter((s: any) => s.assigned_teacher_id === session.user.id || teacherClassIds.includes(s.class_id))
-            .map((s: any) => s.id)
-        );
-      }
+    // Filter untuk Tim_Quran: hanya tampilkan siswa binaan
+    let teacherClassIds: string[] = [];
+    if (session.user.role === 'Tim_Quran') {
+      teacherClassIds = await getTeacherClassIds(supabase, session.user.id);
     }
 
-    const filtered = allowedIds ? normalized.filter((r: any) => allowedIds!.has(r.santri_id)) : normalized;
+    const list = normalized
+      .filter((row: any) => {
+        if (session.user.role !== 'Tim_Quran') return true;
+        const s = row.santri;
+        if (!s) return false;
+        return (
+          s.assigned_teacher_id === session.user.id ||
+          teacherClassIds.includes(s.class_id)
+        );
+      })
+      .map((row: any) => ({
+        id: row.santri_id,
+        student_id: row.santri_id,
+        nama: row.santri?.nama ?? 'Tidak diketahui',
+        scanned_at: new Date(row.created_at).toLocaleTimeString('id-ID', {
+          timeZone: 'Asia/Makassar',
+          hour: '2-digit',
+          minute: '2-digit',
+        }),
+      }));
 
-    const list = filtered.map((row: any) => ({
-      student_id: row.santri_id,
-      nama: namaMap[row.santri_id] ?? 'Tidak diketahui',
-      scanned_at: new Date(row.created_at).toLocaleTimeString('id-ID', {
-        timeZone: 'Asia/Makassar',
-        hour: '2-digit',
-        minute: '2-digit',
-      }),
-    }));
-
-    return NextResponse.json({ data: list }, { status: 200 });
+    return NextResponse.json(
+      { data: list },
+      { status: 200, headers: { 'Cache-Control': 'no-store, max-age=0' } }
+    );
   } catch (error) {
     console.error('Today attendance API error:', error);
     return NextResponse.json(

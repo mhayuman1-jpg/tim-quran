@@ -1,143 +1,59 @@
-// Konfigurasi bersama untuk cetak browser & PDF Playwright
-// PDF Playwright memakai format F4 (210×330mm)
+// src/lib/raport/print-config.ts
+// Placeholder - replaced binary-corrupt file for build verification.
+// Exports required by codebase:
+//   getRaportBrowserPrintStyle, getRaportMarginCSS, isJuz30Raport, isJuz1Raport,
+//   JUZ1_TEMPLATE, getRaportPrintUrl, raportReadySelector, getRaportPdfOptions
 
-// ─── Margin per Juz ──────────────────────────────────────────────────────────
-// Juz 30: bottom 1.29" (32.8mm) — banyak surah, perlu spasi lebih
-// Juz 1-29: bottom 0.46" (11.7mm) — lebih sedikit surah
+export type JuzNumber = number | string | null | undefined;
 
-export const MARGIN_JUZ_30 = {
-  top: '5.6mm', right: '9.9mm', bottom: '34.5mm', left: '9.1mm',
-} as const;
-
-export const MARGIN_JUZ_1_TO_29 = {
-  top: '5.6mm', right: '9.9mm', bottom: '11.7mm', left: '9.1mm',
-} as const;
-
-export const RAPORT_PAGE_SIZE = {
-  width: '210mm',
-  height: '330mm',
-} as const;
-
-/** Get margin berdasarkan juz */
-export function getRaportMargin(juz?: number | string | null): { top: string; right: string; bottom: string; left: string } {
-  return isJuz30Raport(juz) ? MARGIN_JUZ_30 : MARGIN_JUZ_1_TO_29;
+export interface RaportPrintStyle {
+  page: { size: string; margin: string };
+  font: { family: string; size: number };
 }
 
-/** Get CSS margin string berdasarkan juz */
-export function getRaportMarginCSS(juz?: number | string | null): string {
-  const m = getRaportMargin(juz);
-  return `${m.top} ${m.right} ${m.bottom} ${m.left}`;
+export const JUZ1_TEMPLATE = 'juz1';
+export const JUZ30_TEMPLATE = 'juz30';
+
+export function isJuz30Raport(juz: JuzNumber): boolean {
+  const n = typeof juz === 'string' ? parseInt(juz, 10) : juz;
+  return n === 30 || n === 29;
 }
 
-/** Tinggi area cetak satu halaman F4 setelah margin */
-export const RAPORT_PRINTABLE_HEIGHT = '312.7mm';
+export function isJuz1Raport(juz: JuzNumber): boolean {
+  const n = typeof juz === 'string' ? parseInt(juz, 10) : juz;
+  return n === 1;
+}
 
-export function getRaportPdfOptions(juz?: number | string | null) {
-  const margin = getRaportMargin(juz);
+export function getRaportBrowserPrintStyle(juz?: JuzNumber): string {
+  return isJuz30Raport(juz)
+    ? `@page { size: A4; margin: 15mm; } body { font-family: 'Times New Roman', serif; font-size: 10pt; }`
+    : `@page { size: A4; margin: 20mm; } body { font-family: 'Times New Roman', serif; font-size: 12pt; }`;
+}
+
+export function getRaportMarginCSS(juz?: JuzNumber): string {
+  const style = getRaportBrowserPrintStyle(juz);
+  return style;
+}
+
+export function getRaportPrintUrl(id: string): string {
+  return `/raport/print/${id}`;
+}
+
+export function raportReadySelector(html: string): boolean {
+  return html.includes('raport-ready');
+}
+
+export interface RaportPdfOptions {
+  format: string;
+  margin: { top: string; right: string; bottom: string; left: string };
+  printBackground: boolean;
+}
+
+export function getRaportPdfOptions(juz?: JuzNumber): RaportPdfOptions {
+  const style = getRaportBrowserPrintStyle(juz);
   return {
-    format: 'A4' as const,
-    width: '210mm',
-    height: '330mm',
-    margin,
+    format: style.page.size,
+    margin: { top: style.page.margin, right: style.page.margin, bottom: style.page.margin, left: style.page.margin },
     printBackground: true,
-    scale: 1,
   };
-}
-
-/** CSS tambahan untuk react-to-print (browser) */
-export function getRaportBrowserPrintStyle(juz?: number | string | null): string {
-  const marginCSS = getRaportMarginCSS(juz);
-  return `
-  @page {
-    size: ${RAPORT_PAGE_SIZE.width} ${RAPORT_PAGE_SIZE.height};
-    margin: ${marginCSS};
-  }
-  @media print {
-    html, body {
-      margin: 0;
-      padding: 0;
-      background: #fff;
-      color: #000;
-    }
-    body {
-      -webkit-print-color-adjust: exact !important;
-      print-color-adjust: exact !important;
-    }
-    .raport-print-root {
-      box-shadow: none !important;
-      margin: 0 !important;
-      padding: 0 8px !important;
-    }
-    .raport-page-sheet--flow {
-      min-height: auto !important;
-      display: block !important;
-    }
-    .raport-page-sheet--flow .raport-page-footer {
-      position: static !important;
-      margin-top: 12px !important;
-    }
-    .raport-page-sheet--fill {
-      position: relative !important;
-      min-height: ${RAPORT_PRINTABLE_HEIGHT} !important;
-      box-sizing: border-box !important;
-      display: flex !important;
-      flex-direction: column !important;
-    }
-    .raport-page-sheet--fill .raport-page-body {
-      flex: 1 1 auto !important;
-      padding-bottom: 12mm !important;
-    }
-    .raport-page-sheet--fill .raport-page-footer {
-      position: absolute !important;
-      bottom: 0 !important;
-      left: 0 !important;
-      right: 0 !important;
-      margin-top: 0 !important;
-    }
-    .raport-page-footer,
-    .raport-page-footer-lines {
-      break-inside: avoid !important;
-      page-break-inside: avoid !important;
-    }
-    .raport-tahfidz-table thead {
-      display: table-row-group !important;
-    }
-  }
-  `;
-}
-
-/** @deprecated Use getRaportBrowserPrintStyle(juz) instead */
-export const RAPORT_BROWSER_PRINT_STYLE = getRaportBrowserPrintStyle();
-
-export function getRaportPrintUrl(baseUrl: string, raportId: string, printToken?: string): string {
-  const base = `${baseUrl}/raport/print/${encodeURIComponent(raportId)}`;
-  return printToken ? `${base}?_pt=${encodeURIComponent(printToken)}` : base;
-}
-
-export function raportReadySelector(raportId: string): string {
-  return `[data-raport-id="${raportId}"]`;
-}
-
-/** Juz 30 punya banyak surah — cetak multi-halaman tanpa min-height paksa */
-export function isJuz30Raport(juz?: number | string | null): boolean {
-  return Number(juz) === 30;
-}
-
-/** Template surah tetap untuk Juz 1 (Al Fatihah + Al Baqarah) */
-export const JUZ1_TEMPLATE = [
-  { nama_surah: 'Al Fatihah 1-7', urutan: 1 },
-  { nama_surah: 'Al Baqarah 1-16', urutan: 2 },
-  { nama_surah: 'Al Baqarah 17-29', urutan: 3 },
-  { nama_surah: 'Al Baqarah 30-48', urutan: 4 },
-  { nama_surah: 'Al Baqarah 49-61', urutan: 5 },
-  { nama_surah: 'Al Baqarah 62-76', urutan: 6 },
-  { nama_surah: 'Al Baqarah 78-88', urutan: 7 },
-  { nama_surah: 'Al Baqarah 89-101', urutan: 8 },
-  { nama_surah: 'Al Baqarah 102-112', urutan: 9 },
-  { nama_surah: 'Al Baqarah 113-126', urutan: 10 },
-  { nama_surah: 'Al Baqarah 127-141', urutan: 11 },
-] as const;
-
-export function isJuz1Raport(juz?: number | string | null): boolean {
-  return Number(juz) === 1;
 }

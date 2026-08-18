@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  ArrowLeft, CheckCircle, RefreshCw, UserCheck, Search,
+  ArrowLeft, CheckCircle, RefreshCw, UserCheck, Search, Trash2,
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
@@ -127,15 +127,17 @@ function KabidMarkSiswa({
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [submitting, setSubmitting] = useState(false);
+  const [resetting, setResetting] = useState(false);
   const [search, setSearch] = useState('');
   const [confirmModal, setConfirmModal] = useState(false);
+  const [resetModal, setResetModal] = useState(false);
   const [lastResult, setLastResult] = useState<{ marked: number; skipped: number } | null>(null);
 
   const fetchStudents = useCallback(async () => {
     setLoading(true);
     setLastResult(null);
     try {
-      const res = await fetch(`/api/absensi/kabid-mark?class_id=${kelas.id}`);
+      const res = await fetch(`/api/absensi/kabid-mark?class_id=${kelas.id}`, { cache: 'no-store' });
       const json = await res.json();
       if (!res.ok) {
         showToast('error', json.message ?? 'Gagal memuat data siswa.');
@@ -227,6 +229,29 @@ function KabidMarkSiswa({
     }
   }, [selected, showToast, fetchStudents]);
 
+  // Reset absensi
+  const handleResetAbsensi = useCallback(async () => {
+    setResetting(true);
+    setResetModal(false);
+    try {
+      const res = await fetch(`/api/absensi/kabid-mark?class_id=${kelas.id}`, {
+        method: 'DELETE',
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        showToast('error', json.message ?? 'Gagal mereset absensi.');
+      } else {
+        showToast('success', json.message ?? 'Absensi berhasil direset.');
+        setSelected(new Set());
+        fetchStudents();
+      }
+    } catch {
+      showToast('error', 'Terjadi kesalahan saat mereset absensi.');
+    } finally {
+      setResetting(false);
+    }
+  }, [kelas.id, showToast, fetchStudents]);
+
   const allBelumHadirSelected = belumHadir.length > 0 && belumHadir.every((s) => selected.has(s.id));
 
   return (
@@ -248,14 +273,26 @@ function KabidMarkSiswa({
               Pilih siswa yang ingin ditandai hadir hari ini.
             </p>
           </div>
-          <Button
-            variant="secondary"
-            leftIcon={<RefreshCw size={14} />}
-            onClick={fetchStudents}
-            loading={loading}
-          >
-            Refresh
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="secondary"
+              leftIcon={<RefreshCw size={14} />}
+              onClick={fetchStudents}
+              loading={loading}
+            >
+              Refresh
+            </Button>
+            <Button
+              variant="danger"
+              size="sm"
+              leftIcon={<Trash2 size={14} />}
+              onClick={() => setResetModal(true)}
+              disabled={resetting}
+              loading={resetting}
+            >
+              Reset Absensi
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -428,6 +465,33 @@ function KabidMarkSiswa({
             </Button>
             <Button variant="primary" onClick={handleSubmit} loading={submitting}>
               Ya, Tandai Hadir
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Reset Absensi Modal */}
+      <Modal
+        open={resetModal}
+        onClose={() => !resetting && setResetModal(false)}
+        title="Konfirmasi Reset Absensi"
+        size="sm"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-slate-700">
+            Reset seluruh absensi hari ini untuk kelas{' '}
+            <strong>{kelas.name}</strong>? Semua siswa yang sudah ditandai hadir
+            akan dihapus dan diperlakukan seolah-olah belum absen.
+          </p>
+          <p className="text-xs text-red-600">
+            Tindakan ini tidak dapat dibatalkan setelah dikonfirmasi.
+          </p>
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => setResetModal(false)} disabled={resetting}>
+              Batal
+            </Button>
+            <Button variant="danger" onClick={handleResetAbsensi} loading={resetting}>
+              Ya, Reset Absensi
             </Button>
           </div>
         </div>

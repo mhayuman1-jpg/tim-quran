@@ -151,13 +151,21 @@ export default function TahsinPage() {
 
   const fetchTodayList = useCallback(async () => {
     try {
-      const res = await fetch('/api/absensi/today');
+      const res = await fetch('/api/absensi/today', { cache: 'no-store' });
       const json = await res.json();
       if (json.data) setScannedList(json.data);
     } catch { /* silent */ }
   }, []);
 
   useEffect(() => { fetchTodayList(); }, [fetchTodayList]);
+
+  // Polling otomatis setiap 30 detik agar daftar hadir selalu akurat
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchTodayList();
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [fetchTodayList]);
 
   const handleScanSuccess = useCallback((siswa: { nama: string; id: string }) => {
     playSuccessBeep();
@@ -171,9 +179,15 @@ export default function TahsinPage() {
 
   const handleScanError = useCallback((pesan: string) => {
     const isWarning = pesan.toLowerCase().includes('sudah absen');
-    if (isWarning) playWarningBeep(); else playErrorBeep();
+    if (isWarning) {
+      playWarningBeep();
+      // Refresh daftar hadir agar siswa yang sudah absen tetap bisa diisi jurnal
+      fetchTodayList();
+    } else {
+      playErrorBeep();
+    }
     setScanFeedback({ type: isWarning ? 'warning' : 'error', message: pesan });
-  }, []);
+  }, [fetchTodayList]);
 
   const handleOpenAdd = (mode: JurnalFormMode = 'both') => {
     setFormMode(mode);

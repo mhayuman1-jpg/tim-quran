@@ -113,14 +113,15 @@ export async function GET(request: NextRequest) {
       ids: string[],
       dateField: string,
       start: string,
-      end: string
+      end: string,
+      idColumn: string = 'student_id'
     ): Promise<T[]> => {
       const results = await Promise.all(
         chunkArray(ids).map(chunk =>
           supabase
             .from(table)
             .select(select)
-            .in('student_id', chunk)
+            .in(idColumn, chunk)
             .gte(dateField, start)
             .lte(dateField, end)
             .then(({ data, error }) => {
@@ -146,8 +147,8 @@ export async function GET(request: NextRequest) {
 
     // Fetch attendance data for the semester
     const attendanceData = await fetchChunked<any>(
-      'attendances', 'student_id, status, date',
-      studentIds, 'date', dateRange.start, dateRange.end
+      'attendances', 'santri_id, status, date',
+      studentIds, 'date', dateRange.start, dateRange.end, 'santri_id'
     );
 
     // Fetch total active days in semester
@@ -161,7 +162,7 @@ export async function GET(request: NextRequest) {
     const studentsRecap: StudentRecap[] = (students || []).map(student => {
       const studentHafalan = (hafalanData || []).filter(h => h.student_id === student.id);
       const studentTahsin = (tahsinData || []).filter(t => t.student_id === student.id);
-      const studentAttendance = (attendanceData || []).filter(a => a.student_id === student.id);
+      const studentAttendance = (attendanceData || []).filter(a => a.santri_id === student.id);
 
       const totalHadir = studentAttendance.filter(a => a.status === 'Hadir').length;
       const totalTidakHadir = studentAttendance.filter(a => a.status === 'Tidak Hadir').length;
@@ -249,8 +250,8 @@ export async function GET(request: NextRequest) {
       );
 
       const compareAttendance = await fetchChunked<any>(
-        'attendances', 'student_id, status',
-        studentIds, 'date', compareRange.start, compareRange.end
+        'attendances', 'santri_id, status',
+        studentIds, 'date', compareRange.start, compareRange.end, 'santri_id'
       );
 
       const compareHadir = (compareAttendance || []).filter(a => a.status === 'Hadir').length;

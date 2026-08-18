@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuthenticatedSession } from '@/lib/api-auth';
 import { createServerClient } from '@/lib/supabase/server';
 import { SURAH_PER_JUZ, type SurahTemplate } from '@/lib/surahData';
+import { queryAttendanceByStudent } from '@/lib/attendance';
 
 export const dynamic = 'force-dynamic';
 
@@ -204,30 +205,23 @@ export async function GET(request: NextRequest) {
     }
 
     // ── 3. Ambil data absensi siswa ────────────────────────────────────────
-    let attendanceQuery = supabase
-      .from('attendances')
-      .select('status')
-      .eq('student_id', studentId);
+    // Gunakan helper yang menangani fallback kolom santri_id/student_id
+    const firstAttendance = await queryAttendanceByStudent(
+      supabase,
+      studentId,
+      startDate ?? undefined,
+      endDate ?? undefined
+    );
 
-    if (startDate) {
-      attendanceQuery = attendanceQuery.gte('date', startDate);
+    if (firstAttendance.error) {
+      return NextResponse.json({ message: firstAttendance.error.message }, { status: 500 });
     }
-    if (endDate) {
-      attendanceQuery = attendanceQuery.lte('date', endDate);
-    }
-
-    // eslint-disable-next-line prefer-const
-    let { data: attendanceData, error: aErr } = await attendanceQuery;
-
-    if (aErr) return NextResponse.json({ message: aErr.message }, { status: 500 });
+    let attendanceData = firstAttendance.data;
 
     // Fallback: jika filter semester menghasilkan 0 data, ambil tanpa filter tanggal
     if (hasSemesterRange && (!attendanceData || attendanceData.length === 0)) {
-      const { data: fallback } = await supabase
-        .from('attendances')
-        .select('status')
-        .eq('student_id', studentId);
-      attendanceData = fallback;
+      const fallback = await queryAttendanceByStudent(supabase, studentId);
+      attendanceData = fallback.data;
     }
 
     // ── 3. Susun detail surah dari hafalan ─────────────────────────────────

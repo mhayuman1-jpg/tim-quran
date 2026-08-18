@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 // src/app/api/absensi/kabid-mark/route.ts
 // GET: ambil daftar siswa dalam satu kelas beserta status absensi hari ini.
 // POST: tandai siswa yang dipilih sebagai Hadir.
+// DELETE: reset seluruh absensi hari ini untuk kelas tertentu.
 // Hanya bisa diakses oleh Kabid.
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -10,7 +11,7 @@ import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
 import { requireActiveSemester } from '@/lib/semester';
 import { requireNoHoliday } from '@/lib/holiday';
-import { normalizeAttendanceRows, insertAttendanceRecord } from '@/lib/attendance';
+import { normalizeAttendanceRows, insertAttendanceRecord, isMissingSantriIdError } from '@/lib/attendance';
 
 // ─── GET: daftar siswa per kelas + status hadir hari ini ──────────────────────
 
@@ -53,7 +54,10 @@ export async function GET(request: NextRequest) {
     }
 
     if (!santriList || santriList.length === 0) {
-      return NextResponse.json({ data: [], date: today }, { status: 200 });
+      return NextResponse.json(
+        { data: [], date: today },
+        { status: 200, headers: { 'Cache-Control': 'no-store, max-age=0' } }
+      );
     }
 
     // Ambil absensi hari ini untuk siswa di kelas ini
@@ -99,7 +103,10 @@ export async function GET(request: NextRequest) {
       status: hadirSet.has(s.id) ? 'Hadir' : 'Tidak Hadir',
     }));
 
-    return NextResponse.json({ data: result, date: today }, { status: 200 });
+    return NextResponse.json(
+      { data: result, date: today },
+      { status: 200, headers: { 'Cache-Control': 'no-store, max-age=0' } }
+    );
   } catch (error) {
     console.error('Kabid mark GET error:', error);
     return NextResponse.json(
@@ -182,7 +189,7 @@ export async function POST(request: NextRequest) {
     if (toMark.length === 0) {
       return NextResponse.json(
         { message: 'Semua siswa yang dipilih sudah absen hari ini.', marked: 0, skipped },
-        { status: 200 }
+        { status: 200, headers: { 'Cache-Control': 'no-store, max-age=0' } }
       );
     }
 
@@ -199,9 +206,102 @@ export async function POST(request: NextRequest) {
       message: `${successCount} siswa berhasil ditandai hadir.`,
       marked: successCount,
       skipped: skipped + (toMark.length - successCount),
-    }, { status: 200 });
+    }, { status: 200, headers: { 'Cache-Control': 'no-store, max-age=0' } });
   } catch (error) {
     console.error('Kabid mark POST error:', error);
+    return NextResponse.json(
+      { message: 'Terjadi kesalahan pada server.' },
+      { status: 500 }
+    );
+  }
+}
+
+// ─── DELETE: reset seluruh absensi hari ini untuk kelas tertentu ───────────────
+
+export async function DELETE(request: NextRequest) {
+  const session = await getServerSession(authOptions);
+  if (!session || session.user.role !== 'Kabid') {
+    return NextResponse.json({ message: 'Tidak memiliki akses.' }, { status: 403 });
+  }
+
+  try {
+    const { searchParams } = new URL(request.url);
+    const classId = searchParams.get('class_id')?.trim();
+
+    if (!classId) {
+      return NextResponse.json(
+        { message: 'Parameter `class_id` wajib diisi.' },
+        { status: 400 }
+      );
+    }
+
+    const supabase = createServerClient();
+    const today = new Intl.DateTimeFormat('sv-SE', {
+      timeZone: 'Asia/Makassar',
+    }).format(new Date());
+
+    // Cek semester aktif
+    const semesterCheck = await requireActiveSemester(supabase);
+    if (semesterCheck.error) return semesterCheck.error;
+
+    // Ambil semua santri aktif di kelas ini
+    const { data: santriList, error: santriError } = await supabase
+      .from('santri')
+      .select('id')
+      .eq('class_id', classId)
+      .eq('status', 'Aktif');
+
+    if (santriError) {
+      console.error('Reset absensi - fetch santri error:', santriError);
+      return NextResponse.json(
+        { message: 'Gagal mengambil data siswa kelas.' },
+        { status: 500 }
+      );
+    }
+
+    const santriIds = (santriList ?? []).map((s: any) => s.id);
+
+    if (santriIds.length === 0) {
+      return NextResponse.json({
+        message: 'Tidak ada siswa aktif di kelas ini.',
+        deleted: 0,
+      }, { status: 200, headers: { 'Cache-Control': 'no-store, max-age=0' } });
+    }
+
+    // Hapus semua absensi hari ini untuk santri di kelas ini
+    // Coba dulu dengan kolom santri_id; jika kolom tidak ada, fallback ke student_id (legacy)
+    let deleteResult = await supabase
+      .from('attendances')
+      .delete({ count: 'exact' })
+      .eq('date', today)
+      .in('santri_id', santriIds);
+
+    if (deleteResult.error && isMissingSantriIdError(deleteResult.error)) {
+      deleteResult = await supabase
+        .from('attendances')
+        .delete({ count: 'exact' })
+        .eq('date', today)
+        .in('student_id', santriIds);
+    }
+
+    if (deleteResult.error) {
+      console.error('Reset absensi error:', deleteResult.error);
+      return NextResponse.json(
+        { message: 'Gagal mereset absensi. ' + (deleteResult.error.message ?? ''), deleted: 0 },
+        { status: 500 }
+      );
+    }
+
+    const deletedCount = deleteResult.count ?? 0;
+
+    return NextResponse.json({
+      message: deletedCount > 0
+        ? `${deletedCount} catatan absensi hari ini untuk kelas ini berhasil direset.`
+        : 'Tidak ada absensi hari ini untuk kelas ini yang perlu direset.',
+      deleted: deletedCount,
+    }, { status: 200, headers: { 'Cache-Control': 'no-store, max-age=0' } });
+  } catch (error) {
+    console.error('Kabid mark DELETE error:', error);
     return NextResponse.json(
       { message: 'Terjadi kesalahan pada server.' },
       { status: 500 }
