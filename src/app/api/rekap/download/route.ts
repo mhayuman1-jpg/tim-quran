@@ -76,7 +76,7 @@ export async function GET(request: NextRequest) {
     const [{ data: absensiData, error: absensiError }, { data: tahfidzData, error: tahfidzError }, { data: tahsinData, error: tahsinError }] = await Promise.all([
       supabase
         .from('attendances')
-        .select('student_id, status, date')
+        .select('santri_id, status, date')
         .gte('date', fromDate)
         .lte('date', toDate),
       supabase
@@ -111,7 +111,7 @@ export async function GET(request: NextRequest) {
 
     const attendanceByStudent: Record<string, { hadir: number }> = {};
     for (const record of absensiData ?? []) {
-      const studentId = String(record.student_id);
+      const studentId = String(record.santri_id);
       if (!attendanceByStudent[studentId]) {
         attendanceByStudent[studentId] = { hadir: 0 };
       }

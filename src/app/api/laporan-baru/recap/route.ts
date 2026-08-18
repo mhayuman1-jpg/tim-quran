@@ -66,14 +66,14 @@ export async function GET(request: NextRequest) {
     // Fetch absensi semua siswa
     const { data: absensiData } = await supabase
       .from('attendances')
-      .select('student_id, status')
-      .in('student_id', studentIds);
+      .select('santri_id, status')
+      .in('santri_id', studentIds);
 
     // Hitung per siswa
     const studentRecaps = studentList.map(student => {
       const hafalan = (hafalanData ?? []).filter(h => h.student_id === student.id);
       const tahsin = (tahsinData ?? []).filter(t => t.student_id === student.id);
-      const absensi = (absensiData ?? []).filter(a => a.student_id === student.id);
+      const absensi = (absensiData ?? []).filter(a => a.santri_id === student.id);
 
       const hafalanDinilai = hafalan.filter(h => h.makhroj || h.tajwid || h.lancar);
       const tahsinDinilai = tahsin.filter(t => t.makhroj || t.kelancaran || t.adab);

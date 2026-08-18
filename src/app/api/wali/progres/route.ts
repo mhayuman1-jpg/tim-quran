@@ -146,7 +146,7 @@ export async function GET(request: NextRequest) {
     const { data: absensi } = await supabase
       .from('attendances')
       .select('status')
-      .eq('student_id', santriId)
+      .eq('santri_id', santriId)
       .gte('date', firstDay);
 
     // Hitung ringkasan

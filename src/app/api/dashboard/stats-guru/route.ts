@@ -63,7 +63,7 @@ export async function GET(request: NextRequest) {
       .select('*', { count: 'exact', head: true })
       .eq('date', today)
       .eq('status', 'Hadir')
-      .in('student_id', studentIds);
+      .in('santri_id', studentIds);
 
     let attendanceDate = today;
 
@@ -72,7 +72,7 @@ export async function GET(request: NextRequest) {
       const { data: lastAttendance } = await supabase
         .from('attendances')
         .select('date')
-        .in('student_id', studentIds)
+        .in('santri_id', studentIds)
         .order('date', { ascending: false })
         .limit(1)
         .single();
@@ -84,7 +84,7 @@ export async function GET(request: NextRequest) {
           .select('*', { count: 'exact', head: true })
           .eq('date', attendanceDate)
           .eq('status', 'Hadir')
-          .in('student_id', studentIds);
+          .in('santri_id', studentIds);
         totalHadir = lastHadir;
       }
     }

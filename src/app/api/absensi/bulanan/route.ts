@@ -90,7 +90,7 @@ export async function GET(request: NextRequest) {
     // 2. Ambil semua records absensi 'Hadir' dalam rentang bulan untuk santri yang relevan
     const { data: attendances, error: attendError } = await supabase
       .from('attendances')
-      .select('id, student_id, date, status')
+      .select('id, santri_id, date, status')
       .eq('status', 'Hadir')
       .gte('date', dateFrom)
       .lt('date', dateTo);

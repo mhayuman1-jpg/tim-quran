@@ -143,8 +143,8 @@ export async function GET(request: NextRequest) {
     // 5. Hitung kehadiran per siswa
     const { data: attendanceData, error: attendanceError } = await supabase
       .from('attendances')
-      .select('student_id, date, status')
-      .in('student_id', studentIds)
+      .select('santri_id, date, status')
+      .in('santri_id', studentIds)
       .eq('status', 'Hadir');
 
     if (attendanceError) {
@@ -158,7 +158,7 @@ export async function GET(request: NextRequest) {
     // Hitung distinct date per siswa (berapa hari siswa hadir)
     const attendanceCountMap: Record<string, Set<string>> = {};
     for (const a of attendanceData ?? []) {
-      const sid = a.student_id as string;
+      const sid = a.santri_id as string;
       const date = a.date as string;
       if (!attendanceCountMap[sid]) {
         attendanceCountMap[sid] = new Set();

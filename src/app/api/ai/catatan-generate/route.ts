@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
     let attendanceQuery = supabase
       .from('attendances')
       .select('status')
-      .eq('student_id', student_id);
+      .eq('santri_id', student_id);
 
     if (startDate) attendanceQuery = attendanceQuery.gte('date', startDate);
     if (endDate) attendanceQuery = attendanceQuery.lte('date', endDate);
