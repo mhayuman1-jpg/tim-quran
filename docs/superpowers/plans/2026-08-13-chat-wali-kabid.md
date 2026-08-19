@@ -1,658 +1,400 @@
-# Chat Wali ↔ Kabid (Thread ala WhatsApp) Implementation Plan
-
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
-
-**Goal:** Ubah fitur pesan menjadi percakapan thread per wali (teks + emoji) dengan real-time SSE, untuk wali dan admin (Kabid/Sekretaris).
-
-**Architecture:** Tabel `messages` di-repurpose menjadi tabel pesan thread (tiap baris = 1 bubble, dikelompokkan per `santri_id`). Satu route `POST /api/messages` menangani kirim dari wali & admin; route `list` (thread) & `conversations` (daftar admin) memakai SSE yang sudah ada. UI wali & admin direwrite jadi thread + emoji picker ringan tanpa dependensi baru.
-
-**Tech Stack:** Next.js 14 App Router, TypeScript, Tailwind, Supabase (service-role), lucide-react, SSE (EventSource). Tidak ada library emoji baru.
-
-## Global Constraints
-
-- Path alias: `@/*` → `src/*`
-- Bahasa UI/APC/komentar: Indonesia
-- API pakai `createServerClient()` (SUPABASE_SERVICE_ROLE_KEY, bypass RLS) — tidak di client component
-- Setiap perubahan data memanggil `emitMessageUpdate()` dari `@/lib/message-events`
-- Tidak ada test runner di project (AGENTS.md) → verifikasi pakai `npx tsc --noEmit`, `npm run lint`, dan uji manual (bukan pytest)
-- Deploy: pm2 **fork** (single instance) + Nginx `proxy_buffering off` (sudah dilakukan)
-- Pengirim admin: `sender_type = 'kabid'` untuk Kabid & Sekretaris; `sender_name` = nama user login
-- Emoji picker: TANPA dependensi baru (grid emoji Unicode statis)
-
----
-
-## File Structure
-
-- `src/db/migrations/026_chat_thread.sql` (Create) — backfill reply lama → baris pesan, drop kolom `reply`/`replied_by`/`replied_at`
-- `src/app/api/messages/route.ts` (Create) — `POST` unified kirim pesan (wali & admin)
-- `src/app/api/messages/send/route.ts` (Delete) — diganti oleh route parent
-- `src/app/api/messages/reply/route.ts` (Delete) — diganti oleh route parent
-- `src/app/api/messages/list/route.ts` (Modify) — thread ASC + param `santri_id` untuk admin
-- `src/app/api/messages/conversations/route.ts` (Create) — daftar conversation untuk admin
-- `src/app/api/messages/read/route.ts` (Modify) — tandai dibaca pihak lawan per thread
-- `src/components/features/chat/EmojiPicker.tsx` (Create) — popover grid emoji
-- `src/app/wali/pesan/page.tsx` (Modify) — UI thread + input emoji
-- `src/app/(dashboard)/pesan/page.tsx` (Modify) — UI dua kolom (conversation + thread) + input emoji
-
----
-
-### Task 1: Migrasi database — thread model
-
-**Files:**
-- Create: `src/db/migrations/026_chat_thread.sql`
-
-**Interfaces:** (tidak bergantung task lain; dipakai oleh semua task API)
-
-- [ ] **Step 1: Tulis migrasi SQL idempoten**
-
-```sql
--- Migrasi: ubah messages menjadi tabel thread pesan
--- Backfill reply lama -> baris pesan admin, lalu drop kolom reply/replied_by/replied_at
-DO $$
-BEGIN
-  IF EXISTS (
-    SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'messages' AND column_name = 'reply'
-  ) THEN
-    INSERT INTO public.messages (santri_id, sender_type, sender_id, sender_name, message, is_read, created_at)
-    SELECT
-      m.santri_id,
-      'kabid',
-      COALESCE(m.replied_by::text, ''),
-      COALESCE(u.name, 'Admin'),
-      m.reply,
-      true,
-      m.replied_at
-    FROM public.messages m
-    LEFT JOIN public.users u ON u.id = m.replied_by
-    WHERE m.reply IS NOT NULL AND m.reply <> '';
-
-    ALTER TABLE public.messages DROP COLUMN IF EXISTS reply;
-    ALTER TABLE public.messages DROP COLUMN IF EXISTS replied_by;
-    ALTER TABLE public.messages DROP COLUMN IF EXISTS replied_at;
-  END IF;
-END $$;
-```
-
-- [ ] **Step 2: Jalankan di Supabase SQL Editor** dan verifikasi kolom `reply`/`replied_by`/`replied_at` sudah tidak ada, serta baris balasan lama muncul sebagai `sender_type='kabid'`.
-
-- [ ] **Step 3: Commit**
-
-```bash
-git add src/db/migrations/026_chat_thread.sql
-git commit -m "feat(db): migrasi messages ke model thread chat"
-```
-
----
-
-### Task 2: Route kirim pesan unified `POST /api/messages`
-
-**Files:**
-- Create: `src/app/api/messages/route.ts`
-- Delete: `src/app/api/messages/send/route.ts`
-- Delete: `src/app/api/messages/reply/route.ts`
-
-**Interfaces:**
-- Consumes: `getAuthenticatedSession(request)` dari `@/lib/api-auth`, `createServerClient()` dari `@/lib/supabase/server`, `emitMessageUpdate()` dari `@/lib/message-events`
-- Produces: endpoint `POST /api/messages` dipakai oleh UI wali & admin (Task 7 & 8). Setelah sukses memanggil `emitMessageUpdate()`.
-
-- [ ] **Step 1: Buat `src/app/api/messages/route.ts`**
-
-```ts
-import { NextRequest, NextResponse } from 'next/server';
-import { getAuthenticatedSession } from '@/lib/api-auth';
-import { createServerClient } from '@/lib/supabase/server';
-import { emitMessageUpdate } from '@/lib/message-events';
-
-export const dynamic = 'force-dynamic';
-
-export async function POST(request: NextRequest) {
-  const session = await getAuthenticatedSession(request);
-  if (session instanceof NextResponse) return session;
-
-  try {
-    const body = await request.json();
-    const role = session.user.role;
-    const message = typeof body.message === 'string' ? body.message.trim() : '';
-
-    if (!message) {
-      return NextResponse.json({ message: 'Pesan tidak boleh kosong' }, { status: 400 });
-    }
-
-    let santriId: string | undefined;
-    if (role === 'Wali_Murid') {
-      santriId = (session.user as any).santri_id;
-    } else {
-      santriId = body.santri_id;
-    }
-
-    if (!santriId) {
-      return NextResponse.json({ message: 'santri_id diperlukan' }, { status: 400 });
-    }
-
-    const supabase = createServerClient();
-    const { error } = await supabase.from('messages').insert({
-      santri_id: santriId,
-      sender_type: role === 'Wali_Murid' ? 'wali' : 'kabid',
-      sender_id: session.user.id,
-      sender_name: session.user.name ?? (role === 'Wali_Murid' ? 'Wali' : 'Admin'),
-      message,
-      is_read: false,
+    params.set("teacher_id", selectedTeacherId);
+            }
+            const url = `/api/admin/pengajar-pdf${params.toString() ? `?${params.toString()}` : ""}`;
+            const res = await fetch(url);
+            if (!res.ok) {
+                const json = await res.json().catch(()=>({}));
+                throw new Error(json.message || "Gagal mengunduh PDF");
+            }
+            const blob = await res.blob();
+            const downloadUrl = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = downloadUrl;
+            const date = new Date().toISOString().slice(0, 10);
+            const teacherName = selectedTeacherId ? stats.find((t)=>t.id === selectedTeacherId)?.name?.replace(/\s+/g, "_") || "pengajar" : "semua-pengajar";
+            a.download = `data-pengajar-siswa-${teacherName}-${date}.pdf`;
+            a.click();
+            URL.revokeObjectURL(downloadUrl);
+            toast.success("PDF data pengajar & siswa berhasil diunduh.");
+        } catch (err) {
+            console.error("Gagal download PDF:", err);
+            toast.error("Gagal mengunduh PDF. Coba lagi.");
+        } finally{
+            setDownloading(false);
+        }
+    };
+    return /*#__PURE__*/ (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", {
+        className: "space-y-6",
+        children: [
+            /*#__PURE__*/ (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", {
+                className: "flex flex-col sm:flex-row sm:items-center justify-between gap-4",
+                children: [
+                    /*#__PURE__*/ (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", {
+                        children: [
+                            /*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx("h1", {
+                                className: "text-2xl font-bold text-slate-900 tracking-tight",
+                                children: "Data Pengajar & Siswa"
+                            }),
+                            /*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx("p", {
+                                className: "text-sm text-slate-500 mt-0.5",
+                                children: "Pilih pengajar untuk mengunduh data siswa yang diajarkan beserta barcode."
+                            })
+                        ]
+                    }),
+                    /*#__PURE__*/ (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", {
+                        className: "flex items-center gap-2 flex-wrap",
+                        children: [
+                            /*#__PURE__*/ (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("select", {
+                                value: selectedTeacherId,
+                                onChange: (e)=>setSelectedTeacherId(e.target.value),
+                                disabled: downloading || loadingStats,
+                                className: "rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white",
+                                children: [
+                                    /*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx("option", {
+                                        value: "",
+                                        children: "Semua Pengajar"
+                                    }),
+                                    stats.map((teacher)=>/*#__PURE__*/ (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("option", {
+                                            value: teacher.id,
+                                            children: [
+                                                teacher.name,
+                                                teacher.classNames?.length ? ` (${teacher.classNames.join(", ")})` : "",
+                                                " (",
+                                                teacher.studentCount,
+                                                " siswa)"
+                                            ]
+                                        }, teacher.id))
+                                ]
+                            }),
+                            /*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx(_components_ui_Button__WEBPACK_IMPORTED_MODULE_2__/* ["default"] */ .Z, {
+                                variant: "primary",
+                                leftIcon: downloading ? /*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx(_barrel_optimize_names_Download_Loader2_lucide_react__WEBPACK_IMPORTED_MODULE_4__/* ["default"] */ .Z, {
+                                    size: 15,
+                                    className: "animate-spin"
+                                }) : /*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx(_barrel_optimize_names_Download_Loader2_lucide_react__WEBPACK_IMPORTED_MODULE_5__/* ["default"] */ .Z, {
+                                    size: 15
+                                }),
+                                onClick: handleDownload,
+                                loading: downloading,
+                                disabled: loadingStats,
+                                children: "Download PDF"
+                            })
+                        ]
+                    })
+                ]
+            }),
+            /*#__PURE__*/ (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", {
+                className: "bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden",
+                children: [
+                    /*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx("div", {
+                        className: "px-4 py-3 border-b border-slate-200 bg-slate-50",
+                        children: /*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx("h2", {
+                            className: "text-sm font-semibold text-slate-700",
+                            children: "Ringkasan Pengajar"
+                        })
+                    }),
+                    /*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx("div", {
+                        className: "overflow-x-auto",
+                        children: /*#__PURE__*/ (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("table", {
+                            className: "w-full",
+                            children: [
+                                /*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx("thead", {
+                                    children: /*#__PURE__*/ (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("tr", {
+                                        className: "bg-slate-50 border-b border-slate-200",
+                                        children: [
+                                            /*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx("th", {
+                                                className: "px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider",
+                                                children: "Nama Pengajar"
+                                            }),
+                                            /*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx("th", {
+                                                className: "px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider",
+                                                children: "Role"
+                                            }),
+                                            /*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx("th", {
+                                                className: "px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider",
+                                                children: "Email"
+                                            }),
+                                            /*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx("th", {
+                                                className: "px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider",
+                                                children: "Nama Kelas"
+                                            }),
+                                            /*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx("th", {
+                                                className: "px-4 py-3 text-right text-xs font-semibold text-slate-700 uppercase tracking-wider",
+                                                children: "Jumlah Siswa"
+                                            })
+                                        ]
+                                    })
+                                }),
+                                /*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx("tbody", {
+                                    className: "divide-y divide-slate-100",
+                                    children: loadingStats ? Array.from({
+                                        length: 3
+                                    }).map((_, i)=>/*#__PURE__*/ (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("tr", {
+                                            children: [
+                                                /*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx("td", {
+                                                    className: "px-4 py-3",
+                                                    children: /*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx("div", {
+                                                        className: "h-5 bg-slate-200 rounded animate-pulse w-32"
+                                                    })
+                                                }),
+                                                /*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx("td", {
+                                                    className: "px-4 py-3",
+                                                    children: /*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx("div", {
+                                                        className: "h-5 bg-slate-200 rounded animate-pulse w-20"
+                                                    })
+                                                }),
+                                                /*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx("td", {
+                                                    className: "px-4 py-3",
+                                                    children: /*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx("div", {
+                                                        className: "h-5 bg-slate-200 rounded animate-pulse w-40"
+                                                    })
+                                                }),
+                                                /*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx("td", {
+                                                    className: "px-4 py-3",
+                                                    children: /*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx("div", {
+                                                        className: "h-5 bg-slate-200 rounded animate-pulse w-36"
+                                                    })
+                                                }),
+                                                /*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx("td", {
+                                                    className: "px-4 py-3",
+                                                    children: /*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx("div", {
+                                                        className: "h-5 bg-slate-200 rounded animate-pulse w-16 ml-auto"
+                                                    })
+                                                })
+                                            ]
+                                        }, i)) : stats.length === 0 ? /*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx("tr", {
+                                        children: /*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx("td", {
+                                            colSpan: 5,
+                                            className: "px-4 py-8 text-center text-sm text-slate-500",
+                                            children: "Belum ada data pengajar."
+                                        })
+                                    }) : stats.map((teacher)=>/*#__PURE__*/ (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("tr", {
+                                            className: "hover:bg-slate-50 transition-colors",
+                                            children: [
+                                                /*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx("td", {
+                                                    className: "px-4 py-3",
+                                                    children: /*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx("span", {
+                                                        className: "text-sm font-medium text-slate-800",
+                                                        children: teacher.name
+                                                    })
+                                                }),
+                                                /*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx("td", {
+                                                    className: "px-4 py-3",
+                                                    children: /*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx("span", {
+                                                        className: "text-xs bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full border border-amber-200",
+                                                        children: teacher.role
+                                                    })
+                                                }),
+                                                /*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx("td", {
+                                                    className: "px-4 py-3",
+                                                    children: /*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx("span", {
+                                                        className: "text-sm text-slate-600",
+                                                        children: teacher.email || "—"
+                                                    })
+                                                }),
+                                                /*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx("td", {
+                                                    className: "px-4 py-3",
+                                                    children: teacher.classNames && teacher.classNames.length > 0 ? /*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx("div", {
+                                                        className: "flex flex-wrap gap-1",
+                                                        children: teacher.classNames.map((cls, idx)=>/*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx("span", {
+                                                                className: "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200",
+                                                                children: cls
+                                                            }, idx))
+                                                    }) : /*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx("span", {
+                                                        className: "text-sm text-slate-400",
+                                                        children: "—"
+                                                    })
+                                                }),
+                                                /*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx("td", {
+                                                    className: "px-4 py-3 text-right",
+                                                    children: /*#__PURE__*/ (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("span", {
+                                                        className: "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700",
+                                                        children: [
+                                                            teacher.studentCount,
+                                                            " siswa"
+                                                        ]
+                                                    })
+                                                })
+                                            ]
+                                        }, teacher.id))
+                                })
+                            ]
+                        })
+                    })
+                ]
+            })
+        ]
     });
-
-    if (error) {
-      console.error('Send message error:', error);
-      return NextResponse.json({ message: 'Gagal mengirim pesan' }, { status: 500 });
-    }
-
-    emitMessageUpdate();
-    return NextResponse.json({ message: 'Pesan terkirim' }, { status: 201 });
-  } catch (error) {
-    console.error('Messages API error:', error);
-    return NextResponse.json({ message: 'Terjadi kesalahan server' }, { status: 500 });
-  }
 }
-```
 
-- [ ] **Step 2: Hapus route lama**
 
-```bash
-rm -rf src/app/api/messages/send src/app/api/messages/reply
-```
+/***/ }),
 
-- [ ] **Step 3: Verifikasi tipe & lint**
+/***/ 99837:
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
-```bash
-npx tsc --noEmit
-npm run lint
-```
-Expected: tidak ada error yang merujuk file ini.
+"use strict";
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   Z: () => (/* binding */ Button)
+/* harmony export */ });
+/* harmony import */ var react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(10326);
+/* harmony import */ var react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__);
+/* harmony import */ var react__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(17577);
+/* harmony import */ var react__WEBPACK_IMPORTED_MODULE_1___default = /*#__PURE__*/__webpack_require__.n(react__WEBPACK_IMPORTED_MODULE_1__);
+/* harmony import */ var _barrel_optimize_names_Loader2_lucide_react__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(80361);
+/* __next_internal_client_entry_do_not_use__ default auto */ 
+// src/components/ui/Button.tsx
+// Button komponen dengan variant, size, dan loading state.
 
-- [ ] **Step 4: Commit**
 
-```bash
-git add src/app/api/messages/route.ts
-git rm -r src/app/api/messages/send src/app/api/messages/reply
-git commit -m "feat(api): route kirim pesan unified POST /api/messages"
-```
-
----
-
-### Task 3: Route `GET /api/messages/list` (thread)
-
-**Files:**
-- Modify: `src/app/api/messages/list/route.ts`
-
-**Interfaces:**
-- Consumes: `getAuthenticatedSession(request)`, `createServerClient()`
-- Produces: array pesan thread urut ASC (`created_at`) dengan `santri(nama, nisn, classes(name))`; dipakai UI wali (Task 7) & admin (Task 8).
-
-- [ ] **Step 1: Tulis ulang handler GET**
-
-```ts
-import { NextRequest, NextResponse } from 'next/server';
-import { getAuthenticatedSession } from '@/lib/api-auth';
-import { createServerClient } from '@/lib/supabase/server';
-
-export const dynamic = 'force-dynamic';
-
-export async function GET(request: NextRequest) {
-  const session = await getAuthenticatedSession(request);
-  if (session instanceof NextResponse) return session;
-
-  try {
-    const supabase = createServerClient();
-    const role = session.user.role;
-    const { searchParams } = new URL(request.url);
-
-    let santriId: string | undefined;
-    if (role === 'Wali_Murid') {
-      santriId = (session.user as any).santri_id;
-    } else {
-      santriId = searchParams.get('santri_id') || undefined;
-    }
-
-    if (!santriId) {
-      return NextResponse.json({ message: 'santri_id diperlukan' }, { status: 400 });
-    }
-
-    const { data, error } = await supabase
-      .from('messages')
-      .select('*, santri(nama, nisn, classes(name))')
-      .eq('santri_id', santriId)
-      .order('created_at', { ascending: true });
-
-    if (error) {
-      console.error('List messages error:', error);
-      return NextResponse.json({ message: 'Gagal mengambil pesan' }, { status: 500 });
-    }
-
-    return NextResponse.json(data ?? [], {
-      status: 200,
-      headers: { 'Cache-Control': 'no-store, max-age=0' },
+const variantClasses = {
+    primary: "bg-amber-600 text-white hover:bg-amber-700 focus-visible:ring-amber-500 border border-transparent disabled:bg-amber-300",
+    secondary: "bg-white text-amber-700 hover:bg-amber-50 focus-visible:ring-amber-500 border border-amber-300 disabled:bg-slate-50 disabled:text-slate-400 disabled:border-slate-200",
+    danger: "bg-red-600 text-white hover:bg-red-700 focus-visible:ring-red-500 border border-transparent disabled:bg-red-300",
+    ghost: "bg-transparent text-slate-600 hover:bg-slate-100 focus-visible:ring-slate-400 border border-transparent disabled:text-slate-300"
+};
+const sizeClasses = {
+    sm: "px-3 py-2 text-sm gap-1.5 min-h-[40px]",
+    md: "px-4 py-2.5 text-base gap-2 min-h-[44px]",
+    lg: "px-5 py-3 text-base gap-2 min-h-[48px]"
+};
+function Button({ variant = "primary", size = "md", loading = false, leftIcon, rightIcon, children, disabled, className = "", ...props }) {
+    const isDisabled = disabled || loading;
+    return /*#__PURE__*/ (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("button", {
+        disabled: isDisabled,
+        className: [
+            "inline-flex items-center justify-center font-medium rounded-lg transition-colors",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2",
+            "disabled:cursor-not-allowed",
+            variantClasses[variant],
+            sizeClasses[size],
+            className
+        ].join(" "),
+        ...props,
+        children: [
+            loading ? /*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx(_barrel_optimize_names_Loader2_lucide_react__WEBPACK_IMPORTED_MODULE_2__/* ["default"] */ .Z, {
+                size: size === "lg" ? 18 : 16,
+                className: "animate-spin shrink-0"
+            }) : leftIcon && /*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx("span", {
+                className: "shrink-0",
+                children: leftIcon
+            }),
+            children && /*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx("span", {
+                children: children
+            }),
+            !loading && rightIcon && /*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx("span", {
+                className: "shrink-0",
+                children: rightIcon
+            })
+        ]
     });
-  } catch (error) {
-    console.error('Messages list API error:', error);
-    return NextResponse.json({ message: 'Terjadi kesalahan server' }, { status: 500 });
-  }
 }
-```
 
-- [ ] **Step 2: Verifikasi**
 
-```bash
-npx tsc --noEmit
-```
-Expected: lolos.
+/***/ }),
 
-- [ ] **Step 3: Commit**
+/***/ 71696:
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
-```bash
-git add src/app/api/messages/list/route.ts
-git commit -m "feat(api): list pesan sebagai thread ASC"
-```
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (__WEBPACK_DEFAULT_EXPORT__),
+/* harmony export */   dynamic: () => (/* binding */ e0)
+/* harmony export */ });
+/* harmony import */ var next_dist_build_webpack_loaders_next_flight_loader_module_proxy__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(68570);
 
----
 
-### Task 4: Route `GET /api/messages/conversations` (admin)
+const e0 = (0,next_dist_build_webpack_loaders_next_flight_loader_module_proxy__WEBPACK_IMPORTED_MODULE_0__.createProxy)(String.raw`F:\Instalasi linux\tim-quran Vps update\src\app\(dashboard)\admin\pengajar-pdf\page.tsx#dynamic`);
+/* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = ((0,next_dist_build_webpack_loaders_next_flight_loader_module_proxy__WEBPACK_IMPORTED_MODULE_0__.createProxy)(String.raw`F:\Instalasi linux\tim-quran Vps update\src\app\(dashboard)\admin\pengajar-pdf\page.tsx#default`));
 
-**Files:**
-- Create: `src/app/api/messages/conversations/route.ts`
 
-**Interfaces:**
-- Consumes: `getAuthenticatedSession(request)`, `createServerClient()`
-- Produces: array `{ santri_id, santri, last_message, last_at, unread_count }` urut `last_at` DESC; dipakai UI admin (Task 8).
+/***/ }),
 
-- [ ] **Step 1: Buat route**
+/***/ 39914:
+/***/ ((__unused_webpack___webpack_module__, __webpack_exports__, __webpack_require__) => {
 
-```ts
-import { NextRequest, NextResponse } from 'next/server';
-import { getAuthenticatedSession } from '@/lib/api-auth';
-import { createServerClient } from '@/lib/supabase/server';
-
-export const dynamic = 'force-dynamic';
-
-export async function GET(request: NextRequest) {
-  const session = await getAuthenticatedSession(request);
-  if (session instanceof NextResponse) return session;
-
-  const role = session.user.role;
-  if (role !== 'Kabid' && role !== 'Sekretaris') {
-    return NextResponse.json({ message: 'Tidak memiliki akses' }, { status: 403 });
-  }
-
-  try {
-    const supabase = createServerClient();
-    const { data, error } = await supabase
-      .from('messages')
-      .select('id, santri_id, sender_type, message, is_read, created_at, santri(nama, nisn, classes(name))')
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      console.error('Conversations error:', error);
-      return NextResponse.json({ message: 'Gagal mengambil percakapan' }, { status: 500 });
-    }
-
-    const map = new Map<string, any>();
-    for (const m of data ?? []) {
-      if (!map.has(m.santri_id)) {
-        map.set(m.santri_id, {
-          santri_id: m.santri_id,
-          santri: m.santri,
-          last_message: m.message,
-          last_at: m.created_at,
-          unread_count: 0,
-        });
-      }
-      if (m.sender_type === 'wali' && !m.is_read) {
-        map.get(m.santri_id).unread_count += 1;
-      }
-    }
-
-    const result = Array.from(map.values()).sort(
-      (a, b) => new Date(b.last_at).getTime() - new Date(a.last_at).getTime()
-    );
-
-    return NextResponse.json(result, {
-      status: 200,
-      headers: { 'Cache-Control': 'no-store, max-age=0' },
-    });
-  } catch (error) {
-    console.error('Conversations API error:', error);
-    return NextResponse.json({ message: 'Terjadi kesalahan server' }, { status: 500 });
-  }
-}
-```
-
-- [ ] **Step 2: Verifikasi**
-
-```bash
-npx tsc --noEmit
-```
-Expected: lolos.
-
-- [ ] **Step 3: Commit**
-
-```bash
-git add src/app/api/messages/conversations/route.ts
-git commit -m "feat(api): daftar conversation untuk admin"
-```
-
----
-
-### Task 5: Route `POST /api/messages/read` (thread read)
-
-**Files:**
-- Modify: `src/app/api/messages/read/route.ts`
-
-**Interfaces:**
-- Consumes: `getAuthenticatedSession(request)`, `createServerClient()`, `emitMessageUpdate()`
-- Produces: menandai `is_read=true` untuk pesan pihak lawan pada 1 thread; dipakai UI wali & admin saat membuka thread.
-
-- [ ] **Step 1: Tulis ulang handler**
-
-```ts
-import { NextRequest, NextResponse } from 'next/server';
-import { getAuthenticatedSession } from '@/lib/api-auth';
-import { createServerClient } from '@/lib/supabase/server';
-import { emitMessageUpdate } from '@/lib/message-events';
-
-export const dynamic = 'force-dynamic';
-
-export async function POST(request: NextRequest) {
-  const session = await getAuthenticatedSession(request);
-  if (session instanceof NextResponse) return session;
-
-  try {
-    const body = await request.json();
-    const role = session.user.role;
-    const santriId =
-      role === 'Wali_Murid' ? (session.user as any).santri_id : body.santri_id;
-
-    if (!santriId) {
-      return NextResponse.json({ message: 'santri_id diperlukan' }, { status: 400 });
-    }
-
-    const supabase = createServerClient();
-    const targetSender = role === 'Wali_Murid' ? 'kabid' : 'wali';
-
-    const { error } = await supabase
-      .from('messages')
-      .update({ is_read: true })
-      .eq('santri_id', santriId)
-      .eq('sender_type', targetSender);
-
-    if (error) {
-      console.error('Mark read error:', error);
-      return NextResponse.json({ message: 'Gagal menandai pesan' }, { status: 500 });
-    }
-
-    emitMessageUpdate();
-    return NextResponse.json({ message: 'OK' }, { status: 200 });
-  } catch (error) {
-    console.error('Mark read API error:', error);
-    return NextResponse.json({ message: 'Terjadi kesalahan server' }, { status: 500 });
-  }
-}
-```
-
-- [ ] **Step 2: Verifikasi**
-
-```bash
-npx tsc --noEmit
-```
-Expected: lolos.
-
-- [ ] **Step 3: Commit**
-
-```bash
-git add src/app/api/messages/read/route.ts
-git commit -m "feat(api): tandai thread dibaca pihak lawan"
-```
-
----
-
-### Task 6: Komponen `EmojiPicker`
-
-**Files:**
-- Create: `src/components/features/chat/EmojiPicker.tsx`
-
-**Interfaces:**
-- Consumes: tidak ada
-- Produces: komponen `<EmojiPicker onSelect={(e: string) => void} />`; dipakai UI wali (Task 7) & admin (Task 8).
-
-- [ ] **Step 1: Buat komponen**
-
-```tsx
-"use client";
-
-import { useState } from "react";
-import { Smile } from "lucide-react";
-
-const EMOJIS = [
-  "😀","😁","😂","🤣","😊","😇","🙂","😉","😍","🥰","😘","😋","😜","🤔","🤨","😐","😴","😎","🥳","😢","😭","😡","🤬","👍","👎","👏","🙏","💪","🙌","👌","🤝","❤️","🧡","💛","💚","💙","💜","🔥","✨","⭐","🎉","✅","❌","⚠️","💡","📌","📎","📷","🕒","🌹","🤲","😱","🥺","😏","😬","🤗","🤩","😮","😯","😪","🤤","😷","🤒","🥵","🥶","😕","🙄","😤","😠","💔","💖","💯","✍️","👋","💬","🔔","📝","📚","🕌","☪️","🤲","🌟","💫","🎯","🚀","💰","🎁","👶","🧑","👨","👩","🏠","🌿","🍀","🌸","🌺",
+"use strict";
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   Z: () => (/* binding */ Download)
+/* harmony export */ });
+/* unused harmony export __iconNode */
+/* harmony import */ var _createLucideIcon_mjs__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(52761);
+/**
+ * @license lucide-react v1.17.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */ 
+const __iconNode = [
+    [
+        "path",
+        {
+            d: "M12 15V3",
+            key: "m9g1x1"
+        }
+    ],
+    [
+        "path",
+        {
+            d: "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4",
+            key: "ih7n3h"
+        }
+    ],
+    [
+        "path",
+        {
+            d: "m7 10 5 5 5-5",
+            key: "brsn70"
+        }
+    ]
 ];
+const Download = (0,_createLucideIcon_mjs__WEBPACK_IMPORTED_MODULE_0__/* ["default"] */ .Z)("download", __iconNode);
+ //# sourceMappingURL=download.mjs.map
 
-export default function EmojiPicker({ onSelect }: { onSelect: (e: string) => void }) {
-  const [open, setOpen] = useState(false);
 
-  return (
-    <div className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="w-9 h-9 rounded-xl flex items-center justify-center transition-opacity hover:opacity-80"
-        style={{ background: "#f1f5f9" }}
-        title="Emoji"
-      >
-        <Smile size={18} className="text-slate-500" />
-      </button>
+/***/ }),
 
-      {open && (
-        <>
-          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="absolute bottom-12 left-0 z-20 w-64 max-h-56 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-2 shadow-xl"
-            style={{ display: "grid", gridTemplateColumns: "repeat(8, 1fr)", gap: "2px" }}
-          >
-            {EMOJIS.map((e) => (
-              <button
-                key={e}
-                type="button"
-                onClick={() => { onSelect(e); setOpen(false); }}
-                className="text-xl leading-none rounded-lg hover:bg-slate-100 p-1"
-              >
-                {e}
-              </button>
-            ))}
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
-```
+/***/ 80361:
+/***/ ((__unused_webpack___webpack_module__, __webpack_exports__, __webpack_require__) => {
 
-- [ ] **Step 2: Verifikasi**
+"use strict";
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   Z: () => (/* binding */ LoaderCircle)
+/* harmony export */ });
+/* unused harmony export __iconNode */
+/* harmony import */ var _createLucideIcon_mjs__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(52761);
+/**
+ * @license lucide-react v1.17.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */ 
+const __iconNode = [
+    [
+        "path",
+        {
+            d: "M21 12a9 9 0 1 1-6.219-8.56",
+            key: "13zald"
+        }
+    ]
+];
+const LoaderCircle = (0,_createLucideIcon_mjs__WEBPACK_IMPORTED_MODULE_0__/* ["default"] */ .Z)("loader-circle", __iconNode);
+ //# sourceMappingURL=loader-circle.mjs.map
 
-```bash
-npx tsc --noEmit
-```
-Expected: lolos.
 
-- [ ] **Step 3: Commit**
+/***/ })
 
-```bash
-git add src/components/features/chat/EmojiPicker.tsx
-git commit -m "feat(ui): komponen EmojiPicker tanpa dependensi"
-```
+};
+;
 
----
+// load runtime
+var __webpack_require__ = require("../../../../webpack-runtime.js");
+__webpack_require__.C(exports);
+var __webpack_exec__ = (moduleId) => (__webpack_require__(__webpack_require__.s = moduleId))
+var __webpack_exports__ = __webpack_require__.X(0, [8948,9802,1615,8691,2857,3830,3542,1080,796,4160], () => (__webpack_exec__(15771)));
+module.exports = __webpack_exports__;
 
-### Task 7: UI Wali — thread chat + emoji
-
-**Files:**
-- Modify: `src/app/wali/pesan/page.tsx`
-
-**Interfaces:**
-- Consumes: `POST /api/messages` (Task 2), `GET /api/messages/list` (Task 3), `POST /api/messages/read` (Task 5), `EmojiPicker` (Task 6), `EventSource('/api/messages/stream')` (sudah ada)
-- Produces: tampilan thread wali; memanggil read saat thread dibuka.
-
-- [ ] **Step 1: Tulis ulang `src/app/wali/pesan/page.tsx`**
-
-```tsx
-"use client";
-
-import { useState, useEffect, useRef, useCallback } from "react";
-import { useSession } from "next-auth/react";
-import { Send, MessageCircle, ArrowLeft, Smile, Trash2 } from "lucide-react";
-import Link from "next/link";
-import EmojiPicker from "@/components/features/chat/EmojiPicker";
-
-interface Message {
-  id: string;
-  santri_id: string;
-  sender_type: "wali" | "kabid";
-  sender_id: string;
-  sender_name: string;
-  message: string;
-  is_read: boolean;
-  created_at: string;
-  santri?: { nama: string; nisn: string; classes?: { name: string } | null };
-}
-
-export default function WaliPesanPage() {
-  const { data: session } = useSession();
-  const [messages, setMessages; // placeholder, ganti di bawah
-}
-```
-
-> CATATAN: file lengkap cukup panjang; tulis seluruh isi berdasarkan struktur di bawah ini (bukan hanya stub).
-
-Struktur komponen (implementasikan lengkap):
-- `messages: Message[]`, `loading`, `input`, `sending`, `toast`, `bottomRef = useRef<HTMLDivElement>(null)`.
-- `fetchMessages = useCallback(async () => { fetch('/api/messages/list', {cache:'no-store'}) -> setMessages(data) }, [])`.
-- `useEffect` mount: `fetchMessages()`; `markRead()` (POST /api/messages/read); `EventSource('/api/messages/stream')` -> `fetchMessages()` + `markRead()`; fallback `setInterval(fetchMessages, 30000)`; cleanup.
-- `scrollToBottom()`: `bottomRef.current?.scrollIntoView()` dipanggil setelah `messages` berubah via `useEffect([messages])` HANYA bila user sudah di dekat bawah (cek `window.innerHeight + window.scrollY >= document.body.scrollHeight - 120`).
-- `sendMessage()`: bila `!input.trim() || sending` return; POST /api/messages `{ message: input.trim() }`; sukses -> `setInput("")`, `fetchMessages()`; gagal -> toast error.
-- Render:
-  - Header gradient hijau + tombol back ke `/wali/dashboard`.
-  - Container scroll: untuk tiap `msg`, bubble kiri (wali, emas `linear-gradient(135deg,#d4a843,#b8922f)`) bila `sender_type==='wali'`, kanan (admin, hijau `linear-gradient(135deg,#0d3b2e,#1a6b4f)`) bila `'kabid'`. Tampilkan `sender_name` + waktu (`formatDate`) + `msg.message` (whitespace-pre-wrap, break-words).
-  - `ref={bottomRef}` di akhir list.
-  - Input bar fixed bawah: `<EmojiPicker onSelect={(e)=>setInput(v=>v+e)} />` + `<input value={input} onChange onKeyDown(Enter) />` + tombol kirim (disable bila kosong/sending).
-- `formatDate(d)`: `new Date(d).toLocaleDateString("id-ID", {day:"numeric",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"})`.
-- Toast sukses/gagal sesuai pola sebelumnya.
-
-- [ ] **Step 2: Verifikasi**
-
-```bash
-npx tsc --noEmit
-npm run lint
-```
-Expected: lolos, tidak ada error.
-
-- [ ] **Step 3: Commit**
-
-```bash
-git add src/app/wali/pesan/page.tsx
-git commit -m "feat(ui): thread chat wali + emoji picker"
-```
-
----
-
-### Task 8: UI Kabid/Sekretaris — dua kolom + emoji
-
-**Files:**
-- Modify: `src/app/(dashboard)/pesan/page.tsx`
-
-**Interfaces:**
-- Consumes: `GET /api/messages/conversations` (Task 4), `GET /api/messages/list?santri_id=` (Task 3), `POST /api/messages` (Task 2), `POST /api/messages/read` (Task 5), `DELETE /api/messages/delete`, `EmojiPicker` (Task 6), `EventSource('/api/messages/stream')`
-- Produces: daftar conversation kiri + thread kanan; kirim pesan admin dengan `santri_id`.
-
-- [ ] **Step 1: Tulis ulang `src/app/(dashboard)/pesan/page.tsx`**
-
-Struktur komponen (implementasikan lengkap, ikuti pola UI yang sudah ada di project):
-- State: `conversations: any[]`, `selectedSantriId: string | null`, `selectedSantri: any`, `messages: Message[]`, `loadingConv`, `loadingMsg`, `input`, `sending`, `search`, `toast`, `bottomRef`.
-- `interface Message { id; santri_id; sender_type; sender_id; sender_name; message; is_read; created_at; santri? }`.
-- `fetchConversations = useCallback(async () => { GET /api/messages/conversations -> setConversations(data) }, [])`.
-- `fetchMessages = useCallback(async (santriId) => { GET /api/messages/list?santri_id= + santriId -> setMessages(data); setSelectedMsg sinkron }, [])`.
-- `markRead = useCallback(async (santriId) => { POST /api/messages/read {santri_id} }, [])`.
-- `useEffect` mount: `fetchConversations()`; `EventSource('/api/messages/stream')` -> `fetchConversations()` + bila `selectedSantriId` -> `fetchMessages(selectedSantriId)` + `markRead(selectedSantriId)`; fallback `setInterval(fetchConversations, 30000)`; cleanup.
-- `selectConversation(c)`: `setSelectedSantriId(c.santri_id)`; `setSelectedSantri(c.santri)`; `fetchMessages(c.santri_id)`; `markRead(c.santri_id)`.
-- `sendMessage()`: bila `!selectedSantriId || !input.trim() || sending` return; POST /api/messages `{ santri_id: selectedSantriId, message: input.trim() }`; sukses -> `setInput("")`, `fetchMessages(selectedSantriId)`, `fetchConversations()`; gagal -> toast.
-- `deleteMessage(id)`: confirm; POST /api/messages/delete `{message_id}`; sukses -> `fetchMessages(selectedSantriId)` + `fetchConversations()`.
-- Layout: grid `lg:grid-cols-[340px_1fr]`. Kiri: search + list conversation (avatar inisial, nama santri, preview `last_message`, waktu `last_at`, badge merah `unread_count`). Kanan: header (nama + kelas), thread bubble (sama seperti wali: wali kiri emas, kabid kanan hijau), input bar (`<EmojiPicker onSelect={...} />` + input + kirim), tombol hapus di header.
-- `filteredConversations` = filter by `search` (nama santri / nisn / last_message).
-- `unreadTotal` = sum `unread_count` untuk header "Pesan Masuk".
-
-- [ ] **Step 2: Verifikasi**
-
-```bash
-npx tsc --noEmit
-npm run lint
-```
-Expected: lolos.
-
-- [ ] **Step 3: Commit**
-
-```bash
-git add src/app/\(dashboard\)/pesan/page.tsx
-git commit -m "feat(ui): thread chat kabid/sekretaris + daftar conversation"
-```
-
----
-
-### Task 9: Verifikasi akhir & deploy
-
-**Files:** tidak ada perubahan kode baru.
-
-**Interfaces:** menggabungkan semua task.
-
-- [ ] **Step 1: Typecheck & lint global**
-
-```bash
-npx tsc --noEmit
-npm run lint
-```
-Expected: lolos tanpa error.
-
-- [ ] **Step 2: Build lokal (opsional, cepat gagal kalau ada error import)**
-
-```bash
-npm run build
-```
-Expected: build sukses (eslint diabaikan saat build per AGENTS.md).
-
-- [ ] **Step 3: Commit semua perubahan yang tersisa & push**
-
-```bash
-git add -A
-git commit -m "feat: chat thread wali-kabid (teks+emoji) selesai"
-git push origin master
-```
-
-- [ ] **Step 4: Deploy di VPS**
-
-```bash
-cd /var/www/tim-quran
-git pull
-npm install
-npm run build
-pm2 restart tim-quran
-```
-Pastikan `pm2 describe tim-quran | grep -i "exec mode"` = `fork_mode`.
-
-- [ ] **Step 5: Uji manual (browser)**
-  1. Wali buka `/wali/pesan`, kirim pesan → muncul di daftar conversation admin + badge unread.
-  2. Admin klik conversation, balas → muncul **instan** di wali (SSE) tanpa reload.
-  3. Emoji terkirim & tampil benar di kedua sisi.
-  4. Hapus pesan → hilang di kedua sisi.
-  5. Badge unread berkurang setelah thread dibuka.
-  6. Riwayat balasan lama (dari sebelum migrasi) muncul sebagai pesan admin di thread.
-
----
-
-## Self-Review
-
-- **Spec coverage:** Model data (Task 1) ✓; API send/list/conversations/read (Task 2-5) ✓; SSE reuse (Task 7-8 EventSource) ✓; UI wali (Task 7) ✓; UI admin dua kolom (Task 8) ✓; Emoji tanpa lib (Task 6) ✓; scope teks+emoji tanpa foto ✓; read receipt di-skip sesuai spec ✓; verifikasi & deploy (Task 9) ✓.
-- **Placeholder scan:** Task 7 mencantumkan struktur dengan catatan "tulis seluruh isi" — ini adalah panduan struktur, BUKAN placeholder kode; implementer wajib menulis komponen lengkap sesuai poin-poin tersebut (bukan TODO). Tidak ada "TBD"/"implement later".
-- **Type consistency:** `Message` interface konsisten (`sender_type: "wali"|"kabid"`, `santri_id`, `message`, `is_read`, `created_at`) di seluruh task. Nama route & field (`santri_id`, `last_message`, `unread_count`, `last_at`) konsisten antara Task 4 (produce) dan Task 8 (consume). `emitMessageUpdate()` dipanggil di Task 2 & 5.
+})();&F���#����"@�   ����f   (() => {
+var exports = {};
+exports.id 
