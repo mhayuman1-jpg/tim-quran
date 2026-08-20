@@ -3,14 +3,11 @@ export const dynamic = 'force-dynamic';
 
 // src/app/(dashboard)/laporan/capaian-lulusan/page.tsx
 // Halaman Grafik Capaian Lulusan untuk Kabid
-// Standar:
-//   Kelas 4: minimal Juz 30
-//   Kelas 6: minimal Juz 29-30
+// Standar per kelas & semester
 
 import React, { useState, useEffect } from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
-import { Award, Users, TrendingUp, AlertCircle, ChevronDown, ChevronRight } from 'lucide-react';
-import Button from '@/components/ui/Button';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { Award, Users, TrendingUp, AlertCircle, ChevronDown, ChevronRight, BookOpen, GraduationCap } from 'lucide-react';
 
 interface StudentAchievement {
   id: string;
@@ -22,6 +19,8 @@ interface StudentAchievement {
 interface ClassStat {
   class_name: string;
   class_number: number;
+  semester: string;
+  semester_standar_label: string;
   total_students: number;
   achieved: number;
   not_achieved: number;
@@ -36,15 +35,27 @@ interface Summary {
   total_percentage: number;
 }
 
+interface SurahInfo {
+  pos: number;
+  no: number;
+  name: string;
+}
+
+interface Standards {
+  [kelas: number]: { smt1: string; smt2: string };
+}
+
 interface ApiResponse {
   classes: ClassStat[];
   summary: Summary;
-  standards: Record<number, number>;
+  standards: Standards;
+  current_semester: string;
+  juz30_surahs: SurahInfo[];
 }
 
 const CHART_COLORS = {
-  achieved: '#22c55e',    // hijau
-  notAchieved: '#ef4444', // merah
+  achieved: '#22c55e',
+  notAchieved: '#ef4444',
 };
 
 export default function CapaianLulusanPage() {
@@ -66,7 +77,6 @@ export default function CapaianLulusanPage() {
     setExpandedClass((prev) => (prev === className ? null : className));
   };
 
-  // Format data untuk chart - tampilkan semua kelas (1-6)
   const chartData = data?.classes
     .filter((c) => c.class_number >= 1 && c.class_number <= 6)
     .map((c) => ({
@@ -85,7 +95,7 @@ export default function CapaianLulusanPage() {
           Capaian Lulusan
         </h1>
         <p className="text-slate-500 text-sm mt-1">
-          Grafik standar capaian hafalan siswa per kelas.
+          Standar capaian hafalan siswa per kelas & semester.
         </p>
       </div>
 
@@ -145,26 +155,37 @@ export default function CapaianLulusanPage() {
             </div>
           </div>
 
-          {/* Standar info */}
-          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
-            <h3 className="text-sm font-semibold text-amber-800 mb-3">Standar Capaian Lulusan — Kurikulum Hafalan SDIT Al-Hilmi</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-amber-700">
-              <div className="bg-white/60 rounded-lg p-3 border border-amber-100">
-                <div className="font-semibold text-amber-800 mb-1">Kelas 1-4: Juz 30</div>
-                <div className="text-xs space-y-0.5">
-                  <p>Lev I (Kelas 1-2): AnNas – At Takatsur</p>
-                  <p>Lev II (Kelas 3-4): Al Qoriah – Ad Dhuha</p>
-                  <p className="font-medium pt-1">Target Kelas 4: Juz 30 selesai</p>
-                </div>
-              </div>
-              <div className="bg-white/60 rounded-lg p-3 border border-amber-100">
-                <div className="font-semibold text-amber-800 mb-1">Kelas 5-6: Juz 29</div>
-                <div className="text-xs space-y-0.5">
-                  <p>Lev III (Kelas 5): Al Lail – Al A'la</p>
-                  <p>Lev IV (Kelas 6): At Thoriq – An Naba</p>
-                  <p className="font-medium pt-1">Target Kelas 6: Juz 30 & 29 selesai</p>
-                </div>
-              </div>
+          {/* Standar per kelas & semester */}
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+            <div className="flex items-center gap-2 mb-4">
+              <GraduationCap size={18} className="text-amber-600" />
+              <h2 className="text-base font-semibold text-slate-800">
+                Standar Capaian per Kelas & Semester
+              </h2>
+              <span className="ml-auto text-xs font-medium text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">
+                Semester Aktif: {data.current_semester}
+              </span>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-200">
+                    <th className="text-left py-2 px-3 font-medium text-slate-600">Kelas</th>
+                    <th className="text-left py-2 px-3 font-medium text-slate-600">Semester 1 (Ganjil)</th>
+                    <th className="text-left py-2 px-3 font-medium text-slate-600">Semester 2 (Genap)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[1, 2, 3, 4, 5, 6].map((kelas) => (
+                    <tr key={kelas} className="border-b border-slate-100 last:border-0">
+                      <td className="py-2.5 px-3 font-medium text-slate-800">Kelas {kelas}</td>
+                      <td className="py-2.5 px-3 text-slate-600">{data.standards[kelas]?.smt1 ?? '-'}</td>
+                      <td className="py-2.5 px-3 text-slate-600">{data.standards[kelas]?.smt2 ?? '-'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
 
@@ -172,7 +193,7 @@ export default function CapaianLulusanPage() {
           {chartData.length > 0 && (
             <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
               <h2 className="text-base font-semibold text-slate-800 mb-4">
-                Grafik Capaian per Kelas
+                Grafik Capaian per Kelas (Semester {data.current_semester})
               </h2>
               <ResponsiveContainer width="100%" height={350}>
                 <BarChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
@@ -210,7 +231,6 @@ export default function CapaianLulusanPage() {
                 .filter((c) => c.class_number >= 1 && c.class_number <= 6)
                 .map((cls) => (
                   <div key={cls.class_name} className="border border-slate-200 rounded-xl overflow-hidden">
-                    {/* Class header */}
                     <button
                       type="button"
                       onClick={() => toggleExpand(cls.class_name)}
@@ -223,12 +243,12 @@ export default function CapaianLulusanPage() {
                           <ChevronRight size={16} className="text-slate-400" />
                         )}
                         <span className="font-medium text-slate-800">{cls.class_name}</span>
-                        <span className="text-sm text-slate-500">
-                          {cls.total_students} siswa
+                        <span className="text-sm text-slate-500">{cls.total_students} siswa</span>
+                        <span className="text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">
+                          Target: {cls.semester_standar_label}
                         </span>
                       </div>
                       <div className="flex items-center gap-3">
-                        {/* Progress bar */}
                         <div className="w-32 h-2 bg-slate-200 rounded-full overflow-hidden">
                           <div
                             className="h-full bg-emerald-500 rounded-full transition-all"
@@ -243,7 +263,6 @@ export default function CapaianLulusanPage() {
                       </div>
                     </button>
 
-                    {/* Student list (expanded) */}
                     {expandedClass === cls.class_name && (
                       <div className="border-t border-slate-200 divide-y divide-slate-100 max-h-[300px] overflow-y-auto">
                         {cls.students.map((s) => (
@@ -266,6 +285,30 @@ export default function CapaianLulusanPage() {
                     )}
                   </div>
                 ))}
+            </div>
+          </div>
+
+          {/* Referensi Surah Juz 30 */}
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+            <div className="flex items-center gap-2 mb-4">
+              <BookOpen size={18} className="text-indigo-500" />
+              <h2 className="text-base font-semibold text-slate-800">
+                Referensi Surah Juz 30
+              </h2>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+              {data.juz30_surahs.map((s) => (
+                <div
+                  key={s.pos}
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-50 text-sm"
+                >
+                  <span className="w-6 h-6 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center text-xs font-semibold shrink-0">
+                    {s.pos}
+                  </span>
+                  <span className="text-slate-700">{s.name}</span>
+                  <span className="text-xs text-slate-400 ml-auto">{s.no}</span>
+                </div>
+              ))}
             </div>
           </div>
         </>

@@ -1,10 +1,17 @@
 // src/app/api/laporan/capaian-lulusan/route.ts
 // GET: Statistik capaian lulusan per kelas (Kabid only)
-// Standar:
-//   Kelas 1-3: tidak ada standar wajib
-//   Kelas 4: minimal Juz 30
-//   Kelas 5: minimal Juz 30
-//   Kelas 6: minimal Juz 29-30 (2 juz)
+//
+// Standar per kelas & semester:
+//   Kelas 1 Smt1: An Naas - Al Kautsar (surah 114-108)
+//   Kelas 1 Smt2: Al Ma'un - At Takatsur (surah 107-102)
+//   Kelas 2 Smt1: Al Qari'ah - Al Bayyinah (surah 101-98)
+//   Kelas 2 Smt2: Al Qadr - Ad Duha (surah 97-93)
+//   Kelas 3 Smt1: Juz 30 (surah 92-86)
+//   Kelas 3 Smt2: Juz 30 selesai
+//   Kelas 4: Juz 30 selesai
+//   Kelas 5-6: Juz 30 & 29 selesai
+//
+// Format juz_terakhir: "30", "30 & 29", "30 & 29 & 28"
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
@@ -13,21 +20,137 @@ import { createServerClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
 
-// Standar capaian per kelas:
-//   Kelas 1-4: Proses menghafal Juz 30 → Target di kelas 4: sudah hafal Juz 30
-//   Kelas 5-6: Proses menghafal Juz 29-30 → Target di kelas 6: sudah hafal Juz 29 & 30
-// Format juz_terakhir: "30", "30 & 29", "30 & 29 & 28", dst.
-const STANDAR_PER_KELAS: Record<number, string[]> = {
-  1: [],       // Belum ada target
-  2: [],       // Belum ada target
-  3: [],       // Belum ada target
-  4: ['30'],   // Target: Juz 30
-  5: ['30', '29'],  // Target: Juz 30 & 29
-  6: ['30', '29'],  // Target: Juz 30 & 29
+// ── Mapping surah dalam Juz 30 (posisi dari awal Juz 30) ──────────────────
+// Urutan surah di Juz 30 dari An-Nas (114) ke Ad-Duha (93)
+const JUZ30_SURAHS = [
+  { pos: 1, no: 114, name: 'An Nas' },
+  { pos: 2, no: 113, name: 'Al Falaq' },
+  { pos: 3, no: 112, name: 'Al Ikhlas' },
+  { pos: 4, no: 111, name: 'Al Masad' },
+  { pos: 5, no: 110, name: 'An Nasr' },
+  { pos: 6, no: 109, name: 'Al Kafirun' },
+  { pos: 7, no: 108, name: 'Al Kautsar' },
+  { pos: 8, no: 107, name: 'Al Maun' },
+  { pos: 9, no: 106, name: 'Quraisy' },
+  { pos: 10, no: 105, name: 'Al Fil' },
+  { pos: 11, no: 104, name: 'Al Humazah' },
+  { pos: 12, no: 103, name: 'Al Asr' },
+  { pos: 13, no: 102, name: 'At Takatsur' },
+  { pos: 14, no: 101, name: 'Al Qariah' },
+  { pos: 15, no: 100, name: 'Al Adiyat' },
+  { pos: 16, no: 99, name: 'Az Zalzalah' },
+  { pos: 17, no: 98, name: 'Al Bayyinah' },
+  { pos: 18, no: 97, name: 'Al Qadr' },
+  { pos: 19, no: 96, name: 'Al Alaq' },
+  { pos: 20, no: 95, name: 'At Tin' },
+  { pos: 21, no: 94, name: 'Ash Sharh' },
+  { pos: 22, no: 93, name: 'Ad Duha' },
+  { pos: 23, no: 92, name: 'Al Lail' },
+  { pos: 24, no: 91, name: 'Ash Shams' },
+  { pos: 25, no: 90, name: 'Al Balad' },
+  { pos: 26, no: 89, name: 'Al Fajr' },
+  { pos: 27, no: 88, name: 'Al Ghashiyah' },
+  { pos: 28, no: 87, name: "Al A'la" },
+  { pos: 29, no: 86, name: 'At Tariq' },
+  { pos: 30, no: 85, name: 'Al Buruj' },
+  { pos: 31, no: 84, name: 'Al Inshiqaq' },
+  { pos: 32, no: 83, name: 'Al Mutaffifin' },
+  { pos: 33, no: 82, name: 'Al Infitar' },
+  { pos: 34, no: 81, name: 'At Takwir' },
+  { pos: 35, no: 80, name: 'Abasa' },
+  { pos: 36, no: 79, name: 'An Naziat' },
+  { pos: 37, no: 78, name: 'An Naba' },
+];
+
+// ── Standar capaian per kelas & semester ──────────────────────────────────
+interface SemesterStandar {
+  semester: 1 | 2;
+  label: string;           // Label tampilan
+  required_juz: string[];  // Juz yang harus selesai (untuk kelas 3+)
+  required_surah_range?: { start_pos: number; end_pos: number }; // Range surah di Juz 30 (untuk kelas 1-2)
+}
+
+const STANDAR_PER_KELAS: Record<number, SemesterStandar[]> = {
+  1: [
+    {
+      semester: 1,
+      label: 'An Naas - Al Kautsar',
+      required_juz: [],
+      required_surah_range: { start_pos: 1, end_pos: 7 },  // posisi 1-7
+    },
+    {
+      semester: 2,
+      label: "Al Ma'un - At Takatsur",
+      required_juz: [],
+      required_surah_range: { start_pos: 8, end_pos: 13 }, // posisi 8-13
+    },
+  ],
+  2: [
+    {
+      semester: 1,
+      label: "Al Qari'ah - Al Bayyinah",
+      required_juz: [],
+      required_surah_range: { start_pos: 14, end_pos: 17 }, // posisi 14-17
+    },
+    {
+      semester: 2,
+      label: 'Al Qadr - Ad Duha',
+      required_juz: [],
+      required_surah_range: { start_pos: 18, end_pos: 22 }, // posisi 18-22
+    },
+  ],
+  3: [
+    {
+      semester: 1,
+      label: 'Juz 30 (setengah)',
+      required_juz: [],
+      required_surah_range: { start_pos: 1, end_pos: 18 }, // posisi 1-18
+    },
+    {
+      semester: 2,
+      label: 'Juz 30 selesai',
+      required_juz: ['30'],
+    },
+  ],
+  4: [
+    {
+      semester: 1,
+      label: 'Juz 30',
+      required_juz: ['30'],
+    },
+    {
+      semester: 2,
+      label: 'Juz 30',
+      required_juz: ['30'],
+    },
+  ],
+  5: [
+    {
+      semester: 1,
+      label: 'Juz 30',
+      required_juz: ['30'],
+    },
+    {
+      semester: 2,
+      label: 'Juz 30 & 29',
+      required_juz: ['30', '29'],
+    },
+  ],
+  6: [
+    {
+      semester: 1,
+      label: 'Juz 30 & 29',
+      required_juz: ['30', '29'],
+    },
+    {
+      semester: 2,
+      label: 'Juz 30 & 29',
+      required_juz: ['30', '29'],
+    },
+  ],
 };
 
 // Parse juz_terakhir string ke array angka juz
-// "30" → [30], "30 & 29" → [30, 29], "30 & 29 & 28" → [30, 29, 28]
 function parseJuzList(juzStr: string | null | undefined): number[] {
   if (!juzStr) return [];
   return juzStr
@@ -36,20 +159,37 @@ function parseJuzList(juzStr: string | null | undefined): number[] {
     .filter((n) => !isNaN(n));
 }
 
-// Cek apakah siswa sudah capai standar
-function hasAchieved(juzStr: string | null | undefined, requiredJuz: string[]): boolean {
-  if (requiredJuz.length === 0) return true; // Tidak ada standar = otomatis capai
+// Cek apakah siswa sudah capai standar berdasarkan juz
+function hasAchievedByJuz(juzStr: string | null | undefined, requiredJuz: string[]): boolean {
+  if (requiredJuz.length === 0) return true;
   const completed = parseJuzList(juzStr);
   return requiredJuz.every((j) => completed.includes(parseInt(j, 10)));
 }
 
-// Ekstrak nomor kelas dari nama kelas (misal: "4 Shofa" → 4, "1 Imam Maliki" → 1)
+// Ekstrak nomor kelas dari nama kelas
 function extractClassNumber(className: string | null | undefined): number {
   if (!className) return 0;
   const match = className.match(/^(\d+)/);
   return match ? parseInt(match[1], 10) : 0;
 }
 
+// ── Ambil semester aktif dari database ──────────────────────────────────────
+async function getActiveSemester(supabase: any): Promise<'Ganjil' | 'Genap'> {
+  const { data } = await supabase
+    .from('semester_settings')
+    .select('semester_name')
+    .eq('is_active', true)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .single();
+
+  if (data?.semester_name) {
+    return data.semester_name.toLowerCase().includes('genap') ? 'Genap' : 'Ganjil';
+  }
+  return 'Ganjil'; // Default
+}
+
+// ── Types ──────────────────────────────────────────────────────────────────
 interface StudentData {
   id: string;
   nama: string;
@@ -60,9 +200,11 @@ interface StudentData {
 interface ClassStats {
   class_name: string;
   class_number: number;
+  semester: 'Ganjil' | 'Genap';
+  semester_standar_label: string;
   total_students: number;
-  achieved: number;        // Siswa yang sudah capai standar
-  not_achieved: number;    // Siswa yang belum capai standar
+  achieved: number;
+  not_achieved: number;
   percentage: number;
   students: {
     id: string;
@@ -84,6 +226,10 @@ export async function GET(request: NextRequest) {
     }
 
     const supabase = createServerClient();
+
+    // Ambil semester aktif
+    const activeSemester = await getActiveSemester(supabase);
+    const currentSemesterNum = activeSemester === 'Ganjil' ? 1 : 2;
 
     // Ambil semua siswa aktif beserta kelasnya
     const { data: students, error } = await supabase
@@ -107,9 +253,14 @@ export async function GET(request: NextRequest) {
       const classNumber = extractClassNumber(className);
 
       if (!classMap.has(className)) {
+        const standarList = STANDAR_PER_KELAS[classNumber] ?? [];
+        const currentStandar = standarList.find((st) => st.semester === currentSemesterNum);
+
         classMap.set(className, {
           class_name: className,
           class_number: classNumber,
+          semester: activeSemester,
+          semester_standar_label: currentStandar?.label ?? '-',
           total_students: 0,
           achieved: 0,
           not_achieved: 0,
@@ -121,8 +272,11 @@ export async function GET(request: NextRequest) {
       const stats = classMap.get(className)!;
       stats.total_students++;
 
-      const requiredJuz = STANDAR_PER_KELAS[classNumber] ?? [];
-      const achieved = hasAchieved(s.juz_terakhir, requiredJuz);
+      // Cek capaian berdasarkan standar kelas saat ini
+      const standarList = STANDAR_PER_KELAS[classNumber] ?? [];
+      const currentStandar = standarList.find((st) => st.semester === currentSemesterNum);
+      const requiredJuz = currentStandar?.required_juz ?? [];
+      const achieved = hasAchievedByJuz(s.juz_terakhir, requiredJuz);
 
       if (achieved) {
         stats.achieved++;
@@ -156,6 +310,17 @@ export async function GET(request: NextRequest) {
       ? Math.round((totalAchieved / totalStudents) * 100)
       : 0;
 
+    // Format standar untuk response
+    const standardsFormatted: Record<number, { smt1: string; smt2: string }> = {};
+    for (const [kelas, standars] of Object.entries(STANDAR_PER_KELAS)) {
+      const smt1 = standars.find((s) => s.semester === 1);
+      const smt2 = standars.find((s) => s.semester === 2);
+      standardsFormatted[Number(kelas)] = {
+        smt1: smt1?.label ?? '-',
+        smt2: smt2?.label ?? '-',
+      };
+    }
+
     return NextResponse.json({
       data: {
         classes: classStats,
@@ -165,9 +330,9 @@ export async function GET(request: NextRequest) {
           total_not_achieved: totalStudents - totalAchieved,
           total_percentage: totalPercentage,
         },
-        standards: Object.fromEntries(
-          Object.entries(STANDAR_PER_KELAS).map(([k, v]) => [k, v.length > 0 ? `Juz ${v.join(' & ')}` : '-'])
-        ),
+        standards: standardsFormatted,
+        current_semester: activeSemester,
+        juz30_surahs: JUZ30_SURAHS,
       },
     });
   } catch (error) {
