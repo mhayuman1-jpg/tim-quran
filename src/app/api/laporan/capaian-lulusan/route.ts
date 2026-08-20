@@ -10,7 +10,7 @@
 //   Kelas 3 Smt2: Al Fajr - Al A'la (surah 89-87)
 //   Kelas 4 Smt1: At Tharikh - Al Infitar (surah 86-82)
 //   Kelas 4 Smt2: At Takwir - An Naba' (surah 81-78)
-//   Kelas 5-6: Juz 30 & 29
+//   Kelas 5: Juz 29
 //
 // Kelas 1-4: Cek dari tabel hafalan (harus sudah dinilai guru)
 // Kelas 5-6: Cek dari field juz_terakhir
@@ -72,8 +72,8 @@ const STANDAR_PER_KELAS: Record<number, SemesterStandar[]> = {
     { semester: 2, label: "At Takwir - An Naba'", type: 'surah', surah_range: { start: 81, end: 78 } },
   ],
   5: [
-    { semester: 1, label: 'Juz 30', type: 'juz', required_juz: ['30'] },
-    { semester: 2, label: 'Juz 30 & 29', type: 'juz', required_juz: ['30', '29'] },
+    { semester: 1, label: 'Juz 29', type: 'juz', required_juz: ['29'] },
+    { semester: 2, label: 'Juz 29', type: 'juz', required_juz: ['29'] },
   ],
   6: [
     { semester: 1, label: 'Juz 30 & 29', type: 'juz', required_juz: ['30', '29'] },
