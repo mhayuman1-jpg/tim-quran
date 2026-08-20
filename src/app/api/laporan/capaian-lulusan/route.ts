@@ -16,22 +16,31 @@ export const dynamic = 'force-dynamic';
 // Standar capaian per kelas:
 //   Kelas 1-4: Proses menghafal Juz 30 → Target di kelas 4: sudah hafal Juz 30
 //   Kelas 5-6: Proses menghafal Juz 29-30 → Target di kelas 6: sudah hafal Juz 29 & 30
-// Logic: juz_terakhir <= standar = sudah capai (karena Juz 30 > 29 > 28, makin kecil = makin banyak hafalan)
-const STANDAR_PER_KELAS: Record<number, number> = {
-  1: 0,   // Belum ada target
-  2: 0,   // Belum ada target
-  3: 0,   // Belum ada target
-  4: 30,  // Target: Juz 30
-  5: 29,  // Target: Juz 29 (sudah hafal Juz 30 & 29)
-  6: 29,  // Target: Juz 29 (sudah hafal Juz 30 & 29)
+// Format juz_terakhir: "30", "30 & 29", "30 & 29 & 28", dst.
+const STANDAR_PER_KELAS: Record<number, string[]> = {
+  1: [],       // Belum ada target
+  2: [],       // Belum ada target
+  3: [],       // Belum ada target
+  4: ['30'],   // Target: Juz 30
+  5: ['30', '29'],  // Target: Juz 30 & 29
+  6: ['30', '29'],  // Target: Juz 30 & 29
 };
 
-// Konversi juz_terakhir string ke angka untuk perbandingan
-// Misal: "30" → 30, "29" → 29, "15" → 15, "" → 0
-function parseJuz(juzStr: string | null | undefined): number {
-  if (!juzStr) return 0;
-  const n = parseInt(juzStr.replace(/\D/g, ''), 10);
-  return isNaN(n) ? 0 : n;
+// Parse juz_terakhir string ke array angka juz
+// "30" → [30], "30 & 29" → [30, 29], "30 & 29 & 28" → [30, 29, 28]
+function parseJuzList(juzStr: string | null | undefined): number[] {
+  if (!juzStr) return [];
+  return juzStr
+    .split('&')
+    .map((s) => parseInt(s.replace(/\D/g, ''), 10))
+    .filter((n) => !isNaN(n));
+}
+
+// Cek apakah siswa sudah capai standar
+function hasAchieved(juzStr: string | null | undefined, requiredJuz: string[]): boolean {
+  if (requiredJuz.length === 0) return true; // Tidak ada standar = otomatis capai
+  const completed = parseJuzList(juzStr);
+  return requiredJuz.every((j) => completed.includes(parseInt(j, 10)));
 }
 
 // Ekstrak nomor kelas dari nama kelas (misal: "4 Shofa" → 4, "1 Imam Maliki" → 1)
@@ -112,9 +121,8 @@ export async function GET(request: NextRequest) {
       const stats = classMap.get(className)!;
       stats.total_students++;
 
-      const juz = parseJuz(s.juz_terakhir);
-      const standar = STANDAR_PER_KELAS[classNumber] ?? 0;
-      const achieved = standar === 0 ? true : juz <= standar && juz > 0;
+      const requiredJuz = STANDAR_PER_KELAS[classNumber] ?? [];
+      const achieved = hasAchieved(s.juz_terakhir, requiredJuz);
 
       if (achieved) {
         stats.achieved++;
@@ -157,7 +165,9 @@ export async function GET(request: NextRequest) {
           total_not_achieved: totalStudents - totalAchieved,
           total_percentage: totalPercentage,
         },
-        standards: STANDAR_PER_KELAS,
+        standards: Object.fromEntries(
+          Object.entries(STANDAR_PER_KELAS).map(([k, v]) => [k, v.length > 0 ? `Juz ${v.join(' & ')}` : '-'])
+        ),
       },
     });
   } catch (error) {
