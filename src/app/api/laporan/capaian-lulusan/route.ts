@@ -247,20 +247,32 @@ export async function GET(request: NextRequest) {
 
     const studentList = allStudents;
 
-    // Ambil SEMUA data hafalan untuk siswa (dengan pagination)
+    // Ambil SEMUA data hafalan untuk siswa (dengan pagination per chunk + per chunk)
     const studentIds = studentList.map((s) => s.id);
     let allHafalan: HafalanEntry[] = [];
 
     if (studentIds.length > 0) {
-      // Batch in chunks of 500 (Supabase .in() limit)
-      const chunkSize = 500;
+      // Batch in chunks of 200 (Supabase .in() limit aman)
+      const chunkSize = 200;
       for (let i = 0; i < studentIds.length; i += chunkSize) {
         const chunk = studentIds.slice(i, i + chunkSize);
-        const { data: hafalanData } = await supabase
-          .from('hafalan')
-          .select('student_id, surah_juz, tanggal, lancar, makhroj, tajwid, created_at')
-          .in('student_id', chunk);
-        allHafalan.push(...((hafalanData ?? []) as HafalanEntry[]));
+
+        // Pagination per chunk untuk handle >1000 hafalan per batch
+        let hafalanOffset = 0;
+        let hafalanHasMore = true;
+        while (hafalanHasMore) {
+          const { data: hafalanData } = await supabase
+            .from('hafalan')
+            .select('student_id, surah_juz, tanggal, lancar, makhroj, tajwid, created_at')
+            .in('student_id', chunk)
+            .order('tanggal', { ascending: false })
+            .range(hafalanOffset, hafalanOffset + 999);
+
+          const batch = (hafalanData ?? []) as HafalanEntry[];
+          allHafalan.push(...batch);
+          hafalanHasMore = batch.length === 1000;
+          hafalanOffset += 1000;
+        }
       }
     }
 
