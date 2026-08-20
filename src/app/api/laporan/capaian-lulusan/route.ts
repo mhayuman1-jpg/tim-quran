@@ -175,9 +175,11 @@ interface StudentData {
 interface HafalanEntry {
   student_id: string;
   surah_juz: string;
+  tanggal: string;
   lancar?: string | null;
   makhroj?: string | null;
   tajwid?: string | null;
+  created_at?: string;
 }
 
 interface ClassStats {
@@ -194,6 +196,13 @@ interface ClassStats {
     nama: string;
     juz_terakhir: string | null;
     achieved: boolean;
+    total_hafalan: number;
+    latest_hafalan: {
+      surah_juz: string;
+      tanggal: string;
+      lancar?: string | null;
+      makhroj?: string | null;
+    } | null;
   }[];
 }
 
@@ -249,7 +258,7 @@ export async function GET(request: NextRequest) {
         const chunk = studentIds.slice(i, i + chunkSize);
         const { data: hafalanData } = await supabase
           .from('hafalan')
-          .select('student_id, surah_juz, lancar, makhroj, tajwid')
+          .select('student_id, surah_juz, tanggal, lancar, makhroj, tajwid, created_at')
           .in('student_id', chunk);
         allHafalan.push(...((hafalanData ?? []) as HafalanEntry[]));
       }
@@ -313,11 +322,34 @@ export async function GET(request: NextRequest) {
         stats.not_achieved++;
       }
 
+      // Hitung total hafalan & ambil terbaru
+      const studentHafalanList = hafalanByStudent.get(s.id) ?? [];
+      const totalHafalan = studentHafalanList.length;
+
+      // Ambil hafalan terbaru (by tanggal + created_at terbesar)
+      let latestHafalan: typeof stats.students[0]['latest_hafalan'] = null;
+      if (studentHafalanList.length > 0) {
+        const sorted = [...studentHafalanList].sort((a, b) => {
+          const dateA = a.tanggal || a.created_at || '';
+          const dateB = b.tanggal || b.created_at || '';
+          return dateB.localeCompare(dateA);
+        });
+        const latest = sorted[0];
+        latestHafalan = {
+          surah_juz: latest.surah_juz,
+          tanggal: latest.tanggal,
+          lancar: latest.lancar,
+          makhroj: latest.makhroj,
+        };
+      }
+
       stats.students.push({
         id: s.id,
         nama: s.nama,
         juz_terakhir: s.juz_terakhir,
         achieved,
+        total_hafalan: totalHafalan,
+        latest_hafalan: latestHafalan,
       });
     }
 

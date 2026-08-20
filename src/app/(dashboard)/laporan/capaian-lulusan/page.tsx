@@ -14,6 +14,13 @@ interface StudentAchievement {
   nama: string;
   juz_terakhir: string | null;
   achieved: boolean;
+  total_hafalan: number;
+  latest_hafalan: {
+    surah_juz: string;
+    tanggal: string;
+    lancar?: string | null;
+    makhroj?: string | null;
+  } | null;
 }
 
 interface ClassStat {
@@ -278,21 +285,55 @@ export default function CapaianLulusanPage() {
                           .map((s) => (
                             <div
                               key={s.id}
-                              className={`flex items-center justify-between px-4 py-2.5 text-sm ${
+                              className={`px-4 py-3 text-sm border-b border-slate-100 last:border-0 ${
                                 s.achieved ? 'bg-white' : 'bg-red-50/50'
                               }`}
                             >
-                              <div className="flex items-center gap-2">
-                                <span className={s.achieved ? 'text-emerald-500' : 'text-red-500'}>
-                                  {s.achieved ? '✓' : '✗'}
-                                </span>
-                                <span className={s.achieved ? 'text-slate-700' : 'text-slate-800 font-medium'}>
-                                  {s.nama}
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <span className={s.achieved ? 'text-emerald-500' : 'text-red-500'}>
+                                    {s.achieved ? '✓' : '✗'}
+                                  </span>
+                                  <span className={s.achieved ? 'text-slate-700' : 'text-slate-800 font-medium'}>
+                                    {s.nama}
+                                  </span>
+                                </div>
+                                <span className="text-slate-500">
+                                  {s.juz_terakhir ? `Juz ${s.juz_terakhir}` : 'Belum ada'}
                                 </span>
                               </div>
-                              <span className="text-slate-500">
-                                {s.juz_terakhir ? `Juz ${s.juz_terakhir}` : 'Belum ada'}
-                              </span>
+                              {/* Detail capaian terkini */}
+                              <div className="mt-1.5 ml-6 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500">
+                                {s.latest_hafalan ? (
+                                  <>
+                                    <span className="flex items-center gap-1">
+                                      <span className="text-amber-600">Terakhir:</span>
+                                      <span className="font-medium text-slate-700">{s.latest_hafalan.surah_juz}</span>
+                                      <span className="text-slate-400">·</span>
+                                      <span>{new Date(s.latest_hafalan.tanggal).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                                    </span>
+                                    {(s.latest_hafalan.lancar || s.latest_hafalan.makhroj) && (
+                                      <span className="flex items-center gap-1">
+                                        {s.latest_hafalan.lancar && (
+                                          <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 font-medium">
+                                            {s.latest_hafalan.lancar}
+                                          </span>
+                                        )}
+                                        {s.latest_hafalan.makhroj && (
+                                          <span className="px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 font-medium">
+                                            M: {s.latest_hafalan.makhroj}
+                                          </span>
+                                        )}
+                                      </span>
+                                    )}
+                                  </>
+                                ) : (
+                                  <span className="text-slate-400 italic">Belum ada catatan hafalan</span>
+                                )}
+                                <span className="text-slate-400">
+                                  {s.total_hafalan} setoran
+                                </span>
+                              </div>
                             </div>
                           ))}
                       </div>
