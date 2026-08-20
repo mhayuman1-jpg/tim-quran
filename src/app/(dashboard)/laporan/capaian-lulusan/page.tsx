@@ -5,22 +5,16 @@ export const dynamic = 'force-dynamic';
 // Halaman Grafik Capaian Lulusan untuk Kabid
 // Standar per kelas & semester
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { Award, Users, TrendingUp, AlertCircle, ChevronDown, ChevronRight, GraduationCap } from 'lucide-react';
+import { Award, Users, TrendingUp, AlertCircle, ChevronDown, ChevronRight, GraduationCap, Download, Loader2 } from 'lucide-react';
+import Button from '@/components/ui/Button';
 
 interface StudentAchievement {
   id: string;
   nama: string;
   juz_terakhir: string | null;
   achieved: boolean;
-  total_hafalan: number;
-  latest_hafalan: {
-    surah_juz: string;
-    tanggal: string;
-    lancar?: string | null;
-    makhroj?: string | null;
-  } | null;
 }
 
 interface ClassStat {
@@ -63,6 +57,8 @@ export default function CapaianLulusanPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expandedClass, setExpandedClass] = useState<string | null>(null);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
+  const chartRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setLoading(true);
@@ -86,17 +82,230 @@ export default function CapaianLulusanPage() {
       percentage: c.percentage,
     })) ?? [];
 
+  const handleDownloadPdf = useCallback(async () => {
+    if (!data) return;
+    setDownloadingPdf(true);
+    try {
+      const { default: jsPDF } = await import('jspdf');
+      const { default: autoTable } = await import('jspdf-autotable');
+      const { toPng } = await import('html-to-image');
+
+      let logoSekolah: string | null = null;
+      let logoLembaga: string | null = null;
+      let namaSekolah = '';
+      try {
+        const profilRes = await fetch('/api/website/profil');
+        const profilJson = await profilRes.json();
+        if (profilJson?.data) {
+          if (profilJson.data.logo_sekolah_url) {
+            const { toImageUrl } = await import('@/lib/storage/urls');
+            logoSekolah = toImageUrl(profilJson.data.logo_sekolah_url);
+          }
+          if (profilJson.data.logo_url) {
+            const { toImageUrl } = await import('@/lib/storage/urls');
+            logoLembaga = toImageUrl(profilJson.data.logo_url);
+          }
+          namaSekolah = profilJson.data.nama_sekolah || '';
+        }
+      } catch { /* logos optional */ }
+
+      const urlToBase64 = async (url: string): Promise<string | null> => {
+        try {
+          const res = await fetch(url);
+          const blob = await res.blob();
+          return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.onerror = () => resolve(null);
+            reader.readAsDataURL(blob);
+          });
+        } catch { return null; }
+      };
+
+      const [logoSekolahB64, logoLembagaB64] = await Promise.all([
+        logoSekolah ? urlToBase64(logoSekolah) : Promise.resolve(null),
+        logoLembaga ? urlToBase64(logoLembaga) : Promise.resolve(null),
+      ]);
+
+      // Capture chart
+      let chartImg: string | null = null;
+      if (chartRef.current) {
+        try {
+          chartImg = await toPng(chartRef.current, { backgroundColor: '#ffffff', pixelRatio: 2 });
+        } catch { /* chart optional */ }
+      }
+
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+      const pageW = doc.internal.pageSize.getWidth();
+      const pageH = doc.internal.pageSize.getHeight();
+      let y = 15;
+
+      // ── Colored top bar
+      doc.setFillColor(245, 158, 11); // amber-500
+      doc.rect(0, 0, pageW, 3, 'F');
+
+      // ── Logos
+      if (logoLembagaB64) {
+        try { doc.addImage(logoLembagaB64, 'PNG', 15, 8, 14, 14); } catch {}
+      }
+      if (logoSekolahB64) {
+        try { doc.addImage(logoSekolahB64, 'PNG', pageW - 29, 8, 14, 14); } catch {}
+      }
+
+      // ── Title
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(14);
+      doc.setTextColor(30, 41, 59);
+      doc.text('LAPORAN CAPAIAN LULUSAN', pageW / 2, y + 4, { align: 'center' });
+      y += 10;
+      if (namaSekolah) {
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(10);
+        doc.setTextColor(100, 116, 139);
+        doc.text(namaSekolah, pageW / 2, y, { align: 'center' });
+        y += 5;
+      }
+      doc.setFontSize(9);
+      doc.text(`Semester Aktif: ${data.current_semester}  |  Tanggal Cetak: ${new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}`, pageW / 2, y, { align: 'center' });
+      y += 10;
+
+      // ── Summary table
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(11);
+      doc.setTextColor(30, 41, 59);
+      doc.text('Ringkasan', 15, y);
+      y += 5;
+      autoTable(doc, {
+        startY: y,
+        head: [['Metrik', 'Jumlah', 'Persentase']],
+        body: [
+          ['Total Siswa', String(data.summary.total_students), '-'],
+          ['Capai Standar', String(data.summary.total_achieved), `${data.summary.total_percentage}%`],
+          ['Belum Capai Standar', String(data.summary.total_not_achieved), `${(100 - data.summary.total_percentage).toFixed(1)}%`],
+        ],
+        theme: 'grid',
+        headStyles: { fillColor: [245, 158, 11], textColor: 255, fontStyle: 'bold' },
+        styles: { fontSize: 9, cellPadding: 3 },
+        margin: { left: 15, right: 15 },
+      });
+      y = (doc as any).lastAutoTable.finalY + 10;
+
+      // ── Standards table
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(11);
+      doc.text('Standar Capaian per Kelas & Semester', 15, y);
+      y += 5;
+      autoTable(doc, {
+        startY: y,
+        head: [['Kelas', 'Semester 1 (Ganjil)', 'Semester 2 (Genap)']],
+        body: [1, 2, 3, 4, 5, 6].map((k) => [
+          `Kelas ${k}`,
+          data.standards[k]?.smt1 ?? '-',
+          data.standards[k]?.smt2 ?? '-',
+        ]),
+        theme: 'grid',
+        headStyles: { fillColor: [245, 158, 11], textColor: 255, fontStyle: 'bold' },
+        styles: { fontSize: 9, cellPadding: 3 },
+        margin: { left: 15, right: 15 },
+      });
+      y = (doc as any).lastAutoTable.finalY + 10;
+
+      // ── Chart image
+      if (chartImg) {
+        if (y + 80 > pageH - 15) { doc.addPage(); y = 15; }
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(11);
+        doc.text(`Grafik Capaian per Kelas (Semester ${data.current_semester})`, 15, y);
+        y += 5;
+        const chartW = pageW - 30;
+        const chartH = 70;
+        doc.addImage(chartImg, 'PNG', 15, y, chartW, chartH);
+        y += chartH + 10;
+      }
+
+      // ── Detail per class
+      const classesToShow = data.classes.filter((c) => c.class_number >= 1 && c.class_number <= 6);
+      for (const cls of classesToShow) {
+        const neededHeight = 30 + cls.students.length * 5;
+        if (y + Math.min(neededHeight, 80) > pageH - 15) { doc.addPage(); y = 15; }
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(10);
+        doc.text(`${cls.class_name} — Target: ${cls.semester_standar_label}`, 15, y);
+        y += 5;
+
+        autoTable(doc, {
+          startY: y,
+          head: [['No', 'Nama Siswa', 'Juz Terakhir', 'Status']],
+          body: cls.students
+            .sort((a, b) => {
+              if (a.achieved === b.achieved) return a.nama.localeCompare(b.nama);
+              return a.achieved ? 1 : -1;
+            })
+            .map((s, i) => [
+              String(i + 1),
+              s.nama,
+              s.juz_terakhir ? `Juz ${s.juz_terakhir}` : 'Belum ada',
+              s.achieved ? 'Capai' : 'Belum Capai',
+            ]),
+          theme: 'grid',
+          headStyles: { fillColor: [245, 158, 11], textColor: 255, fontStyle: 'bold' },
+          styles: { fontSize: 8, cellPadding: 2 },
+          columnStyles: { 3: { fontStyle: 'bold' } },
+          margin: { left: 15, right: 15 },
+          didParseCell(dataCell) {
+            if (dataCell.column.index === 3 && dataCell.section === 'body') {
+              const val = dataCell.cell.raw as string;
+              if (val === 'Capai') dataCell.cell.styles.textColor = [22, 163, 74];
+              else dataCell.cell.styles.textColor = [220, 38, 38];
+            }
+          },
+        });
+        y = (doc as any).lastAutoTable.finalY + 8;
+      }
+
+      // ── Footer on every page
+      const totalPages = doc.getNumberOfPages();
+      for (let i = 1; i <= totalPages; i++) {
+        doc.setPage(i);
+        doc.setFontSize(7);
+        doc.setTextColor(150, 150, 150);
+        doc.text(`Halaman ${i} dari ${totalPages}`, pageW / 2, pageH - 5, { align: 'center' });
+        doc.text('Tim Qur\'an — Sistem Manajemen Tahfidz', 15, pageH - 5);
+      }
+
+      const filename = `Capaian_Lulusan_${data.current_semester.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.pdf`;
+      doc.save(filename);
+    } catch (err) {
+      console.error('Gagal generate PDF:', err);
+    } finally {
+      setDownloadingPdf(false);
+    }
+  }, [data]);
+
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
-          <Award size={24} className="text-amber-600" />
-          Capaian Lulusan
-        </h1>
-        <p className="text-slate-500 text-sm mt-1">
-          Standar capaian hafalan siswa per kelas & semester.
-        </p>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
+            <Award size={24} className="text-amber-600" />
+            Capaian Lulusan
+          </h1>
+          <p className="text-slate-500 text-sm mt-1">
+            Standar capaian hafalan siswa per kelas & semester.
+          </p>
+        </div>
+        {data && !loading && (
+          <Button
+            variant="primary"
+            leftIcon={downloadingPdf ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
+            onClick={handleDownloadPdf}
+            disabled={downloadingPdf}
+          >
+            {downloadingPdf ? 'Membuat PDF...' : 'Download PDF'}
+          </Button>
+        )}
       </div>
 
       {/* Loading */}
@@ -195,7 +404,8 @@ export default function CapaianLulusanPage() {
               <h2 className="text-base font-semibold text-slate-800 mb-4">
                 Grafik Capaian per Kelas (Semester {data.current_semester})
               </h2>
-              <ResponsiveContainer width="100%" height={350}>
+              <div ref={chartRef}>
+                <ResponsiveContainer width="100%" height={350}>
                 <BarChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                   <XAxis dataKey="name" tick={{ fontSize: 12 }} />
@@ -217,7 +427,8 @@ export default function CapaianLulusanPage() {
                   <Bar dataKey="achieved" fill={CHART_COLORS.achieved} radius={[4, 4, 0, 0]} />
                   <Bar dataKey="not_achieved" fill={CHART_COLORS.notAchieved} radius={[4, 4, 0, 0]} />
                 </BarChart>
-              </ResponsiveContainer>
+                </ResponsiveContainer>
+              </div>
             </div>
           )}
 
@@ -285,55 +496,21 @@ export default function CapaianLulusanPage() {
                           .map((s) => (
                             <div
                               key={s.id}
-                              className={`px-4 py-3 text-sm border-b border-slate-100 last:border-0 ${
+                              className={`flex items-center justify-between px-4 py-2.5 text-sm ${
                                 s.achieved ? 'bg-white' : 'bg-red-50/50'
                               }`}
                             >
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                  <span className={s.achieved ? 'text-emerald-500' : 'text-red-500'}>
-                                    {s.achieved ? '✓' : '✗'}
-                                  </span>
-                                  <span className={s.achieved ? 'text-slate-700' : 'text-slate-800 font-medium'}>
-                                    {s.nama}
-                                  </span>
-                                </div>
-                                <span className="text-slate-500">
-                                  {s.juz_terakhir ? `Juz ${s.juz_terakhir}` : 'Belum ada'}
+                              <div className="flex items-center gap-2">
+                                <span className={s.achieved ? 'text-emerald-500' : 'text-red-500'}>
+                                  {s.achieved ? '✓' : '✗'}
+                                </span>
+                                <span className={s.achieved ? 'text-slate-700' : 'text-slate-800 font-medium'}>
+                                  {s.nama}
                                 </span>
                               </div>
-                              {/* Detail capaian terkini */}
-                              <div className="mt-1.5 ml-6 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500">
-                                {s.latest_hafalan ? (
-                                  <>
-                                    <span className="flex items-center gap-1">
-                                      <span className="text-amber-600">Terakhir:</span>
-                                      <span className="font-medium text-slate-700">{s.latest_hafalan.surah_juz}</span>
-                                      <span className="text-slate-400">·</span>
-                                      <span>{new Date(s.latest_hafalan.tanggal).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
-                                    </span>
-                                    {(s.latest_hafalan.lancar || s.latest_hafalan.makhroj) && (
-                                      <span className="flex items-center gap-1">
-                                        {s.latest_hafalan.lancar && (
-                                          <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 font-medium">
-                                            {s.latest_hafalan.lancar}
-                                          </span>
-                                        )}
-                                        {s.latest_hafalan.makhroj && (
-                                          <span className="px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 font-medium">
-                                            M: {s.latest_hafalan.makhroj}
-                                          </span>
-                                        )}
-                                      </span>
-                                    )}
-                                  </>
-                                ) : (
-                                  <span className="text-slate-400 italic">Belum ada catatan hafalan</span>
-                                )}
-                                <span className="text-slate-400">
-                                  {s.total_hafalan} setoran
-                                </span>
-                              </div>
+                              <span className="text-slate-500">
+                                {s.juz_terakhir ? `Juz ${s.juz_terakhir}` : 'Belum ada'}
+                              </span>
                             </div>
                           ))}
                       </div>
