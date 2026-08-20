@@ -142,9 +142,12 @@ function parseJuzList(juzStr: string | null | undefined): number[] {
 }
 
 // Cek capaian berdasarkan juz_terakhir
+// Jika sudah Juz 1 = sudah hafal semua 30 juz = otomatis capai target
 function hasAchievedByJuz(juzStr: string | null | undefined, requiredJuz: string[]): boolean {
   if (requiredJuz.length === 0) return true;
   const completed = parseJuzList(juzStr);
+  // Jika ada Juz 1 = sudah hafal semua → capai apapun targetnya
+  if (completed.includes(1)) return true;
   return requiredJuz.every((j) => completed.includes(parseInt(j, 10)));
 }
 
