@@ -130,9 +130,15 @@ function checkSurahAchieved(
 }
 
 // Parse juz_terakhir ke array angka
+// Handle format: "30", "30 & 29", "30, 29, 1, 2, 3, 4, dan 5", dst.
 function parseJuzList(juzStr: string | null | undefined): number[] {
   if (!juzStr) return [];
-  return juzStr.split('&').map((s) => parseInt(s.replace(/\D/g, ''), 10)).filter((n) => !isNaN(n));
+  // Ganti "dan" dengan koma, lalu split by koma atau &
+  const normalized = juzStr.replace(/\bdan\b/gi, ',');
+  return normalized
+    .split(/[,;&]+/)
+    .map((s) => parseInt(s.replace(/\D/g, ''), 10))
+    .filter((n) => !isNaN(n));
 }
 
 // Cek capaian berdasarkan juz_terakhir
@@ -175,11 +181,9 @@ interface StudentData {
 interface HafalanEntry {
   student_id: string;
   surah_juz: string;
-  tanggal: string;
   lancar?: string | null;
   makhroj?: string | null;
   tajwid?: string | null;
-  created_at?: string;
 }
 
 interface ClassStats {
@@ -196,13 +200,6 @@ interface ClassStats {
     nama: string;
     juz_terakhir: string | null;
     achieved: boolean;
-    total_hafalan: number;
-    latest_hafalan: {
-      surah_juz: string;
-      tanggal: string;
-      lancar?: string | null;
-      makhroj?: string | null;
-    } | null;
   }[];
 }
 
@@ -247,32 +244,20 @@ export async function GET(request: NextRequest) {
 
     const studentList = allStudents;
 
-    // Ambil SEMUA data hafalan untuk siswa (dengan pagination per chunk + per chunk)
+    // Ambil SEMUA data hafalan untuk siswa (dengan pagination)
     const studentIds = studentList.map((s) => s.id);
     let allHafalan: HafalanEntry[] = [];
 
     if (studentIds.length > 0) {
-      // Batch in chunks of 200 (Supabase .in() limit aman)
-      const chunkSize = 200;
+      // Batch in chunks of 500 (Supabase .in() limit)
+      const chunkSize = 500;
       for (let i = 0; i < studentIds.length; i += chunkSize) {
         const chunk = studentIds.slice(i, i + chunkSize);
-
-        // Pagination per chunk untuk handle >1000 hafalan per batch
-        let hafalanOffset = 0;
-        let hafalanHasMore = true;
-        while (hafalanHasMore) {
-          const { data: hafalanData } = await supabase
-            .from('hafalan')
-            .select('student_id, surah_juz, tanggal, lancar, makhroj, tajwid, created_at')
-            .in('student_id', chunk)
-            .order('tanggal', { ascending: false })
-            .range(hafalanOffset, hafalanOffset + 999);
-
-          const batch = (hafalanData ?? []) as HafalanEntry[];
-          allHafalan.push(...batch);
-          hafalanHasMore = batch.length === 1000;
-          hafalanOffset += 1000;
-        }
+        const { data: hafalanData } = await supabase
+          .from('hafalan')
+          .select('student_id, surah_juz, lancar, makhroj, tajwid')
+          .in('student_id', chunk);
+        allHafalan.push(...((hafalanData ?? []) as HafalanEntry[]));
       }
     }
 
@@ -334,34 +319,11 @@ export async function GET(request: NextRequest) {
         stats.not_achieved++;
       }
 
-      // Hitung total hafalan & ambil terbaru
-      const studentHafalanList = hafalanByStudent.get(s.id) ?? [];
-      const totalHafalan = studentHafalanList.length;
-
-      // Ambil hafalan terbaru (by tanggal + created_at terbesar)
-      let latestHafalan: typeof stats.students[0]['latest_hafalan'] = null;
-      if (studentHafalanList.length > 0) {
-        const sorted = [...studentHafalanList].sort((a, b) => {
-          const dateA = a.tanggal || a.created_at || '';
-          const dateB = b.tanggal || b.created_at || '';
-          return dateB.localeCompare(dateA);
-        });
-        const latest = sorted[0];
-        latestHafalan = {
-          surah_juz: latest.surah_juz,
-          tanggal: latest.tanggal,
-          lancar: latest.lancar,
-          makhroj: latest.makhroj,
-        };
-      }
-
       stats.students.push({
         id: s.id,
         nama: s.nama,
         juz_terakhir: s.juz_terakhir,
         achieved,
-        total_hafalan: totalHafalan,
-        latest_hafalan: latestHafalan,
       });
     }
 
