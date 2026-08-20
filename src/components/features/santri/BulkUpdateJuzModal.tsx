@@ -4,7 +4,7 @@
 // Modal untuk Kabid update juz_terakhir banyak siswa sekaligus.
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { CheckCircle, Circle, Search, Loader2, AlertCircle } from 'lucide-react';
+import { CheckCircle, Circle, Search, Loader2, AlertCircle, ChevronDown } from 'lucide-react';
 import Modal from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
 
@@ -16,6 +16,12 @@ interface Student {
   classes?: { id: string; name: string } | null;
 }
 
+interface Kelas {
+  id: string;
+  name: string;
+  jumlah_siswa?: number;
+}
+
 interface BulkUpdateJuzModalProps {
   open: boolean;
   onClose: () => void;
@@ -23,8 +29,11 @@ interface BulkUpdateJuzModalProps {
 }
 
 export default function BulkUpdateJuzModal({ open, onClose, onSuccess }: BulkUpdateJuzModalProps) {
+  const [classes, setClasses] = useState<Kelas[]>([]);
+  const [selectedClassId, setSelectedClassId] = useState('');
   const [students, setStudents] = useState<Student[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loadingStudents, setLoadingStudents] = useState(false);
+  const [loadingClasses, setLoadingClasses] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [juzValue, setJuzValue] = useState('');
@@ -34,23 +43,43 @@ export default function BulkUpdateJuzModal({ open, onClose, onSuccess }: BulkUpd
   const [searchQuery, setSearchQuery] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Fetch all students when modal opens
+  // Fetch classes when modal opens
   useEffect(() => {
     if (!open) return;
-    setLoading(true);
-    setError(null);
+    setLoadingClasses(true);
+    setSelectedClassId('');
+    setStudents([]);
     setSelectedIds(new Set());
     setJuzValue('');
     setSearchQuery('');
     setSubmitError(null);
     setSubmitSuccess(null);
+    setError(null);
 
-    fetch('/api/siswa/list')
-      .then((res) => (res.ok ? res.json() : Promise.reject(new Error('Gagal memuat data'))))
+    fetch('/api/kelas/list')
+      .then((res) => (res.ok ? res.json() : Promise.reject(new Error('Gagal memuat kelas'))))
+      .then((json) => setClasses(Array.isArray(json.data) ? json.data : []))
+      .catch((err) => setError(err.message))
+      .finally(() => setLoadingClasses(false));
+  }, [open]);
+
+  // Fetch students when class is selected
+  useEffect(() => {
+    if (!selectedClassId) {
+      setStudents([]);
+      return;
+    }
+    setLoadingStudents(true);
+    setError(null);
+    setSelectedIds(new Set());
+    setSearchQuery('');
+
+    fetch(`/api/siswa/list?class_id=${selectedClassId}`)
+      .then((res) => (res.ok ? res.json() : Promise.reject(new Error('Gagal memuat siswa'))))
       .then((json) => setStudents(Array.isArray(json.data) ? json.data : []))
       .catch((err) => setError(err.message))
-      .finally(() => setLoading(false));
-  }, [open]);
+      .finally(() => setLoadingStudents(false));
+  }, [selectedClassId]);
 
   // Focus juz input when modal opens
   useEffect(() => {
@@ -67,14 +96,12 @@ export default function BulkUpdateJuzModal({ open, onClose, onSuccess }: BulkUpd
 
   const toggleSelectAll = useCallback(() => {
     if (allVisibleSelected) {
-      // Deselect all visible
       setSelectedIds((prev) => {
         const next = new Set(prev);
         filteredStudents.forEach((s) => next.delete(s.id));
         return next;
       });
     } else {
-      // Select all visible
       setSelectedIds((prev) => {
         const next = new Set(prev);
         filteredStudents.forEach((s) => next.add(s.id));
@@ -132,6 +159,8 @@ export default function BulkUpdateJuzModal({ open, onClose, onSuccess }: BulkUpd
     }
   };
 
+  const selectedClassName = classes.find((c) => c.id === selectedClassId)?.name ?? '';
+
   return (
     <Modal
       open={open}
@@ -156,84 +185,110 @@ export default function BulkUpdateJuzModal({ open, onClose, onSuccess }: BulkUpd
           />
         </div>
 
-        {/* Student list */}
+        {/* Class selector */}
         <div>
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-slate-700">
-              Pilih Siswa ({selectedIds.size} dipilih)
-            </span>
-            {students.length > 0 && (
-              <button
-                type="button"
-                onClick={toggleSelectAll}
-                className="text-xs text-amber-600 hover:text-amber-700 font-medium"
-              >
-                {allVisibleSelected ? 'Batal Pilih Semua' : 'Pilih Semua'}
-              </button>
+          <label className="block text-sm font-medium text-slate-700 mb-1">
+            Pilih Kelas
+          </label>
+          <div className="relative">
+            <select
+              value={selectedClassId}
+              onChange={(e) => setSelectedClassId(e.target.value)}
+              disabled={loadingClasses}
+              className="w-full appearance-none rounded-xl border border-slate-300 px-3 py-2.5 pr-10 text-sm focus:border-amber-500 focus:ring-2 focus:ring-amber-200 outline-none transition bg-white"
+            >
+              <option value="">
+                {loadingClasses ? 'Memuat kelas...' : '-- Pilih Kelas --'}
+              </option>
+              {classes.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}{c.jumlah_siswa ? ` (${c.jumlah_siswa} siswa)` : ''}
+                </option>
+              ))}
+            </select>
+            <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+          </div>
+        </div>
+
+        {/* Student list — only show when a class is selected */}
+        {selectedClassId && (
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-slate-700">
+                Siswa di {selectedClassName} ({selectedIds.size} dipilih)
+              </span>
+              {filteredStudents.length > 0 && (
+                <button
+                  type="button"
+                  onClick={toggleSelectAll}
+                  className="text-xs text-amber-600 hover:text-amber-700 font-medium"
+                >
+                  {allVisibleSelected ? 'Batal Pilih Semua' : 'Pilih Semua'}
+                </button>
+              )}
+            </div>
+
+            {/* Search */}
+            {filteredStudents.length > 5 && (
+              <div className="relative mb-2">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Cari nama siswa..."
+                  className="w-full rounded-xl border border-slate-300 pl-8 pr-3 py-2 text-sm focus:border-amber-500 focus:ring-2 focus:ring-amber-200 outline-none transition"
+                />
+              </div>
+            )}
+
+            {/* Student list */}
+            {loadingStudents ? (
+              <div className="flex items-center justify-center py-8 text-slate-400 gap-2">
+                <Loader2 size={16} className="animate-spin" />
+                <span className="text-sm">Memuat daftar siswa...</span>
+              </div>
+            ) : error ? (
+              <div className="rounded-xl bg-red-50 border border-red-200 p-4 text-sm text-red-600 flex items-center gap-2">
+                <AlertCircle size={16} />
+                {error}
+              </div>
+            ) : filteredStudents.length === 0 ? (
+              <div className="rounded-xl bg-slate-50 border border-slate-200 p-4 text-sm text-slate-500 text-center">
+                {searchQuery.trim().length >= 2 ? 'Tidak ditemukan siswa.' : 'Tidak ada siswa di kelas ini.'}
+              </div>
+            ) : (
+              <div className="max-h-[360px] overflow-y-auto rounded-xl border border-slate-200 divide-y divide-slate-100">
+                {filteredStudents.map((student) => (
+                  <button
+                    key={student.id}
+                    type="button"
+                    onClick={() => toggleStudent(student.id)}
+                    className={[
+                      'w-full text-left px-4 py-3 flex items-center gap-3 transition text-sm',
+                      selectedIds.has(student.id)
+                        ? 'bg-amber-50'
+                        : 'hover:bg-slate-50',
+                    ].join(' ')}
+                  >
+                    {selectedIds.has(student.id) ? (
+                      <CheckCircle size={16} className="text-amber-500 shrink-0" />
+                    ) : (
+                      <Circle size={16} className="text-slate-300 shrink-0" />
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <span className="font-medium text-slate-800 block truncate">{student.nama}</span>
+                      <span className="text-xs text-slate-400">
+                        {student.nisn || '-'}
+                        {student.juz_terakhir ? ` · Juz ${student.juz_terakhir}` : ''}
+                      </span>
+                    </div>
+                  </button>
+                ))}
+              </div>
             )}
           </div>
-
-          {/* Search */}
-          {students.length > 5 && (
-            <div className="relative mb-2">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Cari nama siswa..."
-                className="w-full rounded-xl border border-slate-300 pl-8 pr-3 py-2 text-sm focus:border-amber-500 focus:ring-2 focus:ring-amber-200 outline-none transition"
-              />
-            </div>
-          )}
-
-          {/* Student list */}
-          {loading ? (
-            <div className="flex items-center justify-center py-8 text-slate-400 gap-2">
-              <Loader2 size={16} className="animate-spin" />
-              <span className="text-sm">Memuat daftar siswa...</span>
-            </div>
-          ) : error ? (
-            <div className="rounded-xl bg-red-50 border border-red-200 p-4 text-sm text-red-600 flex items-center gap-2">
-              <AlertCircle size={16} />
-              {error}
-            </div>
-          ) : filteredStudents.length === 0 ? (
-            <div className="rounded-xl bg-slate-50 border border-slate-200 p-4 text-sm text-slate-500 text-center">
-              {searchQuery.trim().length >= 2 ? 'Tidak ditemukan siswa.' : 'Belum ada data siswa.'}
-            </div>
-          ) : (
-            <div className="max-h-[360px] overflow-y-auto rounded-xl border border-slate-200 divide-y divide-slate-100">
-              {filteredStudents.map((student) => (
-                <button
-                  key={student.id}
-                  type="button"
-                  onClick={() => toggleStudent(student.id)}
-                  className={[
-                    'w-full text-left px-4 py-3 flex items-center gap-3 transition text-sm',
-                    selectedIds.has(student.id)
-                      ? 'bg-amber-50'
-                      : 'hover:bg-slate-50',
-                  ].join(' ')}
-                >
-                  {selectedIds.has(student.id) ? (
-                    <CheckCircle size={16} className="text-amber-500 shrink-0" />
-                  ) : (
-                    <Circle size={16} className="text-slate-300 shrink-0" />
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <span className="font-medium text-slate-800 block truncate">{student.nama}</span>
-                    <span className="text-xs text-slate-400">
-                      {student.nisn || '-'}
-                      {student.juz_terakhir ? ` · Juz ${student.juz_terakhir}` : ''}
-                      {student.classes?.name ? ` · ${student.classes.name}` : ''}
-                    </span>
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+        )}
 
         {/* Feedback */}
         {submitError && (
