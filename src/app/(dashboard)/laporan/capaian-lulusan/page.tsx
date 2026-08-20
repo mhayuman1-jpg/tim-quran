@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 
 import React, { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { Award, Users, TrendingUp, AlertCircle, ChevronDown, ChevronRight, BookOpen, GraduationCap } from 'lucide-react';
+import { Award, Users, TrendingUp, AlertCircle, ChevronDown, ChevronRight, GraduationCap } from 'lucide-react';
 
 interface StudentAchievement {
   id: string;
@@ -35,12 +35,6 @@ interface Summary {
   total_percentage: number;
 }
 
-interface SurahInfo {
-  pos: number;
-  no: number;
-  name: string;
-}
-
 interface Standards {
   [kelas: number]: { smt1: string; smt2: string };
 }
@@ -50,7 +44,6 @@ interface ApiResponse {
   summary: Summary;
   standards: Standards;
   current_semester: string;
-  juz30_surahs: SurahInfo[];
 }
 
 const CHART_COLORS = {
@@ -285,30 +278,6 @@ export default function CapaianLulusanPage() {
                     )}
                   </div>
                 ))}
-            </div>
-          </div>
-
-          {/* Referensi Surah Juz 30 */}
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-            <div className="flex items-center gap-2 mb-4">
-              <BookOpen size={18} className="text-indigo-500" />
-              <h2 className="text-base font-semibold text-slate-800">
-                Referensi Surah Juz 30
-              </h2>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-              {data.juz30_surahs.map((s) => (
-                <div
-                  key={s.pos}
-                  className="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-50 text-sm"
-                >
-                  <span className="w-6 h-6 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center text-xs font-semibold shrink-0">
-                    {s.pos}
-                  </span>
-                  <span className="text-slate-700">{s.name}</span>
-                  <span className="text-xs text-slate-400 ml-auto">{s.no}</span>
-                </div>
-              ))}
             </div>
           </div>
         </>
