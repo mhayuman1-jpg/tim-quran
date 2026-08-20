@@ -6,9 +6,10 @@
 //   Kelas 1 Smt2: Al Ma'un - At Takatsur (surah 107-102)
 //   Kelas 2 Smt1: Al Qari'ah - Al Bayyinah (surah 101-98)
 //   Kelas 2 Smt2: Al Qadr - Ad Duha (surah 97-93)
-//   Kelas 3 Smt1: Juz 30 setengah
-//   Kelas 3 Smt2: Juz 30 selesai
-//   Kelas 4: Juz 30
+//   Kelas 3 Smt1: Al Lail - Al Balad (surah 92-90)
+//   Kelas 3 Smt2: Al Fajr - Al A'la (surah 89-87)
+//   Kelas 4 Smt1: At Tharikh - Al Infitar (surah 86-82)
+//   Kelas 4 Smt2: At Takwir - An Naba' (surah 81-78)
 //   Kelas 5-6: Juz 30 & 29
 //
 // Kelas 1-4: Cek dari tabel hafalan (harus sudah dinilai guru)
@@ -63,12 +64,12 @@ const STANDAR_PER_KELAS: Record<number, SemesterStandar[]> = {
     { semester: 2, label: 'Al Qadr - Ad Duha', type: 'surah', surah_range: { start: 97, end: 93 } },
   ],
   3: [
-    { semester: 1, label: 'Juz 30 (sebagian)', type: 'juz', required_juz: [] },
-    { semester: 2, label: 'Juz 30 selesai', type: 'juz', required_juz: ['30'] },
+    { semester: 1, label: 'Al Lail - Al Balad', type: 'surah', surah_range: { start: 92, end: 90 } },
+    { semester: 2, label: "Al Fajr - Al A'la", type: 'surah', surah_range: { start: 89, end: 87 } },
   ],
   4: [
-    { semester: 1, label: 'Juz 30', type: 'juz', required_juz: ['30'] },
-    { semester: 2, label: 'Juz 30', type: 'juz', required_juz: ['30'] },
+    { semester: 1, label: 'At Tharikh - Al Infitar', type: 'surah', surah_range: { start: 86, end: 82 } },
+    { semester: 2, label: "At Takwir - An Naba'", type: 'surah', surah_range: { start: 81, end: 78 } },
   ],
   5: [
     { semester: 1, label: 'Juz 30', type: 'juz', required_juz: ['30'] },
