@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic';
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, Printer, Upload, CreditCard, CheckCircle2, Trash2, Filter, Download, ArrowLeft, Users, BookOpen, FileDown, Loader2 } from 'lucide-react';
+import { Plus, Printer, Upload, CreditCard, CheckCircle2, Trash2, Filter, Download, ArrowLeft, Users, BookOpen, FileDown, Loader2, BookText } from 'lucide-react';
 
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
@@ -13,6 +13,7 @@ import ConfirmDialog from '@/components/shared/ConfirmDialog';
 import SiswaTable from '@/components/features/siswa/SiswaTable';
 import SiswaForm, { SiswaFormData } from '@/components/features/siswa/SiswaForm';
 import ImportExcelModal from '@/components/features/siswa/ImportExcelModal';
+import BulkUpdateJuzModal from '@/components/features/santri/BulkUpdateJuzModal';
 
 import type { Santri } from '@/types';
 import { useToast } from '@/lib/toast';
@@ -50,6 +51,9 @@ export default function SiswaPage() {
 
   // ── Import
   const [importOpen, setImportOpen] = useState(false);
+
+  // ── Bulk update juz
+  const [bulkJuzOpen, setBulkJuzOpen] = useState(false);
 
   // ── Download PDF
   const [downloadingPdf, setDownloadingPdf] = useState(false);
@@ -388,6 +392,15 @@ export default function SiswaPage() {
         <div className="flex flex-wrap items-center gap-2">
           {selectedIds.length > 0 && (
             <>
+              {role === 'Kabid' && (
+                <Button
+                  variant="secondary"
+                  leftIcon={<BookText size={15} />}
+                  onClick={() => setBulkJuzOpen(true)}
+                >
+                  Update Juz ({selectedIds.length})
+                </Button>
+              )}
               <Button
                 variant="secondary"
                 leftIcon={downloadingPdf ? <Loader2 size={15} className="animate-spin" /> : <FileDown size={15} />}
@@ -576,6 +589,17 @@ export default function SiswaPage() {
         open={importOpen}
         onClose={() => setImportOpen(false)}
         onImportDone={() => fetchSiswa(search)}
+      />
+
+      {/* Bulk Update Juz Modal */}
+      <BulkUpdateJuzModal
+        open={bulkJuzOpen}
+        onClose={() => setBulkJuzOpen(false)}
+        onSuccess={(msg) => {
+          toast.success(msg);
+          setSelectedIds([]);
+          fetchSiswa(search, classFilter);
+        }}
       />
 
       {/* ── Dialog: Cetak ID Card setelah siswa baru ditambah ── */}
