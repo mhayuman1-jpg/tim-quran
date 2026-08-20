@@ -211,29 +211,48 @@ export async function GET(request: NextRequest) {
     const activeSemester = await getActiveSemester(supabase);
     const currentSemesterNum = activeSemester === 'Ganjil' ? 1 : 2;
 
-    // Ambil semua siswa aktif
-    const { data: students, error: studentError } = await supabase
-      .from('santri')
-      .select('id, nama, juz_terakhir, classes ( id, name )')
-      .eq('status', 'Aktif')
-      .order('nama', { ascending: true });
+    // Ambil semua siswa aktif (dengan pagination untuk handle >1000 siswa)
+    let allStudents: StudentData[] = [];
+    let offset = 0;
+    const pageSize = 1000;
+    let hasMore = true;
 
-    if (studentError) {
-      console.error('Fetch santri error:', studentError);
-      return NextResponse.json({ message: 'Gagal mengambil data siswa.' }, { status: 500 });
+    while (hasMore) {
+      const { data: students, error: studentError } = await supabase
+        .from('santri')
+        .select('id, nama, juz_terakhir, classes ( id, name )')
+        .eq('status', 'Aktif')
+        .order('nama', { ascending: true })
+        .range(offset, offset + pageSize - 1);
+
+      if (studentError) {
+        console.error('Fetch santri error:', studentError);
+        return NextResponse.json({ message: 'Gagal mengambil data siswa.' }, { status: 500 });
+      }
+
+      const batch = (students ?? []) as unknown as StudentData[];
+      allStudents.push(...batch);
+      hasMore = batch.length === pageSize;
+      offset += pageSize;
     }
 
-    const studentList = (students ?? []) as unknown as StudentData[];
+    const studentList = allStudents;
 
-    // Ambil SEMUA data hafalan untuk siswa yang membutuhkan (kelas 1-4)
+    // Ambil SEMUA data hafalan untuk siswa (dengan pagination)
     const studentIds = studentList.map((s) => s.id);
     let allHafalan: HafalanEntry[] = [];
+
     if (studentIds.length > 0) {
-      const { data: hafalanData } = await supabase
-        .from('hafalan')
-        .select('student_id, surah_juz, lancar, makhroj, tajwid')
-        .in('student_id', studentIds);
-      allHafalan = (hafalanData ?? []) as HafalanEntry[];
+      // Batch in chunks of 500 (Supabase .in() limit)
+      const chunkSize = 500;
+      for (let i = 0; i < studentIds.length; i += chunkSize) {
+        const chunk = studentIds.slice(i, i + chunkSize);
+        const { data: hafalanData } = await supabase
+          .from('hafalan')
+          .select('student_id, surah_juz, lancar, makhroj, tajwid')
+          .in('student_id', chunk);
+        allHafalan.push(...((hafalanData ?? []) as HafalanEntry[]));
+      }
     }
 
     // Index hafalan per student

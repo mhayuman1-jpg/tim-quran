@@ -257,23 +257,44 @@ export default function CapaianLulusanPage() {
                     </button>
 
                     {expandedClass === cls.class_name && (
-                      <div className="border-t border-slate-200 divide-y divide-slate-100 max-h-[300px] overflow-y-auto">
-                        {cls.students.map((s) => (
-                          <div
-                            key={s.id}
-                            className="flex items-center justify-between px-4 py-2.5 text-sm"
-                          >
-                            <div className="flex items-center gap-2">
-                              <span className={s.achieved ? 'text-emerald-500' : 'text-red-500'}>
-                                {s.achieved ? '✓' : '✗'}
+                      <div className="border-t border-slate-200 divide-y divide-slate-100 max-h-[500px] overflow-y-auto">
+                        {/* Ringkasan */}
+                        <div className="px-4 py-2.5 bg-slate-50 flex items-center gap-4 text-xs font-medium text-slate-500">
+                          <span className="flex items-center gap-1">
+                            <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                            {cls.achieved} capai target
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <span className="w-2 h-2 rounded-full bg-red-500" />
+                            {cls.not_achieved} belum capai target
+                          </span>
+                        </div>
+                        {/* Sort: belum capai di atas, sudah capai di bawah */}
+                        {[...cls.students]
+                          .sort((a, b) => {
+                            if (a.achieved === b.achieved) return a.nama.localeCompare(b.nama);
+                            return a.achieved ? 1 : -1;
+                          })
+                          .map((s) => (
+                            <div
+                              key={s.id}
+                              className={`flex items-center justify-between px-4 py-2.5 text-sm ${
+                                s.achieved ? 'bg-white' : 'bg-red-50/50'
+                              }`}
+                            >
+                              <div className="flex items-center gap-2">
+                                <span className={s.achieved ? 'text-emerald-500' : 'text-red-500'}>
+                                  {s.achieved ? '✓' : '✗'}
+                                </span>
+                                <span className={s.achieved ? 'text-slate-700' : 'text-slate-800 font-medium'}>
+                                  {s.nama}
+                                </span>
+                              </div>
+                              <span className="text-slate-500">
+                                {s.juz_terakhir ? `Juz ${s.juz_terakhir}` : 'Belum ada'}
                               </span>
-                              <span className="text-slate-700">{s.nama}</span>
                             </div>
-                            <span className="text-slate-500">
-                              {s.juz_terakhir ? `Juz ${s.juz_terakhir}` : 'Belum ada'}
-                            </span>
-                          </div>
-                        ))}
+                          ))}
                       </div>
                     )}
                   </div>
