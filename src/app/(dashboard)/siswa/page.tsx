@@ -90,12 +90,13 @@ export default function SiswaPage() {
   }, [toast, viewHeaders, limit]);
 
   useEffect(() => {
-    fetchSiswa('', '', limit);
+    fetchSiswa('', classFilter, limit);
     fetch('/api/kelas/list', { headers: viewHeaders })
       .then(r => r.json())
       .then(json => setClasses(json.data ?? []))
       .catch(() => {});
-  }, [fetchSiswa, viewHeaders, limit]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleSearch = (value: string) => { setSearch(value); setSelectedIds([]); fetchSiswa(value, classFilter, limit); };
   const handleClassFilter = (value: string) => { setClassFilter(value); setSelectedIds([]); fetchSiswa(search, value, limit); };
@@ -182,7 +183,7 @@ export default function SiswaPage() {
       toast.success(json.message ?? 'Siswa berhasil dihapus.');
       setDeleteTarget(null);
       setSelectedIds(prev => prev.filter(id => id !== deleteTarget.id));
-      fetchSiswa(search);
+      fetchSiswa(search, classFilter);
     } catch { toast.error('Terjadi kesalahan saat menghapus siswa.'); }
     finally { setDeleteLoading(false); }
   };
@@ -202,7 +203,7 @@ export default function SiswaPage() {
       toast.success(json.message ?? 'Siswa berhasil dihapus.');
       setSelectedIds([]);
       setBulkDeleteOpen(false);
-      fetchSiswa(search);
+      fetchSiswa(search, classFilter);
     } catch { toast.error('Terjadi kesalahan saat menghapus siswa.'); }
     finally { setBulkDeleteLoading(false); }
   };
