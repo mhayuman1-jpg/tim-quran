@@ -389,8 +389,10 @@ export default function TahsinPage() {
   };
 
   React.useEffect(() => {
-    fetchStudents();
-  }, [fetchStudents]);
+    if (isTeacherMode && !selectedClassId) return;
+    fetchStudents('', isTeacherMode ? selectedClassId : undefined);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const displayedStudents = searchQuery.trim().length >= 2 ? studentOptions : studentList;
 
