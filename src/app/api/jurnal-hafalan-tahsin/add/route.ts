@@ -17,6 +17,7 @@ const VALID_METODE: TahsinMetode[] = ['Wafa', 'IWR', 'Al-Quran'];
 const VALID_RATING: NilaiTahfidz[] = ['✓', 'A', 'B', 'C', 'D', 'L', 'KL', 'TL', ''];
 
 interface DetailRow {
+  id?: string;
   nama_surah: string;
   makhroj?: NilaiTahfidz;
   tajwid?: NilaiTahfidz;
@@ -201,19 +202,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Hapus hafalan lama untuk student_id + tanggal ini (agar edit menggantikan data lama)
-    if (hasHafalan) {
-      await supabase
-        .from('hafalan')
-        .delete()
-        .eq('student_id', student_id.trim())
-        .eq('tanggal', tanggal);
-    }
-
-    // Insert hafalan — SELALU buat record baru, jangan menimpa riwayat lama
+    // ── Hafalan: update baris yang sudah ada (punya id), insert baris baru ──
     if (hasHafalan) {
       // ── Hitung sort_order berdasarkan urutan template ──
-      // Iterasi Juz 30→1 agar template Juz 30 (lengkap) override Juz 25-27
       const SURAH_POSITION: Record<string, number> = {};
       for (let j = 30; j >= 1; j--) {
         const surahsInJuz = SURAH_PER_JUZ[j] ?? [];
@@ -225,47 +216,66 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      const hafalanRecords = detailRows.map((row) => {
+      const toUpdate: { id: string; data: Record<string, unknown> }[] = [];
+      const toInsert: Record<string, unknown>[] = [];
+
+      for (const row of detailRows) {
         const halamanValue = typeof row.halaman === 'string' ? row.halaman.trim() : (row.halaman ? String(row.halaman) : null);
         const surahKey = row.nama_surah.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
-        return {
-          student_id: student_id.trim(),
-          teacher_id: teacherId,
-          tanggal,
+        const baseData: Record<string, unknown> = {
           surah_juz: row.nama_surah.trim(),
           halaman: halamanValue || null,
-          catatan: null,
           makhroj: typeof row.makhroj === 'string' && VALID_RATING.includes(row.makhroj) ? row.makhroj : null,
           tajwid: typeof row.tajwid === 'string' && VALID_RATING.includes(row.tajwid) ? row.tajwid : null,
           lancar: typeof row.lancar === 'string' && VALID_RATING.includes(row.lancar) ? row.lancar : null,
           buku: typeof row.buku === 'string' && row.buku.trim() !== '' ? row.buku.trim() : null,
-          sort_order: SURAH_POSITION[surahKey] ?? 999999,
         };
-      });
 
-      const { error: hafalanError } = await supabase.from('hafalan').insert(hafalanRecords);
-      if (hafalanError) {
-        console.error('Supabase insert hafalan error:', hafalanError);
-        return NextResponse.json(
-          {
-            message: 'Gagal menyimpan data hafalan.',
-            error: hafalanError.message,
-            hint: hafalanError.details ?? null,
-          },
-          { status: 500 }
-        );
+        if (row.id) {
+          // Baris existing → update
+          toUpdate.push({ id: row.id, data: baseData });
+        } else {
+          // Baris baru → insert
+          toInsert.push({
+            student_id: student_id.trim(),
+            teacher_id: teacherId,
+            tanggal,
+            ...baseData,
+            sort_order: SURAH_POSITION[surahKey] ?? 999999,
+          });
+        }
+      }
+
+      // Update baris existing
+      for (const item of toUpdate) {
+        const { error: updateErr } = await supabase
+          .from('hafalan')
+          .update(item.data)
+          .eq('id', item.id);
+        if (updateErr) {
+          console.error('Supabase update hafalan error:', updateErr);
+          return NextResponse.json(
+            { message: 'Gagal memperbarui catatan hafalan.', error: updateErr.message },
+            { status: 500 }
+          );
+        }
+      }
+
+      // Insert baris baru
+      if (toInsert.length > 0) {
+        const { error: hafalanError } = await supabase.from('hafalan').insert(toInsert);
+        if (hafalanError) {
+          console.error('Supabase insert hafalan error:', hafalanError);
+          return NextResponse.json(
+            { message: 'Gagal menyimpan data hafalan baru.', error: hafalanError.message, hint: hafalanError.details ?? null },
+            { status: 500 }
+          );
+        }
       }
     }
 
-    // Insert / update tahsin hanya jika ada data tahsin
+    // ── Tahsin: update jika ada id, insert jika baru ──
     if (hasTahsinData && tahsin_metode && tahsin_buku) {
-      // Hapus tahsin lama untuk student_id + tanggal ini (agar edit menggantikan data lama)
-      await supabase
-        .from('tahsin')
-        .delete()
-        .eq('student_id', student_id.trim())
-        .eq('tanggal', tanggal);
-
       const tahsinData: Record<string, unknown> = {
         student_id: student_id.trim(),
         teacher_id: teacherId,
@@ -279,10 +289,24 @@ export async function POST(request: NextRequest) {
         catatan: typeof tahsin_catatan === 'string' && tahsin_catatan.trim() !== '' ? tahsin_catatan.trim() : null,
       };
 
-      const { error: tahsinError } = await supabase.from('tahsin').insert([tahsinData]);
-      if (tahsinError) {
-        console.error('Supabase insert tahsin error:', tahsinError);
-        return NextResponse.json({ message: 'Data hafalan berhasil disimpan, namun gagal menyimpan catatan tahsin.', error: tahsinError.message }, { status: 500 });
+      const tahsinId = body.tahsin_id;
+      if (tahsinId && typeof tahsinId === 'string') {
+        // Update existing tahsin
+        const { error: tahsinError } = await supabase
+          .from('tahsin')
+          .update(tahsinData)
+          .eq('id', tahsinId);
+        if (tahsinError) {
+          console.error('Supabase update tahsin error:', tahsinError);
+          return NextResponse.json({ message: 'Data hafalan berhasil disimpan, namun gagal memperbarui catatan tahsin.', error: tahsinError.message }, { status: 500 });
+        }
+      } else {
+        // Insert new tahsin
+        const { error: tahsinError } = await supabase.from('tahsin').insert([tahsinData]);
+        if (tahsinError) {
+          console.error('Supabase insert tahsin error:', tahsinError);
+          return NextResponse.json({ message: 'Data hafalan berhasil disimpan, namun gagal menyimpan catatan tahsin.', error: tahsinError.message }, { status: 500 });
+        }
       }
     }
 

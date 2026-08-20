@@ -16,6 +16,7 @@ interface StudentOption {
 }
 
 export interface JurnalDetailRow {
+  id?: string;
   nama_surah: string;
   makhroj: NilaiTahfidz;
   tajwid: NilaiTahfidz;
@@ -34,6 +35,7 @@ export interface JurnalSlide {
 export interface JurnalHafalanTahsinFormData {
   student_id: string;
   tanggal: string;
+  tahsin_id?: string;
   tahsin_metode: TahsinMetode | '';
   tahsin_buku: string;
   tahsin_halaman: string;
@@ -234,6 +236,7 @@ export default function JurnalHafalanTahsinForm({ loading = false, mode = 'both'
           setForm((prev) => ({
             ...prev,
             detail: data.hafalan.map((h: any) => ({
+              id: h.id || undefined,
               nama_surah: h.surah_juz || '',
               makhroj: h.makhroj || '',
               tajwid: h.tajwid || '',
@@ -241,6 +244,7 @@ export default function JurnalHafalanTahsinForm({ loading = false, mode = 'both'
               buku: h.buku || '',
               halaman: h.halaman ?? '',
             })),
+            tahsin_id: data.tahsin?.id || undefined,
             tahsin_metode: data.tahsin?.metode || 'Wafa',
             tahsin_buku: data.tahsin?.buku || '',
             tahsin_halaman: data.tahsin?.halaman ?? '',
@@ -251,6 +255,7 @@ export default function JurnalHafalanTahsinForm({ loading = false, mode = 'both'
           }));
           // When editing existing, put all rows into a single slide (no juz known)
           const loadedRows: JurnalDetailRow[] = data.hafalan.map((h: any) => ({
+            id: h.id || undefined,
             nama_surah: h.surah_juz || '',
             makhroj: h.makhroj || '',
             tajwid: h.tajwid || '',
@@ -272,6 +277,7 @@ export default function JurnalHafalanTahsinForm({ loading = false, mode = 'both'
               const lastTahsin = tahsinJson.data?.[0];
               setForm((prev) => ({
                 ...prev,
+                tahsin_id: undefined,
                 tahsin_metode: lastTahsin?.metode || '',
                 tahsin_buku: lastTahsin?.buku || '',
                 tahsin_halaman: lastTahsin?.halaman ?? '',
@@ -288,6 +294,7 @@ export default function JurnalHafalanTahsinForm({ loading = false, mode = 'both'
               if (cancelled) return;
               setForm((prev) => ({
                 ...prev,
+                tahsin_id: undefined,
                 tahsin_metode: '',
                 tahsin_buku: '',
                 tahsin_halaman: '',
