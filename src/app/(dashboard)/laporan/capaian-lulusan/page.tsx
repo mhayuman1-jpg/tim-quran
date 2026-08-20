@@ -66,9 +66,9 @@ export default function CapaianLulusanPage() {
     setExpandedClass((prev) => (prev === className ? null : className));
   };
 
-  // Format data untuk chart
+  // Format data untuk chart - tampilkan semua kelas (1-6)
   const chartData = data?.classes
-    .filter((c) => c.class_number >= 4) // Hanya tampilkan kelas 4-6
+    .filter((c) => c.class_number >= 1 && c.class_number <= 6)
     .map((c) => ({
       name: c.class_name,
       achieved: c.achieved,
@@ -151,11 +151,11 @@ export default function CapaianLulusanPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-amber-700">
               <div className="flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-amber-500" />
-                Kelas 4 & 5: Minimal hafal <strong>Juz 30</strong>
+                Kelas 1-4: Proses menghafal <strong>Juz 30</strong> (Target di kelas 4: sudah hafal)
               </div>
               <div className="flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-amber-500" />
-                Kelas 6: Minimal hafal <strong>Juz 29 & 30</strong> (2 Juz)
+                Kelas 5-6: Proses menghafal <strong>Juz 29 & 30</strong> (Target di kelas 6: sudah hafal)
               </div>
             </div>
           </div>
@@ -164,7 +164,7 @@ export default function CapaianLulusanPage() {
           {chartData.length > 0 && (
             <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
               <h2 className="text-base font-semibold text-slate-800 mb-4">
-                Grafik Capaian per Kelas (Kelas 4-6)
+                Grafik Capaian per Kelas
               </h2>
               <ResponsiveContainer width="100%" height={350}>
                 <BarChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
@@ -199,7 +199,7 @@ export default function CapaianLulusanPage() {
             </h2>
             <div className="space-y-3">
               {data.classes
-                .filter((c) => c.class_number >= 4)
+                .filter((c) => c.class_number >= 1 && c.class_number <= 6)
                 .map((cls) => (
                   <div key={cls.class_name} className="border border-slate-200 rounded-xl overflow-hidden">
                     {/* Class header */}

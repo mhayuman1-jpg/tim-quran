@@ -13,15 +13,17 @@ import { createServerClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
 
-// Standar capaian per kelas: minimum juz yang harus dicapai
-// Juz 30 = "30", Juz 29-30 = "29" (karena urutannya dari juz terbesar)
+// Standar capaian per kelas:
+//   Kelas 1-4: Proses menghafal Juz 30 → Target di kelas 4: sudah hafal Juz 30
+//   Kelas 5-6: Proses menghafal Juz 29-30 → Target di kelas 6: sudah hafal Juz 29 & 30
+// Logic: juz_terakhir <= standar = sudah capai (karena Juz 30 > 29 > 28, makin kecil = makin banyak hafalan)
 const STANDAR_PER_KELAS: Record<number, number> = {
-  1: 0,   // Tidak ada standar
-  2: 0,   // Tidak ada standar
-  3: 0,   // Tidak ada standar
-  4: 30,  // Minimal Juz 30
-  5: 30,  // Minimal Juz 30
-  6: 29,  // Minimal Juz 29 (artinya sudah hafal Juz 29 & 30)
+  1: 0,   // Belum ada target
+  2: 0,   // Belum ada target
+  3: 0,   // Belum ada target
+  4: 30,  // Target: Juz 30
+  5: 29,  // Target: Juz 29 (sudah hafal Juz 30 & 29)
+  6: 29,  // Target: Juz 29 (sudah hafal Juz 30 & 29)
 };
 
 // Konversi juz_terakhir string ke angka untuk perbandingan
