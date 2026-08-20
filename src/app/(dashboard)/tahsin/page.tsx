@@ -372,9 +372,9 @@ export default function TahsinPage() {
   const handleSearchStudents = useCallback(async (value: string) => {
     setSearchQuery(value);
     if (value.trim().length >= 2) {
-      await fetchStudents(value);
+      await fetchStudents(value, isTeacherMode ? selectedClassId : undefined);
     }
-  }, [fetchStudents]);
+  }, [fetchStudents, isTeacherMode, selectedClassId]);
 
   const openStudentDetail = (student: StudentOption) => {
     setSelectedStudent(student);
