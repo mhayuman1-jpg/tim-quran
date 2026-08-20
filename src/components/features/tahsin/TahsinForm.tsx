@@ -6,7 +6,7 @@
 // - Metode dropdown (Wafa / IWR / Al-Quran)
 // - Isi buku, halaman, catatan
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import Input from '@/components/ui/Input';
 import Button from '@/components/ui/Button';
 import { ChevronDown } from 'lucide-react';
@@ -162,9 +162,10 @@ export default function TahsinForm({
   onCancel,
 }: TahsinFormProps) {
   const isEdit = Boolean(initialData);
-  const today = new Intl.DateTimeFormat('sv-SE', {
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const today = useMemo(() => new Intl.DateTimeFormat('sv-SE', {
     timeZone: 'Asia/Makassar',
-  }).format(new Date());
+  }).format(new Date()), []);
 
   const [form, setForm] = useState<TahsinFormData>({
     student_id: preselectedStudentId ?? '',
@@ -215,7 +216,8 @@ export default function TahsinForm({
       });
     }
     setErrors({});
-  }, [initialData, preselectedStudentId, today]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialData?.id, preselectedStudentId]);
 
   const set = <K extends keyof TahsinFormData>(key: K, value: TahsinFormData[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));

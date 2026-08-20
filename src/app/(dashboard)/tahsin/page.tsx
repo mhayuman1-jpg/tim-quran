@@ -213,11 +213,11 @@ export default function TahsinPage() {
     setHafalanSubmitting(true);
     setHafalanError(null);
     try {
-      const res = await fetch('/api/hafalan/add', {
-        method: 'POST',
+      const res = await fetch('/api/hafalan/update', {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          student_id: editingHafalan.student_id,
+          id: editingHafalan.id,
           tanggal: formData.tanggal,
           surah_juz: formData.surah_juz,
           halaman: formData.ayat,
@@ -225,14 +225,17 @@ export default function TahsinPage() {
           makhroj: formData.makhroj || null,
           tajwid: formData.tajwid || null,
           lancar: formData.lancar || null,
+          buku: editingHafalan.buku || null,
+          update_juz_terakhir: formData.update_juz_terakhir || false,
+          juz_baru: formData.juz_baru || null,
         }),
       });
       const json = await res.json();
       if (!res.ok) {
-        setHafalanError(json.message ?? 'Gagal menyimpan catatan hafalan.');
+        setHafalanError(json.message ?? 'Gagal memperbarui catatan hafalan.');
         return;
       }
-      setSubmitSuccess(json.message ?? 'Catatan hafalan baru berhasil disimpan.');
+      setSubmitSuccess(json.message ?? 'Catatan hafalan berhasil diperbarui.');
       setRefreshKey((k) => k + 1);
       setEditHafalanOpen(false);
       setEditingHafalan(null);
@@ -779,6 +782,7 @@ export default function TahsinPage() {
             tanggal: editingHafalan.tanggal,
             surah_juz: editingHafalan.surah_juz,
             halaman: editingHafalan.halaman,
+            buku: editingHafalan.buku ?? undefined,
             catatan: editingHafalan.catatan ?? undefined,
             created_at: editingHafalan.created_at,
           } : null}

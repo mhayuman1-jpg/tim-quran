@@ -84,9 +84,10 @@ export default function HafalanForm({
   onCancel,
 }: HafalanFormProps) {
   const isEdit = Boolean(initialData);
-  const today = new Intl.DateTimeFormat('sv-SE', {
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const today = useMemo(() => new Intl.DateTimeFormat('sv-SE', {
     timeZone: 'Asia/Makassar',
-  }).format(new Date());
+  }).format(new Date()), []);
 
   const [form, setForm] = useState<HafalanFormData>({
     student_id: preselectedStudentId ?? '',
@@ -116,8 +117,15 @@ export default function HafalanForm({
   useEffect(() => {
     const selected = students.find((s) => s.id === form.student_id);
     if (selected) {
-      setSelectedStudentJuz(String(selected.juz_terakhir ?? '1'));
-      setForm((prev) => ({ ...prev, juz_baru: String(selected.juz_terakhir ?? '1') }));
+      const newJuz = String(selected.juz_terakhir ?? '1');
+      setSelectedStudentJuz((prev) => {
+        if (prev !== newJuz) return newJuz;
+        return prev;
+      });
+      setForm((prev) => {
+        if (prev.juz_baru === newJuz) return prev;
+        return { ...prev, juz_baru: newJuz };
+      });
     }
   }, [form.student_id, students]);
 
@@ -151,7 +159,8 @@ export default function HafalanForm({
       });
     }
     setErrors({});
-  }, [initialData, preselectedStudentId, today]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialData?.id, preselectedStudentId]);
 
   const set = <K extends keyof HafalanFormData>(key: K, value: HafalanFormData[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));

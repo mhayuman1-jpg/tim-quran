@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo } from 'react';
 import useSWR from 'swr';
 
 const fetcher = async (url: string) => {
@@ -21,14 +22,17 @@ export function useNavigation() {
   };
 }
 
+const EMPTY_ARRAY: never[] = [];
+
 export function useSiswaList() {
   const { data, error, isLoading } = useSWR('/api/siswa/list', fetcher, {
     revalidateOnFocus: false,
     dedupingInterval: 60000,
     staleTime: 300000,
   });
+  const siswa = useMemo(() => data?.data ?? EMPTY_ARRAY, [data]);
   return {
-    siswa: data?.data ?? [],
+    siswa,
     isLoading,
     isError: !!error,
   };
