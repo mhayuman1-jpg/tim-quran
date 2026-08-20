@@ -16,6 +16,7 @@ import TahsinHistory from '@/components/features/tahsin/TahsinHistory';
 import HafalanHistory from '@/components/features/hafalan/HafalanHistory';
 import HafalanForm, { type HafalanFormData } from '@/components/features/hafalan/HafalanForm';
 import TahsinForm, { type TahsinFormData } from '@/components/features/tahsin/TahsinForm';
+import BulkUpdateJuzModal from '@/components/features/santri/BulkUpdateJuzModal';
 import { useViewMode } from '@/hooks/useViewMode';
 import { useRole } from '@/hooks/useRole';
 
@@ -126,6 +127,9 @@ export default function TahsinPage() {
   const [scanFeedback, setScanFeedback] = useState<{ type: 'success' | 'error' | 'warning'; message: string } | null>(null);
   const [scannedList, setScannedList] = useState<{ student_id: string; nama: string; scanned_at: string }[]>([]);
   const [scannerOpen, setScannerOpen] = useState(false);
+
+  // Bulk update juz state
+  const [bulkJuzOpen, setBulkJuzOpen] = useState(false);
 
   // ── Class-based view for Tim_Quran
   const [classes, setClasses] = useState<{ id: string; name: string; jumlah_siswa?: number }[]>([]);
@@ -420,15 +424,24 @@ export default function TahsinPage() {
                 {scannerOpen ? 'Tutup Scanner' : 'Scan QR Absen'}
               </Button>
               {role === 'Kabid' && (
-                <Button
-                  variant="primary"
-                  leftIcon={<Plus size={16} />}
-                  onClick={() => handleOpenAdd('both')}
-                  disabled={selectedStudent != null && !selectedStudentAttended}
-                  title={selectedStudent && !selectedStudentAttended ? 'Siswa belum absen hari ini' : undefined}
-                >
-                  Tambah Jurnal
-                </Button>
+                <>
+                  <Button
+                    variant="secondary"
+                    leftIcon={<BookText size={16} />}
+                    onClick={() => setBulkJuzOpen(true)}
+                  >
+                    Update Juz Massal
+                  </Button>
+                  <Button
+                    variant="primary"
+                    leftIcon={<Plus size={16} />}
+                    onClick={() => handleOpenAdd('both')}
+                    disabled={selectedStudent != null && !selectedStudentAttended}
+                    title={selectedStudent && !selectedStudentAttended ? 'Siswa belum absen hari ini' : undefined}
+                  >
+                    Tambah Jurnal
+                  </Button>
+                </>
               )}
             </>
           )}
@@ -823,6 +836,16 @@ export default function TahsinPage() {
           onCancel={() => { if (!tahsinSubmitting) { setEditTahsinOpen(false); setEditingTahsin(null); } }}
         />
       </Modal>
+
+      {/* Modal Update Juz Massal */}
+      <BulkUpdateJuzModal
+        open={bulkJuzOpen}
+        onClose={() => setBulkJuzOpen(false)}
+        onSuccess={(msg) => {
+          setSubmitSuccess(msg);
+          setRefreshKey((k) => k + 1);
+        }}
+      />
     </div>
   );
 }
