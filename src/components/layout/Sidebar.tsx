@@ -9,7 +9,7 @@ import {
   FileText, BarChart2, Repeat, TrendingUp,
   School, UserCheck, Megaphone, Newspaper, Settings, Globe, X, Eye,
   CalendarDays, MessageCircle, MessageSquareQuote, CalendarOff, UserX,
-  ClipboardList,
+  ClipboardList, Award,
 } from 'lucide-react';
 import { useSession } from '@/hooks/useSession';
 import { useRole } from '@/hooks/useRole';
@@ -44,6 +44,7 @@ const menuItems: MenuItem[] = [
   { label: 'Pesan',              href: '/pesan',              icon: <MessageCircle size={16} />,    group: 'Manajemen', roles: ['Kabid', 'Sekretaris'] },
   { label: 'Rekap Tahfidz & Tahsin', href: '/rekap',              icon: <Repeat size={16} />,          group: 'Manajemen', roles: ['Kabid', 'Sekretaris'] },
   { label: 'Laporan Progres', href: '/laporan',           icon: <TrendingUp size={16} />,      group: 'Manajemen', roles: ['Kabid', 'Sekretaris'] },
+  { label: 'Capaian Lulusan', href: '/laporan/capaian-lulusan', icon: <Award size={16} />,        group: 'Manajemen', roles: ['Kabid'] },
   { label: 'Semester',       href: '/semester',           icon: <CalendarDays size={16} />,    group: 'Manajemen', roles: ['Kabid'] },
   { label: 'Kalender Libur',  href: '/kalender-libur',     icon: <CalendarOff size={16} />,     group: 'Manajemen', roles: ['Kabid'] },
   { label: 'Kelas',          href: '/kelas',              icon: <School size={16} />,          group: 'Manajemen', roles: ['Kabid'] },
