@@ -213,29 +213,27 @@ export default function TahsinPage() {
     setHafalanSubmitting(true);
     setHafalanError(null);
     try {
-      const res = await fetch('/api/hafalan/update', {
-        method: 'PUT',
+      const res = await fetch('/api/hafalan/add', {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          id: editingHafalan.id,
+          student_id: editingHafalan.student_id,
           tanggal: formData.tanggal,
           surah_juz: formData.surah_juz,
-          halaman: formData.ayat,
+          halaman: formData.ayat || null,
           catatan: formData.catatan || null,
           makhroj: formData.makhroj || null,
           tajwid: formData.tajwid || null,
           lancar: formData.lancar || null,
           buku: editingHafalan.buku || null,
-          update_juz_terakhir: formData.update_juz_terakhir || false,
-          juz_baru: formData.juz_baru || null,
         }),
       });
       const json = await res.json();
       if (!res.ok) {
-        setHafalanError(json.message ?? 'Gagal memperbarui catatan hafalan.');
+        setHafalanError(json.message ?? 'Gagal menyimpan catatan hafalan.');
         return;
       }
-      setSubmitSuccess(json.message ?? 'Catatan hafalan berhasil diperbarui.');
+      setSubmitSuccess(json.message ?? 'Catatan hafalan baru berhasil disimpan.');
       setRefreshKey((k) => k + 1);
       setEditHafalanOpen(false);
       setEditingHafalan(null);
