@@ -147,15 +147,23 @@ export default function CapaianLulusanPage() {
 
           {/* Standar info */}
           <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
-            <h3 className="text-sm font-semibold text-amber-800 mb-2">Standar Capaian Lulusan</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-amber-700">
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-amber-500" />
-                Kelas 1-4: Proses menghafal <strong>Juz 30</strong> (Target di kelas 4: sudah hafal)
+            <h3 className="text-sm font-semibold text-amber-800 mb-3">Standar Capaian Lulusan — Kurikulum Hafalan SDIT Al-Hilmi</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-amber-700">
+              <div className="bg-white/60 rounded-lg p-3 border border-amber-100">
+                <div className="font-semibold text-amber-800 mb-1">Kelas 1-4: Juz 30</div>
+                <div className="text-xs space-y-0.5">
+                  <p>Lev I (Kelas 1-2): AnNas – At Takatsur</p>
+                  <p>Lev II (Kelas 3-4): Al Qoriah – Ad Dhuha</p>
+                  <p className="font-medium pt-1">Target Kelas 4: Juz 30 selesai</p>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-amber-500" />
-                Kelas 5-6: Proses menghafal <strong>Juz 29 & 30</strong> (Target di kelas 6: sudah hafal)
+              <div className="bg-white/60 rounded-lg p-3 border border-amber-100">
+                <div className="font-semibold text-amber-800 mb-1">Kelas 5-6: Juz 29</div>
+                <div className="text-xs space-y-0.5">
+                  <p>Lev III (Kelas 5): Al Lail – Al A'la</p>
+                  <p>Lev IV (Kelas 6): At Thoriq – An Naba</p>
+                  <p className="font-medium pt-1">Target Kelas 6: Juz 30 & 29 selesai</p>
+                </div>
               </div>
             </div>
           </div>
