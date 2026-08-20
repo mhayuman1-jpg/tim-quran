@@ -138,14 +138,13 @@ export default function TahsinPage() {
   const [classesLoading, setClassesLoading] = useState(false);
 
   useEffect(() => {
-    if (!isTeacherMode) return;
     setClassesLoading(true);
     fetch('/api/kelas/list', { headers: viewHeaders })
       .then(r => r.json())
       .then(json => setClasses(json.data ?? []))
       .catch(() => {})
       .finally(() => setClassesLoading(false));
-  }, [isTeacherMode, viewHeaders]);
+  }, [viewHeaders]);
 
   useEffect(() => {
     if (!scanFeedback) return;
@@ -414,7 +413,7 @@ export default function TahsinPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {(!isTeacherMode || selectedClassId) && (
+          {(!isTeacherMode || selectedClassId || role === 'Kabid') && (
             <>
               <Button
                 variant={scannerOpen ? 'secondary' : 'primary'}
@@ -519,8 +518,8 @@ export default function TahsinPage() {
 
       <div className="grid gap-6 xl:grid-cols-[minmax(280px,360px)_1fr]">
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-5">
-          {/* ── Class-first view for Tim_Quran ── */}
-          {isTeacherMode && !selectedClassId && (
+          {/* ── Class-first view for Tim_Quran & Kabid ── */}
+          {!selectedClassId && (
             <>
               <div>
                 <h2 className="text-base font-semibold text-slate-800">Pilih Kelas</h2>
@@ -564,12 +563,12 @@ export default function TahsinPage() {
             </>
           )}
 
-          {/* ── Student list when a class is selected (Tim_Quran) or flat view (Kabid) ── */}
-          {(!isTeacherMode || selectedClassId) && (
+          {/* ── Student list when a class is selected ── */}
+          {selectedClassId && (
             <>
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  {isTeacherMode && selectedClassId && (
+                  {selectedClassId && (
                     <button onClick={handleBackToClasses} className="flex items-center gap-1 text-xs text-amber-600 hover:text-amber-700 mb-1.5 font-medium">
                       <ArrowLeft size={12} /> Semua Kelas
                     </button>
@@ -643,7 +642,7 @@ export default function TahsinPage() {
                   </div>
                 ) : (
                   <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
-                    {isTeacherMode && !selectedClassId ? 'Pilih kelas terlebih dahulu.' : 'Belum ada siswa yang tersedia.'}
+                    {!selectedClassId ? 'Pilih kelas terlebih dahulu.' : 'Belum ada siswa yang tersedia.'}
                   </div>
                 )}
               </div>
