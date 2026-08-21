@@ -81,6 +81,84 @@ const STANDAR_PER_KELAS: Record<number, SemesterStandar[]> = {
   ],
 };
 
+// ── Tahsin capaian: IWR per kelas ──────────────────────────────────────────
+const TAHSIN_MAX_PAGES = 40;
+
+// Kelas 1: Jilid 1, Kelas 2: Jilid 2, dst. (hanya kelas 1-4)
+const TAHSIN_STANDAR_PER_KELAS: Record<number, { label: string; required_jilid: string }> = {
+  1: { label: 'Jilid 1 IWR', required_jilid: 'Jilid 1' },
+  2: { label: 'Jilid 2 IWR', required_jilid: 'Jilid 2' },
+  3: { label: 'Jilid 3 IWR', required_jilid: 'Jilid 3' },
+  4: { label: 'Jilid 4 IWR', required_jilid: 'Jilid 4' },
+};
+
+interface TahsinEntry {
+  student_id: string;
+  metode: string;
+  buku: string | null;
+  halaman: string | null;
+}
+
+interface TahsinClassStats {
+  class_name: string;
+  class_number: number;
+  total_students: number;
+  achieved: number;
+  not_achieved: number;
+  percentage: number;
+  students: {
+    id: string;
+    nama: string;
+    achieved: boolean;
+    current_jilid: string;
+    current_page: string;
+  }[];
+}
+
+// Parse halaman string → max page number
+// Handle: "40", "1-40", "35-40", etc.
+function parseMaxPage(halaman: string | null | undefined): number {
+  if (!halaman) return 0;
+  const str = halaman.toString().trim();
+  // Extract all numbers from the string
+  const nums = str.match(/\d+/g);
+  if (!nums || nums.length === 0) return 0;
+  // Return the largest number found
+  return Math.max(...nums.map(Number));
+}
+
+// Cek apakah siswa sudah menyelesaikan jilid IWR yang diperlukan
+function checkTahsinAchieved(
+  tahsinEntries: TahsinEntry[],
+  requiredJilid: string
+): { achieved: boolean; currentJilid: string; currentPage: string } {
+  // Filter entries for IWR method and the required jilid
+  const iwrEntries = tahsinEntries.filter(
+    (e) => e.metode === 'IWR' && e.buku === requiredJilid
+  );
+
+  if (iwrEntries.length === 0) {
+    return { achieved: false, currentJilid: '-', currentPage: '-' };
+  }
+
+  // Find the highest page number across all entries for this jilid
+  let maxPage = 0;
+  let lastBuku = requiredJilid;
+  for (const entry of iwrEntries) {
+    const page = parseMaxPage(entry.halaman);
+    if (page > maxPage) {
+      maxPage = page;
+      lastBuku = entry.buku ?? requiredJilid;
+    }
+  }
+
+  return {
+    achieved: maxPage >= TAHSIN_MAX_PAGES,
+    currentJilid: lastBuku,
+    currentPage: String(maxPage),
+  };
+}
+
 // ── Helper functions ────────────────────────────────────────────────────────
 
 // Parse surah_juz string → nomor surah (null jika tidak dikenali)
@@ -274,6 +352,30 @@ export async function GET(request: NextRequest) {
       hafalanByStudent.get(h.student_id)!.push(h);
     }
 
+    // Ambil SEMUA data tahsin untuk siswa (dengan pagination)
+    let allTahsin: TahsinEntry[] = [];
+
+    if (studentIds.length > 0) {
+      const chunkSize = 500;
+      for (let i = 0; i < studentIds.length; i += chunkSize) {
+        const chunk = studentIds.slice(i, i + chunkSize);
+        const { data: tahsinData } = await supabase
+          .from('tahsin')
+          .select('student_id, metode, buku, halaman')
+          .in('student_id', chunk);
+        allTahsin.push(...((tahsinData ?? []) as TahsinEntry[]));
+      }
+    }
+
+    // Index tahsin per student
+    const tahsinByStudent = new Map<string, TahsinEntry[]>();
+    for (const t of allTahsin) {
+      if (!tahsinByStudent.has(t.student_id)) {
+        tahsinByStudent.set(t.student_id, []);
+      }
+      tahsinByStudent.get(t.student_id)!.push(t);
+    }
+
     // Kelompokkan per kelas
     const classMap = new Map<string, ClassStats>();
 
@@ -331,6 +433,58 @@ export async function GET(request: NextRequest) {
       });
     }
 
+    // ── Tahsin capaian per kelas ──
+    const tahsinClassMap = new Map<string, TahsinClassStats>();
+
+    for (const s of studentList) {
+      const className = s.classes?.name ?? 'Tanpa Kelas';
+      const classNumber = extractClassNumber(className);
+
+      // Hanya kelas 1-4 yang punya standar tahsin
+      const tahsinStandar = TAHSIN_STANDAR_PER_KELAS[classNumber];
+      if (!tahsinStandar) continue;
+
+      if (!tahsinClassMap.has(className)) {
+        tahsinClassMap.set(className, {
+          class_name: className,
+          class_number: classNumber,
+          total_students: 0,
+          achieved: 0,
+          not_achieved: 0,
+          percentage: 0,
+          students: [],
+        });
+      }
+
+      const tStats = tahsinClassMap.get(className)!;
+      tStats.total_students++;
+
+      const studentTahsin = tahsinByStudent.get(s.id) ?? [];
+      const result = checkTahsinAchieved(studentTahsin, tahsinStandar.required_jilid);
+
+      if (result.achieved) {
+        tStats.achieved++;
+      } else {
+        tStats.not_achieved++;
+      }
+
+      tStats.students.push({
+        id: s.id,
+        nama: s.nama,
+        achieved: result.achieved,
+        current_jilid: result.currentJilid,
+        current_page: result.currentPage,
+      });
+    }
+
+    // Hitung persentase tahsin
+    const tahsinStats = Array.from(tahsinClassMap.values()).sort((a, b) => a.class_number - b.class_number);
+    for (const ts of tahsinStats) {
+      ts.percentage = ts.total_students > 0
+        ? Math.round((ts.achieved / ts.total_students) * 100)
+        : 0;
+    }
+
     // Hitung persentase
     const allStats = Array.from(classMap.values());
     for (const stats of allStats) {
@@ -347,7 +501,7 @@ export async function GET(request: NextRequest) {
       ? Math.round((totalAchieved / totalStudents) * 100)
       : 0;
 
-    // Format standar
+    // Format standar hafalan
     const standardsFormatted: Record<number, { smt1: string; smt2: string }> = {};
     for (const [kelas, standars] of Object.entries(STANDAR_PER_KELAS)) {
       const smt1 = standars.find((s) => s.semester === 1);
@@ -357,6 +511,16 @@ export async function GET(request: NextRequest) {
         smt2: smt2?.label ?? '-',
       };
     }
+
+    // Format standar tahsin
+    const tahsinStandardsFormatted: Record<number, string> = {};
+    for (const [kelas, standar] of Object.entries(TAHSIN_STANDAR_PER_KELAS)) {
+      tahsinStandardsFormatted[Number(kelas)] = standar.label;
+    }
+
+    // Summary tahsin
+    const tahsinTotalStudents = tahsinStats.reduce((sum, c) => sum + c.total_students, 0);
+    const tahsinTotalAchieved = tahsinStats.reduce((sum, c) => sum + c.achieved, 0);
 
     return NextResponse.json({
       data: {
@@ -369,6 +533,16 @@ export async function GET(request: NextRequest) {
         },
         standards: standardsFormatted,
         current_semester: activeSemester,
+        tahsin_classes: tahsinStats,
+        tahsin_standards: tahsinStandardsFormatted,
+        tahsin_summary: {
+          total_students: tahsinTotalStudents,
+          total_achieved: tahsinTotalAchieved,
+          total_not_achieved: tahsinTotalStudents - tahsinTotalAchieved,
+          total_percentage: tahsinTotalStudents > 0
+            ? Math.round((tahsinTotalAchieved / tahsinTotalStudents) * 100)
+            : 0,
+        },
       },
     });
   } catch (error) {

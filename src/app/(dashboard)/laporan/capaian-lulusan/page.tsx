@@ -40,11 +40,32 @@ interface Standards {
   [kelas: number]: { smt1: string; smt2: string };
 }
 
+interface TahsinStudent {
+  id: string;
+  nama: string;
+  achieved: boolean;
+  current_jilid: string;
+  current_page: string;
+}
+
+interface TahsinClassStat {
+  class_name: string;
+  class_number: number;
+  total_students: number;
+  achieved: number;
+  not_achieved: number;
+  percentage: number;
+  students: TahsinStudent[];
+}
+
 interface ApiResponse {
   classes: ClassStat[];
   summary: Summary;
   standards: Standards;
   current_semester: string;
+  tahsin_classes: TahsinClassStat[];
+  tahsin_standards: Record<number, string>;
+  tahsin_summary: Summary;
 }
 
 const CHART_COLORS = {
@@ -262,6 +283,86 @@ export default function CapaianLulusanPage() {
           },
         });
         y = (doc as any).lastAutoTable.finalY + 8;
+      }
+
+      // ── Tahsin Capaian Section ──
+      if (data.tahsin_classes.length > 0) {
+        if (y + 40 > pageH - 15) { doc.addPage(); y = 15; }
+
+        // Divider
+        doc.setFillColor(245, 158, 11);
+        doc.rect(15, y, pageW - 30, 0.5, 'F');
+        y += 5;
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(12);
+        doc.text('CAPAIAN TAHSIN (IWR)', 15, y);
+        y += 8;
+
+        // Tahsin summary
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(9);
+        doc.text(`Total Siswa (Kelas 1-4): ${data.tahsin_summary.total_students}  |  Selesai: ${data.tahsin_summary.total_achieved}  |  Belum: ${data.tahsin_summary.total_not_achieved}  |  Persentase: ${data.tahsin_summary.total_percentage}%`, 15, y);
+        y += 8;
+
+        // Tahsin standards
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(10);
+        doc.text('Standar Tahsin per Kelas', 15, y);
+        y += 5;
+        autoTable(doc, {
+          startY: y,
+          head: [['Kelas', 'Target IWR']],
+          body: [1, 2, 3, 4].map((k) => [
+            `Kelas ${k}`,
+            data.tahsin_standards[k] ?? '-',
+          ]),
+          theme: 'grid',
+          headStyles: { fillColor: [245, 158, 11], textColor: 255, fontStyle: 'bold' },
+          styles: { fontSize: 9, cellPadding: 3 },
+          margin: { left: 15, right: 15 },
+        });
+        y = (doc as any).lastAutoTable.finalY + 10;
+
+        // Tahsin detail per class
+        for (const cls of data.tahsin_classes) {
+          const neededHeight = 30 + cls.students.length * 5;
+          if (y + Math.min(neededHeight, 80) > pageH - 15) { doc.addPage(); y = 15; }
+
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(10);
+          doc.text(`${cls.class_name} — Target: ${data.tahsin_standards[cls.class_number]}`, 15, y);
+          y += 5;
+
+          autoTable(doc, {
+            startY: y,
+            head: [['No', 'Nama Siswa', 'Jilid Saat Ini', 'Halaman', 'Status']],
+            body: cls.students
+              .sort((a, b) => {
+                if (a.achieved === b.achieved) return a.nama.localeCompare(b.nama);
+                return a.achieved ? 1 : -1;
+              })
+              .map((s, i) => [
+                String(i + 1),
+                s.nama,
+                s.current_jilid,
+                s.current_page,
+                s.achieved ? 'Selesai' : 'Belum Selesai',
+              ]),
+            theme: 'grid',
+            headStyles: { fillColor: [245, 158, 11], textColor: 255, fontStyle: 'bold' },
+            styles: { fontSize: 8, cellPadding: 2 },
+            columnStyles: { 4: { fontStyle: 'bold' } },
+            margin: { left: 15, right: 15 },
+            didParseCell(dataCell) {
+              if (dataCell.column.index === 4 && dataCell.section === 'body') {
+                const val = dataCell.cell.raw as string;
+                if (val === 'Selesai') dataCell.cell.styles.textColor = [22, 163, 74];
+                else dataCell.cell.styles.textColor = [220, 38, 38];
+              }
+            },
+          });
+          y = (doc as any).lastAutoTable.finalY + 8;
+        }
       }
 
       // ── Footer on every page
@@ -519,6 +620,167 @@ export default function CapaianLulusanPage() {
                 ))}
             </div>
           </div>
+
+          {/* ═══════ TAHSIN CAPAIAN ═══════ */}
+          {data.tahsin_classes.length > 0 && (
+            <>
+              {/* Divider */}
+              <div className="flex items-center gap-3 my-2">
+                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-amber-300 to-transparent" />
+                <span className="text-xs font-semibold text-amber-600 uppercase tracking-widest">Capaian Tahsin (IWR)</span>
+                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-amber-300 to-transparent" />
+              </div>
+
+              {/* Tahsin Summary Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
+                      <Users size={18} className="text-blue-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-slate-500">Total Siswa (Kelas 1-4)</p>
+                      <p className="text-2xl font-bold text-slate-800">{data.tahsin_summary.total_students}</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-emerald-100 flex items-center justify-center">
+                      <TrendingUp size={18} className="text-emerald-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-slate-500">Selesai IWR</p>
+                      <p className="text-2xl font-bold text-emerald-600">{data.tahsin_summary.total_achieved}</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-red-100 flex items-center justify-center">
+                      <AlertCircle size={18} className="text-red-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-slate-500">Belum Selesai IWR</p>
+                      <p className="text-2xl font-bold text-red-600">{data.tahsin_summary.total_not_achieved}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Tahsin Standards Table */}
+              <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+                <div className="flex items-center gap-2 mb-4">
+                  <GraduationCap size={18} className="text-amber-600" />
+                  <h2 className="text-base font-semibold text-slate-800">
+                    Standar Capaian Tahsin per Kelas
+                  </h2>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-slate-200">
+                        <th className="text-left py-2 px-3 font-medium text-slate-600">Kelas</th>
+                        <th className="text-left py-2 px-3 font-medium text-slate-600">Target IWR</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {[1, 2, 3, 4].map((kelas) => (
+                        <tr key={kelas} className="border-b border-slate-100 last:border-0">
+                          <td className="py-2.5 px-3 font-medium text-slate-800">Kelas {kelas}</td>
+                          <td className="py-2.5 px-3 text-slate-600">{data.tahsin_standards[kelas] ?? '-'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Tahsin Detail per Kelas */}
+              <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+                <h2 className="text-base font-semibold text-slate-800 mb-4">
+                  Detail Tahsin per Kelas
+                </h2>
+                <div className="space-y-3">
+                  {data.tahsin_classes.map((cls) => (
+                    <div key={cls.class_name} className="border border-slate-200 rounded-xl overflow-hidden">
+                      <button
+                        type="button"
+                        onClick={() => toggleExpand(`tahsin-${cls.class_name}`)}
+                        className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-50 transition"
+                      >
+                        <div className="flex items-center gap-3">
+                          {expandedClass === `tahsin-${cls.class_name}` ? (
+                            <ChevronDown size={16} className="text-slate-400" />
+                          ) : (
+                            <ChevronRight size={16} className="text-slate-400" />
+                          )}
+                          <span className="font-medium text-slate-800">{cls.class_name}</span>
+                          <span className="text-sm text-slate-500">{cls.total_students} siswa</span>
+                          <span className="text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">
+                            Target: {data.tahsin_standards[cls.class_number]}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <div className="w-32 h-2 bg-slate-200 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-emerald-500 rounded-full transition-all"
+                              style={{ width: `${cls.percentage}%` }}
+                            />
+                          </div>
+                          <span className="text-sm font-semibold text-slate-700 w-12 text-right">
+                            {cls.percentage}%
+                          </span>
+                          <span className="text-sm text-emerald-600">{cls.achieved} ✓</span>
+                          <span className="text-sm text-red-500">{cls.not_achieved} ✗</span>
+                        </div>
+                      </button>
+
+                      {expandedClass === `tahsin-${cls.class_name}` && (
+                        <div className="border-t border-slate-200 divide-y divide-slate-100 max-h-[500px] overflow-y-auto">
+                          <div className="px-4 py-2.5 bg-slate-50 flex items-center gap-4 text-xs font-medium text-slate-500">
+                            <span className="flex items-center gap-1">
+                              <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                              {cls.achieved} selesai
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <span className="w-2 h-2 rounded-full bg-red-500" />
+                              {cls.not_achieved} belum selesai
+                            </span>
+                          </div>
+                          {[...cls.students]
+                            .sort((a, b) => {
+                              if (a.achieved === b.achieved) return a.nama.localeCompare(b.nama);
+                              return a.achieved ? 1 : -1;
+                            })
+                            .map((s) => (
+                              <div
+                                key={s.id}
+                                className={`flex items-center justify-between px-4 py-2.5 text-sm ${
+                                  s.achieved ? 'bg-white' : 'bg-red-50/50'
+                                }`}
+                              >
+                                <div className="flex items-center gap-2">
+                                  <span className={s.achieved ? 'text-emerald-500' : 'text-red-500'}>
+                                    {s.achieved ? '✓' : '✗'}
+                                  </span>
+                                  <span className={s.achieved ? 'text-slate-700' : 'text-slate-800 font-medium'}>
+                                    {s.nama}
+                                  </span>
+                                </div>
+                                <span className="text-slate-500">
+                                  {s.current_jilid !== '-' ? `${s.current_jilid} — Hal. ${s.current_page}` : 'Belum ada'}
+                                </span>
+                              </div>
+                            ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
         </>
       )}
     </div>
