@@ -20,6 +20,35 @@ import { useToast } from '@/lib/toast';
 import { useRole } from '@/hooks/useRole';
 import { useViewMode } from '@/hooks/useViewMode';
 
+interface TahsinEvaluationDetail {
+  buku: string;
+  total_siswa: number;
+  students: Array<{
+    id: string;
+    nama: string;
+    nisn: string;
+    kelas: string;
+    tanggal: string;
+  }>;
+}
+
+interface TahsinEvaluation {
+  total_siswa: number;
+  tahfidz: {
+    details: Array<{
+      juz: string;
+      total_siswa: number;
+      students: TahsinEvaluationDetail['students'];
+    }>;
+  };
+  groups: Array<{
+    metode: 'IWR' | 'Wafa' | 'Al-Quran';
+    total_siswa: number;
+    details: TahsinEvaluationDetail[];
+  }>;
+  tanpa_jurnal: TahsinEvaluationDetail['students'];
+}
+
 export default function SiswaPage() {
   const router = useRouter();
   const { toast } = useToast();
@@ -35,6 +64,10 @@ export default function SiswaPage() {
   const [classFilter, setClassFilter] = useState('');
   const [selectedClassName, setSelectedClassName] = useState('');
   const [limit, setLimit] = useState(100);
+  const [tahsinEvaluation, setTahsinEvaluation] = useState<TahsinEvaluation | null>(null);
+  const [tahsinEvaluationLoading, setTahsinEvaluationLoading] = useState(false);
+  const [tahsinEvaluationError, setTahsinEvaluationError] = useState<string | null>(null);
+  const [downloadingEvaluation, setDownloadingEvaluation] = useState(false);
 
   // ── Form modal
   const [formOpen, setFormOpen] = useState(false);
@@ -71,9 +104,34 @@ export default function SiswaPage() {
     return h;
   }, [viewAsRole, viewAsTeacherId]);
 
+  const fetchTahsinEvaluation = useCallback(async (q = '', classId = '') => {
+    setTahsinEvaluationLoading(true);
+    setTahsinEvaluationError(null);
+    try {
+      const params = new URLSearchParams();
+      if (q) params.set('search', q);
+      if (classId) params.set('class_id', classId);
+      const query = params.toString();
+      const response = await fetch(`/api/siswa/tahsin-evaluasi${query ? `?${query}` : ''}`, { headers: viewHeaders });
+      const json = await response.json();
+      if (!response.ok) {
+        setTahsinEvaluation(null);
+        setTahsinEvaluationError(json.message ?? 'Gagal memuat data evaluasi.');
+        return;
+      }
+      setTahsinEvaluation(json.data ?? null);
+    } catch {
+      setTahsinEvaluation(null);
+      setTahsinEvaluationError('Gagal terhubung ke data evaluasi.');
+    } finally {
+      setTahsinEvaluationLoading(false);
+    }
+  }, [viewHeaders]);
+
   const fetchSiswa = useCallback(async (q = '', classId = '', lim = limit) => {
     setLoading(true);
     setSelectedIds([]);
+    void fetchTahsinEvaluation(q, classId);
     try {
       const params = new URLSearchParams();
       if (q) params.set('search', q);
@@ -87,7 +145,7 @@ export default function SiswaPage() {
       else setData(json.data ?? []);
     } catch { toast.error('Terjadi kesalahan saat memuat data siswa.'); setData([]); }
     finally { setLoading(false); }
-  }, [toast, viewHeaders, limit]);
+  }, [toast, viewHeaders, limit, fetchTahsinEvaluation]);
 
   useEffect(() => {
     fetchSiswa('', classFilter, limit);
@@ -113,6 +171,36 @@ export default function SiswaPage() {
     setClassFilter('');
     setSelectedIds([]);
     fetchSiswa();
+  };
+
+  const handleDownloadEvaluation = async () => {
+    setDownloadingEvaluation(true);
+    try {
+      const params = new URLSearchParams();
+      if (search) params.set('search', search);
+      if (classFilter) params.set('class_id', classFilter);
+      const query = params.toString();
+      const response = await fetch(`/api/siswa/evaluasi-export${query ? `?${query}` : ''}`, { headers: viewHeaders });
+
+      if (!response.ok) {
+        const json = await response.json().catch(() => ({}));
+        toast.error(json.message ?? 'Gagal mengunduh Excel evaluasi.');
+        return;
+      }
+
+      const blob = await response.blob();
+      const downloadUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = 'evaluasi_tahfidz_tahsin.xlsx';
+      link.click();
+      URL.revokeObjectURL(downloadUrl);
+      toast.success('Excel evaluasi berhasil diunduh.');
+    } catch {
+      toast.error('Terjadi kesalahan saat mengunduh Excel evaluasi.');
+    } finally {
+      setDownloadingEvaluation(false);
+    }
   };
 
   const handleExport = async () => {
@@ -534,6 +622,96 @@ export default function SiswaPage() {
               <span className="text-sm font-bold text-amber-700 bg-amber-50 px-3 py-1 rounded-lg border border-amber-200">{selectedClassName}</span>
             </div>
           )}
+          <section className="border border-slate-200 bg-white p-5">
+            <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
+              <div>
+                <h2 className="text-base font-semibold text-slate-800">Evaluasi Tahfidz &amp; Tahsin Siswa</h2>
+                <p className="mt-0.5 text-sm text-slate-500">Tahfidz memakai Juz saat ini; tahsin memakai satu jurnal terbaru setiap siswa.</p>
+              </div>
+              <div className="flex items-center gap-3">
+                {tahsinEvaluation && (
+                  <span className="text-sm font-medium text-slate-500">{tahsinEvaluation.total_siswa} siswa aktif</span>
+                )}
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  leftIcon={downloadingEvaluation ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+                  onClick={handleDownloadEvaluation}
+                  disabled={downloadingEvaluation || tahsinEvaluationLoading}
+                >
+                  {downloadingEvaluation ? 'Menyiapkan Excel...' : 'Download Excel Evaluasi'}
+                </Button>
+              </div>
+            </div>
+
+            {tahsinEvaluationLoading ? (
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                {[0, 1, 2].map((index) => <div key={index} className="h-24 animate-pulse bg-slate-100" />)}
+              </div>
+            ) : tahsinEvaluation ? (
+              <>
+                <div className="mb-5 border-b border-slate-200 pb-4">
+                  <h3 className="mb-3 text-sm font-semibold text-slate-800">Tahfidz berdasarkan Juz Saat Ini</h3>
+                  {tahsinEvaluation.tahfidz.details.length === 0 ? (
+                    <p className="text-sm text-slate-400">Belum ada data tahfidz.</p>
+                  ) : (
+                    <div className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3">
+                      {tahsinEvaluation.tahfidz.details.map((detail) => (
+                        <details key={detail.juz} className="border border-slate-200 p-3">
+                          <summary className="cursor-pointer text-sm text-slate-700 marker:text-amber-600">
+                            <span className="font-medium">Juz {detail.juz}</span>
+                            <span className="ml-2 text-slate-400">{detail.total_siswa} siswa</span>
+                          </summary>
+                          <ul className="mt-2 space-y-1 pl-4 text-xs text-slate-500">
+                            {detail.students.map((student) => (
+                              <li key={student.id}>{student.nama} ({student.nisn}) - {student.kelas}</li>
+                            ))}
+                          </ul>
+                        </details>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <h3 className="mb-3 text-sm font-semibold text-slate-800">Tahsin berdasarkan Jurnal Terbaru</h3>
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                  {tahsinEvaluation.groups.map((group) => (
+                    <div key={group.metode} className="border border-slate-200 p-4">
+                      <div className="mb-3 flex items-center justify-between gap-3">
+                        <h3 className="font-semibold text-slate-800">{group.metode}</h3>
+                        <span className="text-xl font-bold text-amber-700">{group.total_siswa}</span>
+                      </div>
+                      {group.details.length === 0 ? (
+                        <p className="text-sm text-slate-400">Belum ada siswa.</p>
+                      ) : (
+                        <div className="space-y-2">
+                          {group.details.map((detail) => (
+                            <details key={detail.buku} className="border-t border-slate-100 pt-2 first:border-t-0 first:pt-0">
+                              <summary className="cursor-pointer text-sm text-slate-700 marker:text-amber-600">
+                                <span className="font-medium">{detail.buku}</span>
+                                <span className="ml-2 text-slate-400">{detail.total_siswa} siswa</span>
+                              </summary>
+                              <ul className="mt-2 space-y-1 pl-4 text-xs text-slate-500">
+                                {detail.students.map((student) => (
+                                  <li key={student.id}>{student.nama} ({student.nisn}) - {student.kelas}</li>
+                                ))}
+                              </ul>
+                            </details>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                {tahsinEvaluation.tanpa_jurnal.length > 0 && (
+                  <p className="mt-3 text-xs text-slate-500">
+                    Belum ada jurnal tahsin: {tahsinEvaluation.tanpa_jurnal.length} siswa.
+                  </p>
+                )}
+              </>
+            ) : (
+              <p className="text-sm text-red-600">{tahsinEvaluationError ?? 'Data evaluasi belum dapat dimuat.'}</p>
+            )}
+          </section>
           <SiswaTable
             data={data} loading={loading}
             selectedIds={selectedIds} onSelectionChange={setSelectedIds}

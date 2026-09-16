@@ -46,9 +46,30 @@ export async function GET(request: NextRequest) {
     const { data, error } = await query;
     if (error) return NextResponse.json({ message: error.message }, { status: 500 });
 
+    const students = data ?? [];
+    const studentIds = students.map((student) => student.id);
+    const { data: tahsinData, error: tahsinError } = studentIds.length > 0
+      ? await supabase.rpc('latest_tahsin_for_students', { student_ids: studentIds })
+      : { data: [], error: null };
+
+    if (tahsinError) {
+      console.error('Supabase latest tahsin export error:', tahsinError);
+      return NextResponse.json({ message: tahsinError.message }, { status: 500 });
+    }
+
+    const tahsinTerakhirByStudent = new Map<string, { metode: string; buku: string | null }>();
+    for (const tahsin of tahsinData ?? []) {
+      tahsinTerakhirByStudent.set(tahsin.student_id, {
+        metode: tahsin.metode,
+        buku: tahsin.buku,
+      });
+    }
+
     const wb = xlsx.utils.book_new();
-    const headers = ['No', 'NIS/NISN', 'Nama Lengkap', 'Jenis Kelamin', 'Tanggal Lahir', 'Kelas', 'Juz Terakhir', 'QR Code', 'Status', 'Tanggal Dibuat'];
-    const rows = ((data ?? []) as any[]).map((r, i) => [
+    const headers = ['No', 'NIS/NISN', 'Nama Lengkap', 'Jenis Kelamin', 'Tanggal Lahir', 'Kelas', 'Juz Terakhir', 'Metode Tahsin', 'Jilid / Surah Tahsin', 'QR Code', 'Status', 'Tanggal Dibuat'];
+    const rows = (students as any[]).map((r, i) => {
+      const tahsinTerakhir = tahsinTerakhirByStudent.get(r.id);
+      return [
       i + 1,
       r.nisn ?? '',
       r.nama ?? '',
@@ -56,16 +77,19 @@ export async function GET(request: NextRequest) {
       r.tanggal_lahir ?? '',
       r.classes?.name ?? '',
       r.juz_terakhir ?? '',
+      tahsinTerakhir?.metode ?? '',
+      tahsinTerakhir?.buku ?? '',
       r.qr_code ?? '',
       r.status ?? '',
       r.created_at ? new Date(r.created_at).toLocaleDateString('id-ID') : '',
-    ]);
+      ];
+    });
 
     const ws = xlsx.utils.aoa_to_sheet([headers, ...rows]);
     ws['!cols'] = [
       { wch: 4 }, { wch: 14 }, { wch: 28 }, { wch: 14 },
-      { wch: 14 }, { wch: 14 }, { wch: 14 },
-      { wch: 16 }, { wch: 12 }, { wch: 16 },
+      { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 16 },
+      { wch: 26 }, { wch: 16 }, { wch: 12 }, { wch: 16 },
     ];
     xlsx.utils.book_append_sheet(wb, ws, 'Data Siswa');
 

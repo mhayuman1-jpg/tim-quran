@@ -1,4 +1,4 @@
-﻿// src/app/api/siswa/update/route.ts
+// src/app/api/siswa/update/route.ts
 // PUT: Update data santri berdasarkan id
 // - Validasi field yang diterima
 // - Return data santri terbaru setelah update
@@ -44,7 +44,6 @@ export async function PUT(request: NextRequest) {
         );
       }
     }
-
     const supabase = createServerClient();
 
     // Untuk Tim_Quran: pastikan hanya bisa edit siswa yang menjadi tanggung jawabnya

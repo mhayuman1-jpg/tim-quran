@@ -130,6 +130,91 @@ export default function HafalanHistory({
   const [error, setError] = useState<string | null>(null);
   const [resetting, setResetting] = useState(false);
 
+  const [customSlides, setCustomSlides] = useState<Array<{
+    id: number;
+    juz: string;
+    rows: Array<{ id: number; nama_surah: string; makhroj: string; tajwid: string; lancar: string; halaman: string }>;
+  }>>([]);
+
+  const createEmptySlideRow = () => ({
+    id: Date.now() + Math.random(),
+    nama_surah: '',
+    makhroj: '',
+    tajwid: '',
+    lancar: '',
+    halaman: '',
+  });
+
+  const handleAddSlideJuz = () => {
+    setCustomSlides((prev) => [
+      ...prev,
+      {
+        id: Date.now() + prev.length,
+        juz: '',
+        rows: [createEmptySlideRow()],
+      },
+    ]);
+  };
+
+  const updateCustomSlideJuz = (slideId: number, juz: string) => {
+    setCustomSlides((prev) => prev.map((slide) => {
+      if (slide.id !== slideId) return slide;
+
+      if (!juz) {
+        return {
+          ...slide,
+          juz: '',
+          rows: [createEmptySlideRow()],
+        };
+      }
+
+      const templateRows = (SURAH_PER_JUZ[Number(juz)] ?? []).map((surah, index) => ({
+        id: Date.now() + index + slideId,
+        nama_surah: surah.nama,
+        makhroj: '',
+        tajwid: '',
+        lancar: '',
+        halaman: '',
+      }));
+
+      return {
+        ...slide,
+        juz,
+        rows: templateRows.length > 0 ? templateRows : [createEmptySlideRow()],
+      };
+    }));
+  };
+
+  const addCustomSlideRow = (slideId: number) => {
+    setCustomSlides((prev) => prev.map((slide) => (
+      slide.id === slideId ? { ...slide, rows: [...slide.rows, createEmptySlideRow()] } : slide
+    )));
+  };
+
+  const updateCustomSlideRow = (slideId: number, rowId: number, field: string, value: string) => {
+    setCustomSlides((prev) => prev.map((slide) => {
+      if (slide.id !== slideId) return slide;
+      return {
+        ...slide,
+        rows: slide.rows.map((row) => (
+          row.id === rowId ? { ...row, [field]: value } : row
+        )),
+      };
+    }));
+  };
+
+  const removeCustomSlide = (slideId: number) => {
+    setCustomSlides((prev) => prev.filter((slide) => slide.id !== slideId));
+  };
+
+  const removeCustomSlideRow = (slideId: number, rowId: number) => {
+    setCustomSlides((prev) => prev.map((slide) => {
+      if (slide.id !== slideId) return slide;
+      const nextRows = slide.rows.filter((row) => row.id !== rowId);
+      return { ...slide, rows: nextRows.length > 0 ? nextRows : [createEmptySlideRow()] };
+    }));
+  };
+
   // Modal Tambah Surah
   const [addSurahOpen, setAddSurahOpen] = useState(false);
   const [addSurahForm, setAddSurahForm] = useState({ surah_juz: '', ayat: '', tanggal: getTodayWITA(), catatan: '' });
@@ -463,19 +548,14 @@ export default function HafalanHistory({
               >
                 Reset Jurnal
               </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  setAddSurahForm({ surah_juz: '', ayat: '', tanggal: getTodayWITA(), catatan: '' });
-                  setAddSurahError(null);
-                  setAddSurahOpen(true);
-                }}
-                leftIcon={<Plus size={14} />}
-                className="text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+              <button
+                type="button"
+                onClick={handleAddSlideJuz}
+                className="flex items-center gap-1.5 rounded-lg border border-dashed border-amber-300 bg-white px-3 py-1.5 text-sm font-medium text-amber-700 transition-colors hover:bg-amber-50"
               >
-                Tambah Surah
-              </Button>
+                <Plus size={14} />
+                Tambah Slide Juz
+              </button>
             </div>
           )}
         </div>
@@ -487,6 +567,139 @@ export default function HafalanHistory({
           {error}
         </div>
       )}
+
+      {customSlides.map((slide, slideIndex) => (
+        <div key={slide.id} className="rounded-xl border border-amber-200 overflow-hidden bg-white">
+          <div className="bg-amber-700 px-4 py-3 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <span className="text-white font-bold text-sm">Slide {slideIndex + 1}</span>
+              {slide.juz && <span className="text-amber-200 text-xs">Juz {slide.juz}</span>}
+            </div>
+            <button
+              type="button"
+              onClick={() => removeCustomSlide(slide.id)}
+              className="text-amber-200 hover:text-white transition-colors"
+              aria-label="Hapus slide"
+              title="Hapus slide"
+            >
+              <Trash2 size={15} />
+            </button>
+          </div>
+
+          <div className="p-4 space-y-4">
+            <div className="flex flex-col gap-1">
+              <label className="text-sm font-medium text-slate-700">Template Juz</label>
+              <select
+                value={slide.juz}
+                onChange={(e) => updateCustomSlideJuz(slide.id, e.target.value)}
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500"
+              >
+                <option value="">— Pilih Template Juz —</option>
+                {Array.from({ length: 30 }, (_, i) => i + 1).map((juz) => (
+                  <option key={juz} value={String(juz)}>
+                    Juz {juz}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="overflow-hidden rounded-lg border border-slate-200">
+              <table className="w-full border-collapse bg-white text-sm">
+                <thead>
+                  <tr className="bg-slate-100 text-slate-700">
+                    <th className="px-3 py-2 text-left font-semibold w-12">No</th>
+                    <th className="px-3 py-2 text-left font-semibold">Surah</th>
+                    <th className="px-3 py-2 text-left font-semibold">Makhroj</th>
+                    <th className="px-3 py-2 text-left font-semibold">Tajwid</th>
+                    <th className="px-3 py-2 text-left font-semibold">Lancar</th>
+                    <th className="px-3 py-2 text-left font-semibold">Ayat</th>
+                    <th className="px-3 py-2 text-left font-semibold w-12" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {slide.rows.map((row, rowIndex) => (
+                    <tr key={row.id} className="border-t border-slate-200">
+                      <td className="px-3 py-2 text-slate-600">{rowIndex + 1}</td>
+                      <td className="px-3 py-2">
+                        <input
+                          value={row.nama_surah}
+                          onChange={(e) => updateCustomSlideRow(slide.id, row.id, 'nama_surah', e.target.value)}
+                          placeholder="Nama surah..."
+                          className="w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                        />
+                      </td>
+                      <td className="px-3 py-2">
+                        <select
+                          value={row.makhroj}
+                          onChange={(e) => updateCustomSlideRow(slide.id, row.id, 'makhroj', e.target.value)}
+                          className="w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                        >
+                          <option value="">—</option>
+                          <option value="L">L</option>
+                          <option value="KL">KL</option>
+                          <option value="TL">TL</option>
+                        </select>
+                      </td>
+                      <td className="px-3 py-2">
+                        <select
+                          value={row.tajwid}
+                          onChange={(e) => updateCustomSlideRow(slide.id, row.id, 'tajwid', e.target.value)}
+                          className="w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                        >
+                          <option value="">—</option>
+                          <option value="L">L</option>
+                          <option value="KL">KL</option>
+                          <option value="TL">TL</option>
+                        </select>
+                      </td>
+                      <td className="px-3 py-2">
+                        <select
+                          value={row.lancar}
+                          onChange={(e) => updateCustomSlideRow(slide.id, row.id, 'lancar', e.target.value)}
+                          className="w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                        >
+                          <option value="">—</option>
+                          <option value="L">L</option>
+                          <option value="KL">KL</option>
+                          <option value="TL">TL</option>
+                        </select>
+                      </td>
+                      <td className="px-3 py-2">
+                        <input
+                          value={row.halaman}
+                          onChange={(e) => updateCustomSlideRow(slide.id, row.id, 'halaman', e.target.value)}
+                          placeholder="Ayat..."
+                          className="w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                        />
+                      </td>
+                      <td className="px-3 py-2">
+                        <button
+                          type="button"
+                          onClick={() => removeCustomSlideRow(slide.id, row.id)}
+                          className="text-slate-500 hover:text-red-600 transition-colors"
+                          aria-label="Hapus baris"
+                          title="Hapus baris"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => addCustomSlideRow(slide.id)}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-amber-300 bg-white px-3 py-1.5 text-sm font-medium text-amber-700 transition-colors hover:bg-amber-50"
+            >
+              <Plus size={14} />
+              Tambah Baris Surah
+            </button>
+          </div>
+        </div>
+      ))}
 
       {/* Tabel grouped by Juz */}
       {loading ? (

@@ -59,7 +59,7 @@ function playSuccessBeep() {
   try {
     const audio = new Audio('/audio/absensi-siswa.mp3');
     audio.volume = 0.8;
-    audio.play().catch(() => {});
+    audio.play().catch(() => { });
   } catch { /* silent fail */ }
 }
 
@@ -142,7 +142,7 @@ export default function TahsinPage() {
     fetch('/api/kelas/list', { headers: viewHeaders })
       .then(r => r.json())
       .then(json => setClasses(json.data ?? []))
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => setClassesLoading(false));
   }, [viewHeaders]);
 
@@ -451,14 +451,13 @@ export default function TahsinPage() {
 
       {/* Scan feedback */}
       {scanFeedback && (
-        <div className={`flex items-center gap-2.5 rounded-xl border px-4 py-2.5 ${
-          scanFeedback.type === 'success' ? 'bg-amber-50 border-amber-300 text-amber-800' :
-          scanFeedback.type === 'warning' ? 'bg-amber-50 border-amber-300 text-amber-800' :
-          'bg-red-50 border-red-300 text-red-800'
-        }`}>
+        <div className={`flex items-center gap-2.5 rounded-xl border px-4 py-2.5 ${scanFeedback.type === 'success' ? 'bg-amber-50 border-amber-300 text-amber-800' :
+            scanFeedback.type === 'warning' ? 'bg-amber-50 border-amber-300 text-amber-800' :
+              'bg-red-50 border-red-300 text-red-800'
+          }`}>
           {scanFeedback.type === 'success' ? <CheckCircle size={16} className="shrink-0" /> :
-           scanFeedback.type === 'warning' ? <AlertCircle size={16} className="shrink-0" /> :
-           <XCircle size={16} className="shrink-0" />}
+            scanFeedback.type === 'warning' ? <AlertCircle size={16} className="shrink-0" /> :
+              <XCircle size={16} className="shrink-0" />}
           <p className="flex-1 text-sm font-medium">{scanFeedback.message}</p>
           <button onClick={() => setScanFeedback(null)} className="opacity-60 hover:opacity-100 text-lg leading-none">×</button>
         </div>

@@ -1,4 +1,4 @@
-﻿// src/app/api/siswa/list/route.ts
+// src/app/api/siswa/list/route.ts
 // GET: Ambil semua santri dengan join ke classes
 // - Filter by assigned_teacher_id jika role Tim_Quran (data isolation)
 // - Support query param `search` untuk filter nama (case-insensitive)
@@ -115,10 +115,44 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    const students = data ?? [];
+    const studentIds = students.map((student) => student.id);
+    const { data: tahsinData, error: tahsinError } = studentIds.length > 0
+      ? await supabase
+        .from('tahsin')
+        .select('student_id, metode, buku, tanggal, created_at')
+        .in('student_id', studentIds)
+        .order('tanggal', { ascending: false })
+        .order('created_at', { ascending: false })
+      : { data: [], error: null };
+
+    if (tahsinError) {
+      console.error('Supabase fetch tahsin siswa error:', tahsinError);
+      return NextResponse.json(
+        { message: 'Gagal mengambil data tahsin siswa.', error: tahsinError.message },
+        { status: 500 }
+      );
+    }
+
+    const tahsinTerakhirByStudent = new Map<string, { metode: string; buku: string | null }>();
+    for (const tahsin of tahsinData ?? []) {
+      if (!tahsinTerakhirByStudent.has(tahsin.student_id)) {
+        tahsinTerakhirByStudent.set(tahsin.student_id, {
+          metode: tahsin.metode,
+          buku: tahsin.buku,
+        });
+      }
+    }
+
+    const studentsWithTahsin = students.map((student) => ({
+      ...student,
+      tahsin_terakhir: tahsinTerakhirByStudent.get(student.id) ?? null,
+    }));
+
     return NextResponse.json({
-      data,
+      data: studentsWithTahsin,
       pagination: {
-        total: count ?? data?.length ?? 0,
+        total: count ?? students.length,
         limit,
         offset,
         hasMore: (count ?? 0) > offset + limit,

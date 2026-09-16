@@ -321,6 +321,17 @@ export default function SiswaForm({
         disabled={loading}
       />
 
+      {isEdit && (
+        <Input
+          label="Tahsin Saat Ini"
+          value={initialData?.tahsin_terakhir
+            ? `${initialData.tahsin_terakhir.metode}${initialData.tahsin_terakhir.buku ? ` ${initialData.tahsin_terakhir.buku}` : ''}`
+            : 'Belum ada jurnal tahsin'}
+          helperText="Diambil otomatis dari jurnal tahsin terbaru."
+          disabled
+        />
+      )}
+
       {/* Status (edit only) */}
       {isEdit && (
         <div className="flex flex-col gap-1">

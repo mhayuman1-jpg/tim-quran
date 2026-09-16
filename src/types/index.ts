@@ -36,6 +36,7 @@ export interface Santri {
   updated_at?: string;
   // Joined relation
   classes?: { id: string; name: string } | null;
+  tahsin_terakhir?: { metode: TahsinMetode; buku: string | null } | null;
 }
 
 export interface Attendance {
