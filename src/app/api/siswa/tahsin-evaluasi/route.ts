@@ -62,8 +62,8 @@ export async function GET(request: NextRequest) {
       latestTahsinByStudent.set(tahsin.student_id, tahsin);
     }
 
-    const groupMaps = new Map<string, Map<string, StudentDetail>>(
-      METODE_TAHSIN.map((metode) => [metode, new Map<string, StudentDetail>()])
+    const groupMaps = new Map<string, Map<string, StudentDetail[]>>(
+      METODE_TAHSIN.map((metode) => [metode, new Map<string, StudentDetail[]>()])
     );
     const tahfidzGroups = new Map<string, StudentDetail[]>();
     const withoutJournal: StudentDetail[] = [];
@@ -74,7 +74,7 @@ export async function GET(request: NextRequest) {
         id: student.id,
         nama: student.nama,
         nisn: student.nisn,
-        kelas: (student.classes as { name: string } | null)?.name ?? 'Tanpa Kelas',
+        kelas: student.classes?.[0]?.name ?? 'Tanpa Kelas',
         tanggal: latestTahsin?.tanggal ?? '',
       };
 

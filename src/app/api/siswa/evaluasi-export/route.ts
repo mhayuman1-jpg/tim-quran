@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
     let withoutTahsinJournal = 0;
 
     for (const student of studentList) {
-      const kelas = (student.classes as { name: string } | null)?.name ?? 'Tanpa Kelas';
+      const kelas = student.classes?.[0]?.name ?? 'Tanpa Kelas';
       const juz = student.juz_terakhir?.trim() || 'Belum diisi';
       tahfidzRows.push([juz, student.nama, student.nisn, kelas]);
       tahfidzTotals.set(juz, (tahfidzTotals.get(juz) ?? 0) + 1);
