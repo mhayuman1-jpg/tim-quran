@@ -137,7 +137,7 @@ export default function RaportPage() {
     const filename = sanitizePdfFilename(
       `Raport_${selected.santri?.nama ?? 'Siswa'}_${selected.periode ?? 'Undated'}.pdf`
     );
-    const pdfUrl = `/api/raport/render-pdf?raportId=${selected.id}&filename=${encodeURIComponent(filename)}`;
+    const pdfUrl = `/api/raport/render-pdf?raportId=${selected.id}&filename=${encodeURIComponent(filename)}&refresh=1`;
     downloadingLockRef.current = true;
     setDownloadingFormat('pdf');
     try {

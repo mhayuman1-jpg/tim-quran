@@ -8,7 +8,8 @@ export type { RaportTahfidzData, DetailSurahData, ProfilRaportData } from './rap
 // ─── Table cell styles (Penilaian Tahfidz only) ─────────────────────────────
 
 const cell = (extra: React.CSSProperties = {}): React.CSSProperties => ({
-  border: '1px solid #000',
+  borderTop: '1px solid #000',
+  borderLeft: '1px solid #000',
   padding: '2px 4px',
   verticalAlign: 'middle',
   ...extra,
@@ -82,6 +83,10 @@ function RaportPageLayout({
       {footer}
     </div>
   );
+}
+
+function TahfidzTableWrap({ children }: { children: React.ReactNode }) {
+  return <div className="raport-tahfidz-table-wrap">{children}</div>;
 }
 
 // ─── Document ────────────────────────────────────────────────────────────────
@@ -463,9 +468,10 @@ const RaportTahfidzDocument = React.forwardRef<HTMLDivElement, RaportTahfidzDocu
 
         {/* ══ TABEL PENILAIAN TAHFIDZ ════════════════════════════════════ */}
         <div style={{ fontWeight: 700, marginBottom: '4px', fontSize: '11px' }}>Penilaian Tahfidz</div>
+        <TahfidzTableWrap>
         <table
           className="raport-tahfidz-table"
-          style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '4px', fontSize: '11px' }}
+          style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0, marginBottom: '4px', fontSize: '11px' }}
         >
           <thead>
             <tr>
@@ -586,6 +592,7 @@ const RaportTahfidzDocument = React.forwardRef<HTMLDivElement, RaportTahfidzDocu
             )}
           </tbody>
         </table>
+        </TahfidzTableWrap>
 
         {inlineEdit && (
           <div
@@ -852,16 +859,17 @@ const RaportTahfidzDocument = React.forwardRef<HTMLDivElement, RaportTahfidzDocu
             return (
               <React.Fragment key={juzNum}>
                 <RaportPageLayout
-                  multiPage={multiPage}
+                  multiPage
                   headerSection={
                     <>
                       {headerInfoOnly}
                       <div style={{ fontWeight: 700, marginBottom: '4px', fontSize: '11px' }}>
                         Penilaian Tahfidz — Juz {juzNum}
                       </div>
+                      <TahfidzTableWrap>
                       <table
                         className="raport-tahfidz-table"
-                        style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '4px', fontSize: '11px' }}
+                        style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0, marginBottom: '4px', fontSize: '11px' }}
                       >
                         <thead>
                           <tr>
@@ -887,11 +895,13 @@ const RaportTahfidzDocument = React.forwardRef<HTMLDivElement, RaportTahfidzDocu
                           ))}
                         </tbody>
                       </table>
+                      </TahfidzTableWrap>
                     </>
                   }
-                  tailSection={isTahsinPage ? renderTailSection(false) : <div style={{ pageBreakAfter: 'always' }} />}
+                  tailSection={isTahsinPage ? renderTailSection(false) : null}
                   footer={footerBlock}
                 />
+                {!isTahsinPage ? <div className="raport-page-break" aria-hidden="true" /> : null}
               </React.Fragment>
             );
           })}

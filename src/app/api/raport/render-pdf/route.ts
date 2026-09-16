@@ -78,6 +78,7 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const raportId = (searchParams.get('raportId') ?? '').trim();
   const filename = sanitizeFilename(searchParams.get('filename') ?? 'raport.pdf');
+  const refresh = searchParams.get('refresh') === '1';
 
   if (!raportId) {
     return NextResponse.json(
@@ -120,7 +121,8 @@ export async function GET(request: NextRequest) {
     }
 
     // ── 4. Cache hit → signed URL redirect (instan) ──────────────────────
-    if (raport.pdf_path) {
+    // refresh=1 memaksa Playwright render ulang (layout CSS baru / PDF lama)
+    if (raport.pdf_path && !refresh) {
       const signedUrl = await getSignedPdfUrl(raport.pdf_path, filename);
       if (signedUrl) {
         console.log('[render-pdf] Cache hit', { raportId, elapsedMs: Date.now() - requestStart });

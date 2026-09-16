@@ -15,7 +15,7 @@ export function sanitizePdfFilename(name: string): string {
  */
 export function triggerRaportPdfDownload(raportId: string, filename: string): void {
   const safeName = sanitizePdfFilename(filename.endsWith('.pdf') ? filename : `${filename}.pdf`);
-  const params = new URLSearchParams({ raportId, filename: safeName });
+  const params = new URLSearchParams({ raportId, filename: safeName, refresh: '1' });
   const url = `/api/raport/render-pdf?${params.toString()}`;
 
   const link = document.createElement('a');

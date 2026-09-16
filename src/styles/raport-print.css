@@ -88,6 +88,7 @@ body.raport-pdf-render,
   margin: 0;
   padding: 0;
   background: #fff;
+  min-height: 0;
 }
 
 body.raport-pdf-render .raport-print-root,
@@ -170,38 +171,119 @@ body.raport-pdf-render .raport-print-root,
     page-break-inside: avoid !important;
   }
 
-    .raport-inline-edit-only {
-      display: none !important;
-    }
-
-    .raport-page-sheet--flow {
-      min-height: auto !important;
-      display: block !important;
-    }
-
-    .raport-page-sheet--flow .raport-page-body {
-      padding-bottom: 0 !important;
-    }
-
-    .raport-page-sheet--flow .raport-page-footer {
-      position: static !important;
-      margin-top: 12px !important;
-    }
-
-    .raport-tahfidz-table {
-      break-inside: auto !important;
-      page-break-inside: auto !important;
-    }
-
-    .raport-tahfidz-table thead {
-      display: table-row-group;
-    }
-
-    .raport-tahfidz-table tr {
-      break-inside: avoid !important;
-      page-break-inside: avoid !important;
-    }
+  .raport-inline-edit-only {
+    display: none !important;
   }
+
+  .raport-page-sheet--flow {
+    min-height: auto !important;
+    display: block !important;
+  }
+
+  .raport-page-sheet--flow .raport-page-body {
+    padding-bottom: 0 !important;
+  }
+
+  .raport-page-sheet--flow .raport-page-footer {
+    position: static !important;
+    margin-top: 12px !important;
+  }
+
+  .raport-pdf-render {
+    min-height: 0 !important;
+  }
+
+  .raport-page-break {
+    display: block !important;
+    height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    break-after: page !important;
+    page-break-after: always !important;
+  }
+
+  .raport-tahfidz-table-wrap {
+    display: block !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+    page-break-inside: auto !important;
+    break-inside: auto !important;
+  }
+
+  .raport-tahfidz-table {
+    border-collapse: separate !important;
+    border-spacing: 0 !important;
+    height: auto !important;
+    min-height: 0 !important;
+    break-inside: auto !important;
+    page-break-inside: auto !important;
+  }
+
+  .raport-tahfidz-table thead,
+  .raport-tahfidz-table tbody,
+  .raport-tahfidz-table tr,
+  .raport-tahfidz-table th,
+  .raport-tahfidz-table td {
+    height: auto !important;
+    min-height: 0 !important;
+  }
+
+  .raport-tahfidz-table thead {
+    display: table-row-group;
+  }
+
+  .raport-tahfidz-table tr {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  .raport-tahfidz-table tr > *:last-child {
+    border-right: 1px solid #000 !important;
+  }
+
+  .raport-tahfidz-table tbody tr:last-child > * {
+    border-bottom: 1px solid #000 !important;
+  }
+}
+
+.raport-page-break {
+  display: block;
+  height: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+}
+
+.raport-tahfidz-table-wrap {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: hidden;
+}
+
+.raport-tahfidz-table {
+  border-collapse: separate;
+  border-spacing: 0;
+  height: auto;
+  overflow: hidden;
+}
+
+.raport-tahfidz-table th,
+.raport-tahfidz-table td {
+  height: auto;
+}
+
+.raport-tahfidz-table tr > *:last-child {
+  border-right: 1px solid #000;
+}
+
+.raport-tahfidz-table tbody tr:last-child > * {
+  border-bottom: 1px solid #000;
+}
 
 /* ── Editor & HTML kustom (mode Word) ────────────────────────────────────── */
 .raport-doc-editor,

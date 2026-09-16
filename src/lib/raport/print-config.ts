@@ -99,8 +99,43 @@ export function getRaportBrowserPrintStyle(juz?: number | string | null): string
       break-inside: avoid !important;
       page-break-inside: avoid !important;
     }
+    .raport-page-break {
+      display: block !important;
+      height: 0 !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      border: 0 !important;
+      break-after: page !important;
+      page-break-after: always !important;
+    }
+    .raport-tahfidz-table-wrap {
+      display: block !important;
+      width: 100% !important;
+      height: auto !important;
+      overflow: hidden !important;
+    }
+    .raport-tahfidz-table {
+      border-collapse: separate !important;
+      border-spacing: 0 !important;
+      height: auto !important;
+      min-height: 0 !important;
+    }
+    .raport-tahfidz-table thead,
+    .raport-tahfidz-table tbody,
+    .raport-tahfidz-table tr,
+    .raport-tahfidz-table th,
+    .raport-tahfidz-table td {
+      height: auto !important;
+      min-height: 0 !important;
+    }
     .raport-tahfidz-table thead {
       display: table-row-group !important;
+    }
+    .raport-tahfidz-table tr > *:last-child {
+      border-right: 1px solid #000 !important;
+    }
+    .raport-tahfidz-table tbody tr:last-child > * {
+      border-bottom: 1px solid #000 !important;
     }
   }
   `;

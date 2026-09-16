@@ -16,7 +16,7 @@ export const dynamic = 'force-dynamic';
  */
 export default function PrintLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="raport-pdf-render" style={{ margin: 0, padding: 0, background: '#fff', minHeight: '100vh' }}>
+    <div className="raport-pdf-render" style={{ margin: 0, padding: 0, background: '#fff' }}>
       {children}
     </div>
   );

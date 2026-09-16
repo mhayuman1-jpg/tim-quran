@@ -132,6 +132,12 @@ export async function generateRaportPdf(options: GenerateRaportPdfOptions): Prom
 
     // ── 8. Render mode cetak + tunggu CSS print diterapkan ───────────────
     await page.emulateMedia({ media: 'print' });
+    await page.evaluate(() => {
+      document.querySelectorAll<HTMLElement>('.raport-tahfidz-table, .raport-tahfidz-table-wrap, .raport-page-sheet--flow').forEach((el) => {
+        el.style.height = 'auto';
+        el.style.minHeight = '0';
+      });
+    }).catch(() => {});
     await page.waitForTimeout(300);
 
     // ── 9. Generate PDF ─────────────────────────────────────────────────
