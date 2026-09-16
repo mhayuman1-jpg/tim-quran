@@ -78,8 +78,8 @@ export async function GET(request: NextRequest) {
       latestTahsinByStudent.set(tahsin.student_id, tahsin);
     }
 
-    const groupMaps = new Map<string, Map<string, StudentDetail>>(
-      METODE_TAHSIN.map((metode) => [metode, new Map<string, StudentDetail>()])
+    const groupMaps = new Map<string, Map<string, StudentDetail[]>>(
+      METODE_TAHSIN.map((metode) => [metode, new Map<string, StudentDetail[]>()])
     );
     const tahfidzGroups = new Map<string, StudentDetail[]>();
     const withoutJournal: StudentDetail[] = [];
@@ -105,7 +105,7 @@ export async function GET(request: NextRequest) {
       }
 
       const books = groupMaps.get(latestTahsin.metode)!;
-  const bookName = normalizeTahsinBook(latestTahsin.metode, latestTahsin.buku);
+    const bookName = normalizeTahsinBook(latestTahsin.metode, latestTahsin.buku);
       const studentsInBook = books.get(bookName) ?? [];
       studentsInBook.push(detail);
       books.set(bookName, studentsInBook);
