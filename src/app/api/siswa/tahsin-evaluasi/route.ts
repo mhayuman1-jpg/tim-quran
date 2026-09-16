@@ -7,6 +7,12 @@ export const dynamic = 'force-dynamic';
 
 const METODE_TAHSIN = ['IWR', 'Wafa', 'Al-Quran'] as const;
 
+function normalizeTahsinBook(metode: string, buku: string | null): string {
+  const bookName = buku?.trim() ?? '';
+  if (metode === 'IWR' && /^[1-4]$/.test(bookName)) return `Jilid ${bookName}`;
+  return bookName || 'Tanpa jilid/surah';
+}
+
 interface StudentDetail {
   id: string;
   nama: string;
@@ -27,7 +33,7 @@ export async function GET(request: NextRequest) {
 
     let studentQuery = supabase
       .from('santri')
-      .select('id, nama, nisn, juz_terakhir, classes ( name )')
+      .select('id, nama, nisn, class_id, juz_terakhir')
       .eq('status', 'Aktif')
       .order('nama', { ascending: true });
 
@@ -48,6 +54,16 @@ export async function GET(request: NextRequest) {
     const studentList = students ?? [];
     const latestTahsinByStudent = new Map<string, { metode: string; buku: string | null; tanggal: string }>();
     const studentIds = studentList.map((student) => student.id);
+    const classIds = Array.from(new Set(studentList.map((student) => student.class_id).filter(Boolean)));
+    const { data: classes, error: classesError } = classIds.length > 0
+      ? await supabase.from('classes').select('id, name').in('id', classIds)
+      : { data: [], error: null };
+
+    if (classesError) {
+      return NextResponse.json({ message: classesError.message }, { status: 500 });
+    }
+
+    const classNameById = new Map((classes ?? []).map((kelas) => [kelas.id, kelas.name]));
 
     const { data: tahsinData, error: tahsinError } = studentIds.length > 0
       ? await supabase.rpc('latest_tahsin_for_students', { student_ids: studentIds })
@@ -62,8 +78,8 @@ export async function GET(request: NextRequest) {
       latestTahsinByStudent.set(tahsin.student_id, tahsin);
     }
 
-    const groupMaps = new Map<string, Map<string, StudentDetail[]>>(
-      METODE_TAHSIN.map((metode) => [metode, new Map<string, StudentDetail[]>()])
+    const groupMaps = new Map<string, Map<string, StudentDetail>>(
+      METODE_TAHSIN.map((metode) => [metode, new Map<string, StudentDetail>()])
     );
     const tahfidzGroups = new Map<string, StudentDetail[]>();
     const withoutJournal: StudentDetail[] = [];
@@ -74,7 +90,7 @@ export async function GET(request: NextRequest) {
         id: student.id,
         nama: student.nama,
         nisn: student.nisn,
-        kelas: student.classes?.[0]?.name ?? 'Tanpa Kelas',
+        kelas: classNameById.get(student.class_id) ?? 'Tanpa Kelas',
         tanggal: latestTahsin?.tanggal ?? '',
       };
 
@@ -89,7 +105,7 @@ export async function GET(request: NextRequest) {
       }
 
       const books = groupMaps.get(latestTahsin.metode)!;
-      const bookName = latestTahsin.buku?.trim() || 'Tanpa jilid/surah';
+  const bookName = normalizeTahsinBook(latestTahsin.metode, latestTahsin.buku);
       const studentsInBook = books.get(bookName) ?? [];
       studentsInBook.push(detail);
       books.set(bookName, studentsInBook);

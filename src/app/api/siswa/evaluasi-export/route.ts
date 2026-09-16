@@ -8,6 +8,12 @@ export const dynamic = 'force-dynamic';
 
 const METODE_TAHSIN = ['IWR', 'Wafa', 'Al-Quran'] as const;
 
+function normalizeTahsinBook(metode: string, buku: string | null): string {
+  const bookName = buku?.trim() ?? '';
+  if (metode === 'IWR' && /^[1-4]$/.test(bookName)) return `Jilid ${bookName}`;
+  return bookName || 'Tanpa jilid/surah';
+}
+
 export async function GET(request: NextRequest) {
   const session = await getAuthenticatedSession(request);
   if (session instanceof NextResponse) return session;
@@ -20,7 +26,7 @@ export async function GET(request: NextRequest) {
 
     let studentQuery = supabase
       .from('santri')
-      .select('id, nama, nisn, juz_terakhir, classes ( name )')
+      .select('id, nama, nisn, class_id, juz_terakhir')
       .eq('status', 'Aktif')
       .order('nama', { ascending: true });
 
@@ -38,6 +44,14 @@ export async function GET(request: NextRequest) {
 
     const studentList = students ?? [];
     const studentIds = studentList.map((student) => student.id);
+    const classIds = Array.from(new Set(studentList.map((student) => student.class_id).filter(Boolean)));
+    const { data: classes, error: classesError } = classIds.length > 0
+      ? await supabase.from('classes').select('id, name').in('id', classIds)
+      : { data: [], error: null };
+
+    if (classesError) return NextResponse.json({ message: classesError.message }, { status: 500 });
+
+    const classNameById = new Map((classes ?? []).map((kelas) => [kelas.id, kelas.name]));
     const { data: tahsinData, error: tahsinError } = studentIds.length > 0
       ? await supabase.rpc('latest_tahsin_for_students', { student_ids: studentIds })
       : { data: [], error: null };
@@ -56,7 +70,7 @@ export async function GET(request: NextRequest) {
     let withoutTahsinJournal = 0;
 
     for (const student of studentList) {
-      const kelas = student.classes?.[0]?.name ?? 'Tanpa Kelas';
+      const kelas = classNameById.get(student.class_id) ?? 'Tanpa Kelas';
       const juz = student.juz_terakhir?.trim() || 'Belum diisi';
       tahfidzRows.push([juz, student.nama, student.nisn, kelas]);
       tahfidzTotals.set(juz, (tahfidzTotals.get(juz) ?? 0) + 1);
@@ -67,7 +81,7 @@ export async function GET(request: NextRequest) {
         continue;
       }
 
-      const buku = tahsin.buku?.trim() || 'Tanpa jilid/surah';
+      const buku = normalizeTahsinBook(tahsin.metode, tahsin.buku);
       tahsinRows.push([tahsin.metode, buku, student.nama, student.nisn, kelas, tahsin.tanggal]);
       tahsinTotals.set(tahsin.metode, (tahsinTotals.get(tahsin.metode) ?? 0) + 1);
     }

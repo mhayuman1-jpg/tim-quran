@@ -24,8 +24,7 @@ export async function GET(request: NextRequest) {
     let query = supabase
       .from('santri')
       .select(
-        `id, nisn, nama, gender, tanggal_lahir, juz_terakhir, qr_code, assigned_teacher_id, status, created_at,
-         classes ( id, name )`
+        `id, nisn, nama, gender, tanggal_lahir, class_id, juz_terakhir, qr_code, assigned_teacher_id, status, created_at`
       )
       .order('nama', { ascending: true });
 
@@ -48,6 +47,17 @@ export async function GET(request: NextRequest) {
 
     const students = data ?? [];
     const studentIds = students.map((student) => student.id);
+    const classIds = Array.from(new Set(students.map((student) => student.class_id).filter(Boolean)));
+    const { data: classes, error: classesError } = classIds.length > 0
+      ? await supabase.from('classes').select('id, name').in('id', classIds)
+      : { data: [], error: null };
+
+    if (classesError) {
+      console.error('Supabase kelas export error:', classesError);
+      return NextResponse.json({ message: classesError.message }, { status: 500 });
+    }
+
+    const classNameById = new Map((classes ?? []).map((kelas) => [kelas.id, kelas.name]));
     const { data: tahsinData, error: tahsinError } = studentIds.length > 0
       ? await supabase.rpc('latest_tahsin_for_students', { student_ids: studentIds })
       : { data: [], error: null };
@@ -75,7 +85,7 @@ export async function GET(request: NextRequest) {
       r.nama ?? '',
       r.gender ?? '',
       r.tanggal_lahir ?? '',
-      r.classes?.name ?? '',
+      classNameById.get(r.class_id) ?? '',
       r.juz_terakhir ?? '',
       tahsinTerakhir?.metode ?? '',
       tahsinTerakhir?.buku ?? '',
@@ -94,7 +104,7 @@ export async function GET(request: NextRequest) {
     xlsx.utils.book_append_sheet(wb, ws, 'Data Siswa');
 
     const buffer = xlsx.write(wb, { type: 'buffer', bookType: 'xlsx' }) as Buffer;
-    const className = (data?.[0] as any)?.classes?.name ?? classId;
+    const className = classNameById.get((data?.[0] as any)?.class_id) ?? classId;
     const filename = `data_siswa${className ? '_' + className.replace(/\s+/g, '_') : ''}.xlsx`;
     return new NextResponse(new Uint8Array(buffer), {
       status: 200,

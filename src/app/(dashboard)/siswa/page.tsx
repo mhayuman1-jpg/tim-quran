@@ -562,6 +562,7 @@ export default function SiswaPage() {
               <option value={200}>200</option>
               <option value={300}>300</option>
               <option value={500}>500</option>
+              <option value={1000}>Semua</option>
             </select>
             <span className="text-sm text-slate-500">siswa</span>
           </div>

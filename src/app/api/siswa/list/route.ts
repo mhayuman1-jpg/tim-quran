@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search')?.trim() ?? '';
     const classId = searchParams.get('class_id')?.trim() ?? '';
     const noSort = searchParams.get('no_sort') === '1';
-    const limit = Math.min(parseInt(searchParams.get('limit') ?? '100'), 500);
+    const limit = Math.min(parseInt(searchParams.get('limit') ?? '100'), 1000);
     const offset = parseInt(searchParams.get('offset') ?? '0');
 
     // Lazy auto-distribute: jika guru punya kelas tapi siswa belum di-assign, distribusikan otomatis
@@ -73,8 +73,7 @@ export async function GET(request: NextRequest) {
       .from('santri')
       .select(
         `id, nisn, nama, gender, tanggal_lahir, class_id, juz_terakhir,
-         qr_code, photo_url, assigned_teacher_id, status, created_at, updated_at,
-         classes ( id, name )`,
+         qr_code, photo_url, assigned_teacher_id, status, created_at, updated_at`,
         { count: 'exact' }
       );
 
@@ -117,17 +116,26 @@ export async function GET(request: NextRequest) {
 
     const students = data ?? [];
     const studentIds = students.map((student) => student.id);
+    const classIds = Array.from(new Set(students.map((student) => student.class_id).filter(Boolean)));
+    const { data: classes, error: classesError } = classIds.length > 0
+      ? await supabase.from('classes').select('id, name').in('id', classIds)
+      : { data: [], error: null };
+
+    if (classesError) {
+      console.error('Supabase fetch kelas siswa error:', classesError);
+      return NextResponse.json(
+        { message: 'Gagal mengambil data kelas siswa.', error: classesError.message },
+        { status: 500 }
+      );
+    }
+
+    const classById = new Map((classes ?? []).map((kelas) => [kelas.id, kelas]));
     const { data: tahsinData, error: tahsinError } = studentIds.length > 0
-      ? await supabase
-        .from('tahsin')
-        .select('student_id, metode, buku, tanggal, created_at')
-        .in('student_id', studentIds)
-        .order('tanggal', { ascending: false })
-        .order('created_at', { ascending: false })
+      ? await supabase.rpc('latest_tahsin_for_students', { student_ids: studentIds })
       : { data: [], error: null };
 
     if (tahsinError) {
-      console.error('Supabase fetch tahsin siswa error:', tahsinError);
+      console.error('Supabase latest tahsin siswa error:', tahsinError);
       return NextResponse.json(
         { message: 'Gagal mengambil data tahsin siswa.', error: tahsinError.message },
         { status: 500 }
@@ -136,16 +144,15 @@ export async function GET(request: NextRequest) {
 
     const tahsinTerakhirByStudent = new Map<string, { metode: string; buku: string | null }>();
     for (const tahsin of tahsinData ?? []) {
-      if (!tahsinTerakhirByStudent.has(tahsin.student_id)) {
-        tahsinTerakhirByStudent.set(tahsin.student_id, {
-          metode: tahsin.metode,
-          buku: tahsin.buku,
-        });
-      }
+      tahsinTerakhirByStudent.set(tahsin.student_id, {
+        metode: tahsin.metode,
+        buku: tahsin.buku,
+      });
     }
 
     const studentsWithTahsin = students.map((student) => ({
       ...student,
+      classes: classById.get(student.class_id) ?? null,
       tahsin_terakhir: tahsinTerakhirByStudent.get(student.id) ?? null,
     }));
 
