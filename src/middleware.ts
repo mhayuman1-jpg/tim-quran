@@ -2,7 +2,7 @@ import { withAuth, NextRequestWithAuth } from 'next-auth/middleware';
 import { NextRequest, NextResponse } from 'next/server';
 
 const KABID_ONLY_ROUTES = ['/kelas', '/semester', '/tim', '/dashboard/kelola-artikel', '/absensi/monitoring', '/absensi/kabid-mark', '/website', '/dashboard/website', '/admin', '/kalender-libur'];
-const MANAJEMEN_ROUTES = ['/laporan-masuk', '/rekap'];
+const MANAJEMEN_ROUTES = ['/laporan-masuk', '/rekap', '/tasmi'];
 
 function isLocalhostOrigin(origin: string): boolean {
   return /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
@@ -39,6 +39,14 @@ export default withAuth(
       return response;
     }
 
+    // Portal wali: halaman login wali terpisah, jangan pakai halaman sign-in default
+    if (pathname.startsWith('/wali') && pathname !== '/wali/login' && !token) {
+      const url = req.nextUrl.clone();
+      url.pathname = '/wali/login';
+      url.search = '';
+      return NextResponse.redirect(url);
+    }
+
     // RBAC for dashboard routes
     const isKabidOnly = KABID_ONLY_ROUTES.some((route) => pathname.startsWith(route));
     if (isKabidOnly && token?.role !== 'Kabid') {
@@ -65,6 +73,8 @@ export default withAuth(
         // Skip auth for API routes (CORS only) and public wali login
         if (pathname.startsWith('/api/')) return true;
         if (pathname === '/wali/login') return true;
+        // /wali/* handled by the redirect above; other routes need a token
+        if (pathname.startsWith('/wali')) return true;
         return !!token;
       },
     },
@@ -92,6 +102,7 @@ export const config = {
     '/laporan/:path*',
     '/laporan-kirim/:path*',
     '/laporan-masuk/:path*',
+    '/tasmi/:path*',
     '/dashboard/kelola-artikel/:path*',
     '/website/:path*',
     '/dashboard/website/:path*',

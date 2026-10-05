@@ -40,6 +40,37 @@ export function getNilaiColor(nilai: string | null | undefined): string {
   return 'text-slate-600';
 }
 
+/** Konversi nilai penilaian (A/B/C/D/L/KL/TL/✓) ke skor numerik 0–100 */
+export function getNilaiNumeric(nilai: string | null | undefined): number {
+  if (!nilai) return 0;
+  const v = nilai.trim();
+  if (v === '✓') return 100;
+  if (v === 'A') return 100;
+  if (v === 'B') return 80;
+  if (v === 'C') return 70;
+  if (v === 'D') return 55;
+  if (v === 'L') return 100;
+  if (v === 'KL') return 75;
+  if (v === 'TL') return 50;
+  const num = parseInt(v, 10);
+  return isNaN(num) ? 0 : num;
+}
+
+/** Rata-rata skor dari aspek penilaian yang terisi; null jika belum dinilai */
+export function getRecordScoreAverage(
+  ...aspects: (string | null | undefined)[]
+): number | null {
+  const filled = aspects.filter((a) => a && a.trim());
+  if (filled.length === 0) return null;
+  const total = filled.reduce((sum, a) => sum + getNilaiNumeric(a), 0);
+  return total / filled.length;
+}
+
+/** Normalisasi tanggal DB ke format YYYY-MM-DD */
+export function normalizeDateStr(d: string): string {
+  return String(d).slice(0, 10);
+}
+
 export interface SurahTemplate {
   nama: string;
 }

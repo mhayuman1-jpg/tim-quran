@@ -6,8 +6,9 @@ import {
   BookOpen, BookText, BarChart3, CalendarDays,
   User, School, Hash, TrendingUp, AlertCircle,
   Award, CheckCircle2, Star, Info,
-  ChevronLeft, ChevronRight,
+  ChevronLeft, ChevronRight, Filter, RotateCcw,
 } from "lucide-react";
+import { normalizeDateStr } from "@/lib/surahData";
 
 interface SantriData {
   id: string;
@@ -104,6 +105,8 @@ export default function WaliDashboardPage() {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [isMingguIni, setIsMingguIni] = useState(true);
+  const [riwayatDari, setRiwayatDari] = useState("");
+  const [riwayatSampai, setRiwayatSampai] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -163,6 +166,72 @@ export default function WaliDashboardPage() {
 
     return { scoreCounts };
   }, [hafalan, tahsin]);
+
+  const todayWita = new Intl.DateTimeFormat("sv-SE", {
+    timeZone: "Asia/Makassar",
+  }).format(new Date());
+
+  function formatTanggal(d: string, withWeekday = false): string {
+    return new Date(d + "T00:00:00Z").toLocaleDateString("id-ID", {
+      timeZone: "UTC",
+      ...(withWeekday ? { weekday: "long" } : {}),
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
+  }
+
+  const isRiwayatTerfilter = !!(riwayatDari || riwayatSampai);
+
+  const cocokTanggal = (tanggal: string) => {
+    const hari = normalizeDateStr(tanggal);
+    if (riwayatDari && hari < riwayatDari) return false;
+    if (riwayatSampai && hari > riwayatSampai) return false;
+    return true;
+  };
+
+  const hafalanTampil = useMemo(
+    () => hafalan.filter((h) => cocokTanggal(h.tanggal)),
+    [hafalan, riwayatDari, riwayatSampai]
+  );
+  const tahsinTampil = useMemo(
+    () => tahsin.filter((t) => cocokTanggal(t.tanggal)),
+    [tahsin, riwayatDari, riwayatSampai]
+  );
+
+  const labelRiwayat = !isRiwayatTerfilter
+    ? "Seluruh periode"
+    : riwayatDari && riwayatDari === riwayatSampai
+      ? formatTanggal(riwayatDari, true)
+      : `${riwayatDari ? formatTanggal(riwayatDari) : "Awal"} — ${
+          riwayatSampai ? formatTanggal(riwayatSampai) : "Sekarang"
+        }`;
+
+  type PresetRiwayat = "semua" | "hari" | "minggu" | "bulan";
+
+  function rentangPreset(preset: PresetRiwayat): [string, string] {
+    if (preset === "semua") return ["", ""];
+    if (preset === "hari") return [todayWita, todayWita];
+    if (preset === "minggu") {
+      const d = new Date(todayWita + "T00:00:00Z");
+      d.setUTCDate(d.getUTCDate() - 6);
+      return [d.toISOString().split("T")[0], todayWita];
+    }
+    return [todayWita.slice(0, 7) + "-01", todayWita];
+  }
+
+  function terapkanPreset(preset: PresetRiwayat) {
+    const [dari, sampai] = rentangPreset(preset);
+    setRiwayatDari(dari);
+    setRiwayatSampai(sampai);
+  }
+
+  const PRESET_RIWAYAT: { key: PresetRiwayat; label: string }[] = [
+    { key: "semua", label: "Semua" },
+    { key: "hari", label: "Hari ini" },
+    { key: "minggu", label: "7 hari terakhir" },
+    { key: "bulan", label: "Bulan ini" },
+  ];
 
   if (status === "loading" || (status === "authenticated" && loading)) {
     return (
@@ -313,7 +382,7 @@ export default function WaliDashboardPage() {
             </div>
             <p className="text-[10px] font-semibold text-amber-400 uppercase tracking-wider mb-1">Rata-Rata Tahfidz</p>
             <p className="text-4xl font-bold text-amber-600">{rataRataTahfidz}%</p>
-            <p className="text-[11px] text-amber-500/70 mt-1">Makhroj, Tajwid, Kelancaran</p>
+            <p className="text-[11px] text-amber-500/70 mt-1">Rata-rata seluruh penilaian</p>
           </div>
           <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-2xl p-5 border border-emerald-200/60 shadow-sm text-center">
             <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center mx-auto mb-2">
@@ -321,7 +390,7 @@ export default function WaliDashboardPage() {
             </div>
             <p className="text-[10px] font-semibold text-emerald-400 uppercase tracking-wider mb-1">Rata-Rata Tahsin</p>
             <p className="text-4xl font-bold text-emerald-600">{rataRataTahsin}%</p>
-            <p className="text-[11px] text-emerald-500/70 mt-1">Makhroj, Kelancaran, Tajwid</p>
+            <p className="text-[11px] text-emerald-500/70 mt-1">Rata-rata seluruh penilaian</p>
           </div>
           <div className="bg-gradient-to-br from-slate-50 to-gray-100 rounded-2xl p-5 border border-slate-200/60 shadow-sm text-center">
             <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center mx-auto mb-2">
@@ -738,20 +807,92 @@ export default function WaliDashboardPage() {
       )}
 
       {/* Riwayat Hafalan & Tahsin */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Hafalan */}
-        <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
-          <h3 className="font-semibold text-slate-900 mb-4 flex items-center gap-2">
-            <BookText size={16} className="text-indigo-500" />
-            Riwayat Hafalan
-          </h3>
-          {hafalan.length === 0 ? (
-            <p className="text-sm text-slate-400 text-center py-6">
-              Belum ada riwayat hafalan
-            </p>
-          ) : (
-            <div className="space-y-2 max-h-[400px] overflow-y-auto">
-              {hafalan.map((h) => (
+      <div className="space-y-4">
+        {/* Filter tanggal riwayat */}
+        <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm">
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="font-semibold text-slate-900 flex items-center gap-2 mr-1">
+              <Filter size={15} className="text-emerald-500" />
+              Filter Riwayat
+            </h3>
+            {PRESET_RIWAYAT.map((p) => {
+              const [dari, sampai] = rentangPreset(p.key);
+              const aktif = riwayatDari === dari && riwayatSampai === sampai;
+              return (
+                <button
+                  key={p.key}
+                  type="button"
+                  onClick={() => terapkanPreset(p.key)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                    aktif
+                      ? "bg-emerald-500 text-white"
+                      : "bg-slate-50 text-slate-600 hover:bg-slate-100"
+                  }`}
+                >
+                  {p.label}
+                </button>
+              );
+            })}
+            <div className="flex items-center gap-2 ml-auto">
+              <input
+                type="date"
+                value={riwayatDari}
+                max={riwayatSampai || todayWita}
+                onChange={(e) => setRiwayatDari(e.target.value)}
+                aria-label="Dari tanggal"
+                className="rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              />
+              <span className="text-xs text-slate-400">—</span>
+              <input
+                type="date"
+                value={riwayatSampai}
+                min={riwayatDari || undefined}
+                max={todayWita}
+                onChange={(e) => setRiwayatSampai(e.target.value)}
+                aria-label="Sampai tanggal"
+                className="rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              />
+              <button
+                type="button"
+                onClick={() => terapkanPreset("semua")}
+                disabled={!isRiwayatTerfilter}
+                title="Hapus filter"
+                className={`p-1.5 rounded-lg transition-colors ${
+                  isRiwayatTerfilter
+                    ? "text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+                    : "text-slate-200 cursor-not-allowed"
+                }`}
+              >
+                <RotateCcw size={14} />
+              </button>
+            </div>
+          </div>
+          <p className="text-[11px] text-slate-500 mt-2">
+            Menampilkan{" "}
+            <span className="font-semibold text-slate-700">{labelRiwayat}</span>{" "}
+            · {hafalanTampil.length} hafalan · {tahsinTampil.length} tahsin
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {/* Hafalan */}
+          <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
+            <h3 className="font-semibold text-slate-900 mb-4 flex items-center gap-2">
+              <BookText size={16} className="text-indigo-500" />
+              Riwayat Hafalan
+              <span className="text-xs font-medium text-slate-400">
+                ({hafalanTampil.length})
+              </span>
+            </h3>
+            {hafalanTampil.length === 0 ? (
+              <p className="text-sm text-slate-400 text-center py-6">
+                {isRiwayatTerfilter
+                  ? "Tidak ada riwayat hafalan pada tanggal terpilih"
+                  : "Belum ada riwayat hafalan"}
+              </p>
+            ) : (
+              <div className="space-y-2 max-h-[520px] overflow-y-auto pr-1">
+                {hafalanTampil.map((h) => (
                 <div
                   key={h.id}
                   className="flex items-start gap-3 p-3 rounded-xl bg-slate-50 hover:bg-slate-100 transition-colors"
@@ -813,14 +954,19 @@ export default function WaliDashboardPage() {
           <h3 className="font-semibold text-slate-900 mb-4 flex items-center gap-2">
             <BookOpen size={16} className="text-emerald-500" />
             Riwayat Tahsin
+            <span className="text-xs font-medium text-slate-400">
+              ({tahsinTampil.length})
+            </span>
           </h3>
-          {tahsin.length === 0 ? (
+          {tahsinTampil.length === 0 ? (
             <p className="text-sm text-slate-400 text-center py-6">
-              Belum ada riwayat tahsin
+              {isRiwayatTerfilter
+                ? "Tidak ada riwayat tahsin pada tanggal terpilih"
+                : "Belum ada riwayat tahsin"}
             </p>
           ) : (
-            <div className="space-y-2 max-h-[400px] overflow-y-auto">
-              {tahsin.map((t) => (
+            <div className="space-y-2 max-h-[520px] overflow-y-auto pr-1">
+              {tahsinTampil.map((t) => (
                 <div
                   key={t.id}
                   className="flex items-start gap-3 p-3 rounded-xl bg-slate-50 hover:bg-slate-100 transition-colors"
@@ -880,6 +1026,7 @@ export default function WaliDashboardPage() {
               ))}
             </div>
           )}
+        </div>
         </div>
       </div>
     </div>

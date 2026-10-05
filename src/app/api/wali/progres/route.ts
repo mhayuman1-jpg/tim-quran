@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
+import { getRecordScoreAverage, normalizeDateStr } from '@/lib/surahData';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,18 +26,6 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  function scoreToNumber(val?: string): number | null {
-    if (!val) return null;
-    const map: Record<string, number> = {
-      'A': 95, 'B': 80, 'C': 65, 'D': 50,
-      'L': 90, 'KL': 60, 'TL': 30, '✓': 75,
-      'Baik': 80, 'Sangat Baik': 95, 'Perlu Perbaikan': 50,
-    };
-    if (map[val]) return map[val];
-    const num = parseInt(val, 10);
-    return isNaN(num) ? null : num;
-  }
-
   try {
     const supabase = createServerClient();
 
@@ -54,34 +43,33 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Ambil riwayat hafalan (10 terbaru yang sudah dinilai) beserta nama pengajar
+    // Ambil seluruh riwayat hafalan yang sudah dinilai, terbaru lebih dulu
     const { data: hafalanRaw } = await supabase
       .from('hafalan')
       .select('id, tanggal, surah_juz, halaman, makhroj, tajwid, lancar, catatan, teacher_id, users!hafalan_teacher_id_fkey(name)')
       .eq('student_id', santriId)
-      .order('sort_order', { ascending: true })
-      .order('created_at', { ascending: true });
+      .order('tanggal', { ascending: false })
+      .order('created_at', { ascending: false });
 
-    // Filter: hanya tampilkan yang sudah ada penilaian
     const hafalan = (hafalanRaw ?? []).filter((h) =>
       h.lancar || h.makhroj || h.tajwid
-    ).slice(0, 10).map((h: any) => ({
+    ).map((h: any) => ({
       ...h,
       nama_pengajar: h.users?.name ?? null,
       users: undefined,
     }));
 
-    // Ambil riwayat tahsin (10 terbaru yang sudah dinilai) beserta nama pengajar
+    // Ambil seluruh riwayat tahsin yang sudah dinilai, terbaru lebih dulu
     const { data: tahsinRaw } = await supabase
       .from('tahsin')
       .select('id, tanggal, metode, buku, halaman, makhroj, kelancaran, adab, catatan, teacher_id, users!tahsin_teacher_id_fkey(name)')
       .eq('student_id', santriId)
+      .order('tanggal', { ascending: false })
       .order('created_at', { ascending: false });
 
-    // Filter: hanya tampilkan yang sudah ada penilaian
     const tahsin = (tahsinRaw ?? []).filter((t) =>
       t.makhroj || t.kelancaran || t.adab
-    ).slice(0, 10).map((t: any) => ({
+    ).map((t: any) => ({
       ...t,
       nama_pengajar: t.users?.name ?? null,
       users: undefined,
@@ -115,7 +103,7 @@ export async function GET(request: NextRequest) {
 
     const holidayMap: Record<string, string> = {};
     (holidays ?? []).forEach((h: any) => {
-      holidayMap[h.date] = h.keterangan;
+      holidayMap[normalizeDateStr(h.date)] = h.keterangan;
     });
 
     const { data: allHafalan } = await supabase
@@ -150,37 +138,48 @@ export async function GET(request: NextRequest) {
       .gte('date', firstDay);
 
     // Hitung ringkasan
+    const totalHafalanGraded = (hafalanRaw ?? []).filter((h) =>
+      h.lancar || h.makhroj || h.tajwid
+    ).length;
+    const totalTahsinGraded = (tahsinRaw ?? []).filter((t) =>
+      t.makhroj || t.kelancaran || t.adab
+    ).length;
+
     const ringkasan = {
-      total_hafalan: hafalan.length,
-      total_tahsin: tahsin.length,
+      total_hafalan: totalHafalanGraded,
+      total_tahsin: totalTahsinGraded,
       total_absensi: absensi?.length ?? 0,
       absensi_hadir: absensi?.filter(a => a.status === 'Hadir').length ?? 0,
     };
 
-    // Hitung rata-rata tahfidz & tahsin 7 hari terakhir
+    // Rata-rata kartu: seluruh catatan berpenilaian (bukan hanya minggu ini)
+    const hafalanAllScores = (hafalanRaw ?? [])
+      .map((h: any) => getRecordScoreAverage(h.makhroj, h.tajwid, h.lancar))
+      .filter((v): v is number => v !== null);
+    const tahsinAllScores = (tahsinRaw ?? [])
+      .map((t: any) => getRecordScoreAverage(t.makhroj, t.kelancaran, t.adab))
+      .filter((v): v is number => v !== null);
 
-    // Build data per tanggal untuk 7 hari terakhir
+    // Build data per tanggal untuk grafik 7 hari
     const chartHafalanPerDate: Record<string, { total: number; count: number }> = {};
     const chartTahsinPerDate: Record<string, { total: number; count: number }> = {};
 
     (allHafalan ?? []).forEach((h: any) => {
-      const scores = [scoreToNumber(h.makhroj), scoreToNumber(h.tajwid), scoreToNumber(h.lancar)].filter(s => s !== null) as number[];
-      if (scores.length > 0) {
-        const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
-        if (!chartHafalanPerDate[h.tanggal]) chartHafalanPerDate[h.tanggal] = { total: 0, count: 0 };
-        chartHafalanPerDate[h.tanggal].total += avg;
-        chartHafalanPerDate[h.tanggal].count += 1;
-      }
+      const avg = getRecordScoreAverage(h.makhroj, h.tajwid, h.lancar);
+      if (avg === null) return;
+      const dateKey = normalizeDateStr(h.tanggal);
+      if (!chartHafalanPerDate[dateKey]) chartHafalanPerDate[dateKey] = { total: 0, count: 0 };
+      chartHafalanPerDate[dateKey].total += avg;
+      chartHafalanPerDate[dateKey].count += 1;
     });
 
     (allTahsin ?? []).forEach((t: any) => {
-      const scores = [scoreToNumber(t.makhroj), scoreToNumber(t.kelancaran), scoreToNumber(t.adab)].filter(s => s !== null) as number[];
-      if (scores.length > 0) {
-        const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
-        if (!chartTahsinPerDate[t.tanggal]) chartTahsinPerDate[t.tanggal] = { total: 0, count: 0 };
-        chartTahsinPerDate[t.tanggal].total += avg;
-        chartTahsinPerDate[t.tanggal].count += 1;
-      }
+      const avg = getRecordScoreAverage(t.makhroj, t.kelancaran, t.adab);
+      if (avg === null) return;
+      const dateKey = normalizeDateStr(t.tanggal);
+      if (!chartTahsinPerDate[dateKey]) chartTahsinPerDate[dateKey] = { total: 0, count: 0 };
+      chartTahsinPerDate[dateKey].total += avg;
+      chartTahsinPerDate[dateKey].count += 1;
     });
 
     // Generate array 7 hari
@@ -195,24 +194,24 @@ export async function GET(request: NextRequest) {
       const dow = d.getUTCDay();
       const isWeekend = dow === 5 || dow === 6 || dow === 0;
       const kabidKeterangan = holidayMap[dateStr];
+      const tahfidzScore = hData ? Math.round(hData.total / hData.count) : 0;
+      const tahsinScore = tData ? Math.round(tData.total / tData.count) : 0;
       chartData.push({
         tanggal: dateStr,
         label,
-        tahfidz: isWeekend ? 0 : (hData ? Math.round(hData.total / hData.count) : 0),
-        tahsin: isWeekend ? 0 : (tData ? Math.round(tData.total / tData.count) : 0),
-        keterangan: isWeekend ? (kabidKeterangan || 'Libur Akhir Pekan') : kabidKeterangan,
+        tahfidz: tahfidzScore,
+        tahsin: tahsinScore,
+        keterangan: kabidKeterangan
+          ?? (isWeekend && tahfidzScore === 0 && tahsinScore === 0 ? 'Libur Akhir Pekan' : undefined),
         isWeekend,
       });
     }
 
-    // Rata-rata keseluruhan 7 hari
-    const allHafalanAvgs = chartData.map(c => c.tahfidz).filter(v => v > 0);
-    const allTahsinAvgs = chartData.map(c => c.tahsin).filter(v => v > 0);
-    const rataRataTahfidz = allHafalanAvgs.length > 0
-      ? Math.round(allHafalanAvgs.reduce((a, b) => a + b, 0) / allHafalanAvgs.length)
+    const rataRataTahfidz = hafalanAllScores.length > 0
+      ? Math.round(hafalanAllScores.reduce((a, b) => a + b, 0) / hafalanAllScores.length)
       : 0;
-    const rataRataTahsin = allTahsinAvgs.length > 0
-      ? Math.round(allTahsinAvgs.reduce((a, b) => a + b, 0) / allTahsinAvgs.length)
+    const rataRataTahsin = tahsinAllScores.length > 0
+      ? Math.round(tahsinAllScores.reduce((a, b) => a + b, 0) / tahsinAllScores.length)
       : 0;
 
     const isMingguIni = !fromParam;
