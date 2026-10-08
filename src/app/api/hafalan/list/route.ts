@@ -109,7 +109,7 @@ export async function GET(request: NextRequest) {
         .from('santri')
         .select('id')
         .eq('class_id', classId)
-        .eq('is_active', true);
+        .eq('status', 'Aktif');
       const studentIds = (classStudents ?? []).map(s => s.id);
       if (studentIds.length === 0) {
         return NextResponse.json({ data: [], pagination: { total: 0, limit, offset, hasMore: false } }, { status: 200 });
