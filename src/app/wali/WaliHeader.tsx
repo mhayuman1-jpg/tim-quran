@@ -1,6 +1,6 @@
 'use client';
 import { signOut, useSession } from 'next-auth/react';
-import { LogOut, BookOpen, User, MessageCircle } from 'lucide-react';
+import { LogOut, BookOpen, User, MessageCircle, Video } from 'lucide-react';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
 
@@ -35,6 +35,13 @@ export default function WaliHeader() {
       </Link>
 
       <div className="flex items-center gap-2">
+        {/* Pembelajaran AL Qur'an link */}
+        <Link href="/wali/pembelajaran-al-quran"
+          className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium text-emerald-700 hover:bg-emerald-50 transition-colors">
+          <Video size={15} className="text-red-500" />
+          <span className="hidden sm:inline">Pembelajaran</span>
+        </Link>
+
         {/* Pesan button */}
         <Link href="/wali/pesan"
           className="relative flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium text-emerald-700 hover:bg-emerald-50 transition-colors">

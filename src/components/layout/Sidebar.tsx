@@ -9,7 +9,7 @@ import {
   FileText, BarChart2, Repeat, TrendingUp,
   School, UserCheck, Megaphone, Newspaper, Settings, Globe, X, Eye,
   CalendarDays, MessageCircle, MessageSquareQuote, CalendarOff, UserX,
-  ClipboardList, Award,
+  ClipboardList, Award, Video, Layers,
 } from 'lucide-react';
 import { useSession } from '@/hooks/useSession';
 import { useRole } from '@/hooks/useRole';
@@ -54,6 +54,8 @@ const menuItems: MenuItem[] = [
   { label: 'Kelola Artikel',    href: '/dashboard/kelola-artikel', icon: <Newspaper size={16} />,       group: 'Konten', roles: ['Kabid', 'Sekretaris'] },
   { label: 'Kelola Testimoni',  href: '/kelola-testimoni', icon: <MessageSquareQuote size={16} />,  group: 'Konten', roles: ['Kabid'] },
   { label: 'Kelola Website',    href: '/dashboard/website', icon: <Globe size={16} />,           group: 'Konten', roles: ['Kabid'] },
+  { label: 'Jilid Pembelajaran', href: '/dashboard/jilid-pembelajaran', icon: <Layers size={16} />, group: 'Konten', roles: ['Kabid'] },
+  { label: "Pembelajaran AL Qur'an", href: '/dashboard/pembelajaran-al-quran', icon: <Video size={16} />, group: 'Konten', roles: ['Kabid'] },
   { label: 'Pengaturan',     href: '/pengaturan',         icon: <Settings size={16} />,        group: 'Akun' },
 ];
 

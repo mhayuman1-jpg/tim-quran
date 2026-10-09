@@ -158,3 +158,35 @@ export interface Artikel {
   created_at: string;
   updated_at?: string;
 }
+
+// ── Pembelajaran AL Qur'an ────────────────────────────────────────────────
+
+/** Jilid/kelompok materi pembelajaran Al-Qur'an (dibuat lebih dulu oleh Kabid). */
+export interface JilidPembelajaran {
+  id: string;
+  nama: string;
+  deskripsi?: string | null;
+  urutan: number;
+  is_active: boolean;
+  created_at?: string;
+  updated_at?: string;
+  /** Relasi video di dalam jilid ini (diisi pada endpoint publik). */
+  pembelajaran_al_quran?: PembelajaranAlQuran[];
+  /** Jumlah video di dalam jilid (dihitung di UI). */
+  jumlah_video?: number;
+}
+
+/** Materi pembelajaran Al-Qur'an (judul + link YouTube) di dalam sebuah jilid. */
+export interface PembelajaranAlQuran {
+  id: string;
+  jilid_id: string | null;
+  judul: string;
+  deskripsi?: string | null;
+  youtube_url: string;
+  urutan: number;
+  is_active: boolean;
+  created_at?: string;
+  updated_at?: string;
+  /** Relasi jilid (diisi pada endpoint admin). */
+  jilid_pembelajaran?: { id: string; nama: string } | null;
+}

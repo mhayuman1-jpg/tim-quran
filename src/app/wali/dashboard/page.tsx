@@ -2,11 +2,13 @@
 import { useEffect, useState, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   BookOpen, BookText, BarChart3, CalendarDays,
   User, School, Hash, TrendingUp, AlertCircle,
   Award, CheckCircle2, Star, Info,
   ChevronLeft, ChevronRight, Filter, RotateCcw,
+  Video,
 } from "lucide-react";
 import { normalizeDateStr } from "@/lib/surahData";
 
@@ -371,6 +373,27 @@ export default function WaliDashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* Quick Access - Pembelajaran AL Qur'an */}
+      <Link href="/wali/pembelajaran-al-quran" className="block">
+        <div className="bg-gradient-to-r from-red-500 to-red-600 rounded-2xl p-5 shadow-lg shadow-red-200 hover:shadow-xl hover:shadow-red-300 transition-all duration-300 group">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center shrink-0">
+              <Video size={24} className="text-white" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="text-lg font-bold text-white">Pembelajaran AL Qur&apos;an</h3>
+              <p className="text-white/80 text-sm mt-0.5">Materi pembelajaran & video YouTube untuk hafalan & tahsin di rumah</p>
+            </div>
+            <div className="flex items-center gap-2 text-white/80 shrink-0">
+              <span className="text-sm font-medium">Lihat Semua</span>
+              <svg className="w-5 h-5 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </div>
+          </div>
+        </div>
+      </Link>
 
       {/* Charts Row - Stat Cards + Bar Chart */}
       <div className="space-y-4">

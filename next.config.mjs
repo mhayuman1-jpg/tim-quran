@@ -41,6 +41,11 @@ const nextConfig = {
         protocol: 'https',
         hostname: 'timquran.my.id',
       },
+      {
+        // YouTube thumbnails
+        protocol: 'https',
+        hostname: 'img.youtube.com',
+      },
     ],
   },
   // CORS headers untuk Flutter mobile app
