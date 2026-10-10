@@ -2,13 +2,14 @@
 export const dynamic = 'force-dynamic';
 
 // src/app/(dashboard)/laporan/page.tsx
-// Halaman Laporan Progres Siswa per Tim (Kabid Only)
-// - Dropdown pilih anggota Tim_Quran
+// Halaman Laporan Progres Siswa (Kabid / Sekretaris)
+// - Tab Per Tim Qur'an atau Per Kelas
 // - Tabel siswa dengan ringkasan progres
+// - Unduh PDF rekap per kelas
 // - Klik siswa untuk lihat detail riwayat hafalan/tahsin/absensi
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Eye, Search } from 'lucide-react';
+import { Download, Eye, Loader2, Search } from 'lucide-react';
 
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
@@ -30,6 +31,7 @@ interface StudentProgress {
   gender: string;
   juz_terakhir: string;
   kelas: string | null;
+  pembina?: string | null;
   total_hafalan: number;
   total_tahsin: number;
   persentase_kehadiran: number;
@@ -37,8 +39,15 @@ interface StudentProgress {
   total_days: number;
 }
 
+interface ClassItem {
+  id: string;
+  name: string;
+}
+
 interface LaporanResponse {
-  teacher_id: string;
+  teacher_id?: string;
+  class_id?: string | null;
+  class_name?: string | null;
   students: StudentProgress[];
   summary: {
     total_students: number;
@@ -120,8 +129,15 @@ export default function LaporanPage() {
   const [timMembers, setTimMembers] = useState<TimMember[]>([]);
   const [loadingMembers, setLoadingMembers] = useState(true);
 
-  // ── Selected teacher
+  // ── View mode
+  const [viewMode, setViewMode] = useState<'tim' | 'kelas'>('tim');
+
+  // ── Selected teacher / class
   const [selectedTeacherId, setSelectedTeacherId] = useState<string>('');
+  const [classes, setClasses] = useState<ClassItem[]>([]);
+  const [loadingClasses, setLoadingClasses] = useState(false);
+  const [selectedClassId, setSelectedClassId] = useState<string>('');
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
 
   // ── Laporan data
   const [laporanData, setLaporanData] = useState<LaporanResponse | null>(null);
@@ -175,6 +191,31 @@ export default function LaporanPage() {
     fetchTimMembers();
   }, [fetchTimMembers]);
 
+  const fetchClasses = useCallback(async () => {
+    setLoadingClasses(true);
+    try {
+      const res = await fetch('/api/kelas/list');
+      const json = await res.json();
+      if (!res.ok) {
+        showToast('error', json.message ?? 'Gagal memuat data kelas.');
+        setClasses([]);
+      } else {
+        setClasses(json.data ?? []);
+      }
+    } catch {
+      showToast('error', 'Terjadi kesalahan saat memuat data kelas.');
+      setClasses([]);
+    } finally {
+      setLoadingClasses(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (viewMode === 'kelas') {
+      fetchClasses();
+    }
+  }, [viewMode, fetchClasses]);
+
   // Auto-select first member setelah data dimuat
   useEffect(() => {
     if (timMembers.length > 0 && !selectedTeacherId) {
@@ -204,11 +245,66 @@ export default function LaporanPage() {
     }
   }, []);
 
+  const fetchLaporanKelas = useCallback(async (classId: string) => {
+    setLoadingLaporan(true);
+    try {
+      const params = classId ? `?class_id=${encodeURIComponent(classId)}` : '';
+      const res = await fetch(`/api/laporan/kelas${params}`);
+      const json = await res.json();
+      if (!res.ok) {
+        showToast('error', json.message ?? 'Gagal memuat laporan progres per kelas.');
+        setLaporanData(null);
+      } else {
+        setLaporanData(json);
+      }
+    } catch {
+      showToast('error', 'Terjadi kesalahan saat memuat laporan progres per kelas.');
+      setLaporanData(null);
+    } finally {
+      setLoadingLaporan(false);
+    }
+  }, []);
+
   useEffect(() => {
-    if (selectedTeacherId) {
+    if (viewMode === 'tim' && selectedTeacherId) {
       fetchLaporan(selectedTeacherId);
     }
-  }, [selectedTeacherId, fetchLaporan]);
+  }, [viewMode, selectedTeacherId, fetchLaporan]);
+
+  useEffect(() => {
+    if (viewMode === 'kelas') {
+      fetchLaporanKelas(selectedClassId);
+    }
+  }, [viewMode, selectedClassId, fetchLaporanKelas]);
+
+  const handleDownloadPdf = async () => {
+    setDownloadingPdf(true);
+    try {
+      const params = selectedClassId ? `?class_id=${encodeURIComponent(selectedClassId)}` : '';
+      const res = await fetch(`/api/laporan/kelas/pdf${params}`);
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        throw new Error(json.message || 'Gagal mengunduh PDF');
+      }
+      const blob = await res.blob();
+      const downloadUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = downloadUrl;
+      const date = new Date().toISOString().slice(0, 10);
+      const className = selectedClassId
+        ? classes.find((c) => c.id === selectedClassId)?.name?.replace(/\s+/g, '_') || 'kelas'
+        : 'semua-kelas';
+      a.download = `laporan-progres-kelas-${className}-${date}.pdf`;
+      a.click();
+      URL.revokeObjectURL(downloadUrl);
+      showToast('success', 'PDF laporan progres per kelas berhasil diunduh.');
+    } catch (err) {
+      console.error('Gagal download PDF laporan kelas:', err);
+      showToast('error', 'Gagal mengunduh PDF laporan progres.');
+    } finally {
+      setDownloadingPdf(false);
+    }
+  };
 
   // ── Open detail modal
   const handleOpenDetail = async (student: StudentProgress) => {
@@ -242,6 +338,8 @@ export default function LaporanPage() {
   };
 
   const selectedTeacher = timMembers.find((m) => m.id === selectedTeacherId);
+  const selectedClass = classes.find((c) => c.id === selectedClassId);
+  const columnCount = viewMode === 'kelas' ? 9 : 8;
 
   const filteredStudents = useMemo(() => {
     if (!laporanData?.students) return [];
@@ -251,7 +349,8 @@ export default function LaporanPage() {
       (s) =>
         s.nama.toLowerCase().includes(q) ||
         s.nisn.toLowerCase().includes(q) ||
-        (s.kelas && s.kelas.toLowerCase().includes(q))
+        (s.kelas && s.kelas.toLowerCase().includes(q)) ||
+        (s.pembina && s.pembina.toLowerCase().includes(q))
     );
   }, [laporanData?.students, searchQuery]);
 
@@ -259,39 +358,103 @@ export default function LaporanPage() {
     <div className="space-y-6">
       {/* ── Page header */}
       <div>
-        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Laporan Progres Siswa per Tim</h1>
+        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Laporan Progres Siswa</h1>
         <p className="text-sm text-slate-500 mt-0.5">
-          Pantau progres hafalan, tahsin, dan kehadiran siswa berdasarkan anggota Tim Qur&apos;an yang membina.
+          Pantau progres hafalan, tahsin, dan kehadiran siswa per pembina atau per kelas. PDF per kelas memuat detail riwayat setiap siswa.
         </p>
       </div>
 
-      {/* ── Teacher selector */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-        <label htmlFor="teacher-select" className="block text-sm font-medium text-slate-700 mb-2">
-          Pilih Anggota Tim Qur&apos;an
-        </label>
-        <select
-          id="teacher-select"
-          value={selectedTeacherId}
-          onChange={(e) => {
-            setSelectedTeacherId(e.target.value);
+      <div className="flex gap-1 bg-slate-100 p-1 rounded-xl w-full sm:w-fit">
+        <button
+          type="button"
+          onClick={() => {
+            setViewMode('tim');
             setSearchQuery('');
           }}
-          disabled={loadingMembers}
-          className="w-full md:w-96 px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 disabled:bg-slate-100 disabled:text-slate-400"
+          className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+            viewMode === 'tim' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+          }`}
         >
-          {loadingMembers ? (
-            <option>Memuat...</option>
-          ) : timMembers.length === 0 ? (
-            <option>Tidak ada anggota aktif</option>
-          ) : (
-            timMembers.map((member) => (
-              <option key={member.id} value={member.id}>
-                {member.name} ({member.email})
-              </option>
-            ))
-          )}
-        </select>
+          Per Tim Qur&apos;an
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setViewMode('kelas');
+            setSearchQuery('');
+          }}
+          className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+            viewMode === 'kelas' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+          }`}
+        >
+          Per Kelas
+        </button>
+      </div>
+
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+        {viewMode === 'tim' ? (
+          <>
+            <label htmlFor="teacher-select" className="block text-sm font-medium text-slate-700 mb-2">
+              Pilih Anggota Tim Qur&apos;an
+            </label>
+            <select
+              id="teacher-select"
+              value={selectedTeacherId}
+              onChange={(e) => {
+                setSelectedTeacherId(e.target.value);
+                setSearchQuery('');
+              }}
+              disabled={loadingMembers}
+              className="w-full md:w-96 px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 disabled:bg-slate-100 disabled:text-slate-400"
+            >
+              {loadingMembers ? (
+                <option>Memuat...</option>
+              ) : timMembers.length === 0 ? (
+                <option>Tidak ada anggota aktif</option>
+              ) : (
+                timMembers.map((member) => (
+                  <option key={member.id} value={member.id}>
+                    {member.name} ({member.email})
+                  </option>
+                ))
+              )}
+            </select>
+          </>
+        ) : (
+          <div className="flex flex-col sm:flex-row sm:items-end gap-3">
+            <div className="flex-1">
+              <label htmlFor="class-select" className="block text-sm font-medium text-slate-700 mb-2">
+                Pilih Kelas
+              </label>
+              <select
+                id="class-select"
+                value={selectedClassId}
+                onChange={(e) => {
+                  setSelectedClassId(e.target.value);
+                  setSearchQuery('');
+                }}
+                disabled={loadingClasses}
+                className="w-full md:w-96 px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 disabled:bg-slate-100 disabled:text-slate-400"
+              >
+                <option value="">Semua Kelas</option>
+                {classes.map((kelas) => (
+                  <option key={kelas.id} value={kelas.id}>
+                    {kelas.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <Button
+              variant="primary"
+              leftIcon={downloadingPdf ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />}
+              onClick={handleDownloadPdf}
+              loading={downloadingPdf}
+              disabled={loadingLaporan || loadingClasses}
+            >
+              Unduh PDF Detail
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* ── Summary cards */}
@@ -323,7 +486,12 @@ export default function LaporanPage() {
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="px-5 py-4 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <h2 className="text-lg font-semibold text-slate-900">
-            Daftar Siswa {selectedTeacher && `- ${selectedTeacher.name}`}
+            Daftar Siswa{' '}
+            {viewMode === 'tim'
+              ? selectedTeacher && `- ${selectedTeacher.name}`
+              : selectedClass
+                ? `- ${selectedClass.name}`
+                : '- Semua Kelas'}
           </h2>
           <div className="relative w-full sm:w-72">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -350,6 +518,11 @@ export default function LaporanPage() {
                 <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
                   Kelas
                 </th>
+                {viewMode === 'kelas' && (
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                    Pembina
+                  </th>
+                )}
                 <th className="px-4 py-3 text-center text-xs font-semibold text-slate-700 uppercase tracking-wider">
                   Juz
                 </th>
@@ -381,6 +554,11 @@ export default function LaporanPage() {
                     <td className="px-4 py-3">
                       <div className="h-5 bg-slate-200 rounded animate-pulse w-16"></div>
                     </td>
+                    {viewMode === 'kelas' && (
+                      <td className="px-4 py-3">
+                        <div className="h-5 bg-slate-200 rounded animate-pulse w-24"></div>
+                      </td>
+                    )}
                     <td className="px-4 py-3">
                       <div className="h-5 bg-slate-200 rounded animate-pulse w-8 mx-auto"></div>
                     </td>
@@ -401,16 +579,18 @@ export default function LaporanPage() {
               ) : !laporanData || laporanData.students.length === 0 ? (
                 // Empty state
                 <tr>
-                  <td colSpan={8} className="px-4 py-8 text-center text-sm text-slate-500">
-                    {selectedTeacherId
-                      ? 'Tidak ada siswa yang dibina oleh anggota Tim Qur\'an ini.'
-                      : 'Pilih anggota Tim Qur\'an untuk melihat laporan.'}
+                  <td colSpan={columnCount} className="px-4 py-8 text-center text-sm text-slate-500">
+                    {viewMode === 'kelas'
+                      ? 'Tidak ada siswa aktif pada kelas ini.'
+                      : selectedTeacherId
+                        ? 'Tidak ada siswa yang dibina oleh anggota Tim Qur\'an ini.'
+                        : 'Pilih anggota Tim Qur\'an untuk melihat laporan.'}
                   </td>
                 </tr>
               ) : filteredStudents.length === 0 ? (
                 // No search results
                 <tr>
-                  <td colSpan={8} className="px-4 py-8 text-center text-sm text-slate-500">
+                  <td colSpan={columnCount} className="px-4 py-8 text-center text-sm text-slate-500">
                     Tidak ada siswa yang cocok dengan pencarian &quot;{searchQuery}&quot;.
                   </td>
                 </tr>
@@ -430,6 +610,11 @@ export default function LaporanPage() {
                     <td className="px-4 py-3">
                       <span className="text-sm text-slate-600">{student.kelas ?? '-'}</span>
                     </td>
+                    {viewMode === 'kelas' && (
+                      <td className="px-4 py-3">
+                        <span className="text-sm text-slate-600">{student.pembina ?? '-'}</span>
+                      </td>
+                    )}
                     <td className="px-4 py-3 text-center">
                       <Badge variant="blue">{student.juz_terakhir}</Badge>
                     </td>

@@ -13,8 +13,8 @@ export async function GET(request: NextRequest) {
     const session = await getAuthenticatedSession(request);
     if (session instanceof NextResponse) return session;
 
-    // Hanya Kabid yang boleh akses
-    if (session.user.role !== 'Kabid') {
+    // Kabid dan Sekretaris boleh melihat daftar tim untuk laporan progres
+    if (session.user.role !== 'Kabid' && session.user.role !== 'Sekretaris') {
       return NextResponse.json(
         { message: 'Akses tidak diizinkan' },
         { status: 403 }

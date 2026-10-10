@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 const KABID_ONLY_ROUTES = ['/kelas', '/semester', '/tim', '/dashboard/kelola-artikel', '/absensi/monitoring', '/absensi/kabid-mark', '/website', '/dashboard/website', '/admin', '/kalender-libur'];
 const MANAJEMEN_ROUTES = ['/laporan-masuk', '/rekap', '/tasmi'];
+const LAPORAN_PROGRES_PATH = '/laporan';
 
 function isLocalhostOrigin(origin: string): boolean {
   return /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
@@ -56,6 +57,14 @@ export default withAuth(
       return NextResponse.redirect(url);
     }
 
+    const isLaporanProgres = pathname === LAPORAN_PROGRES_PATH;
+    if (isLaporanProgres && token?.role !== 'Kabid' && token?.role !== 'Sekretaris') {
+      const url = req.nextUrl.clone();
+      url.pathname = '/dashboard';
+      url.searchParams.set('error', 'forbidden');
+      return NextResponse.redirect(url);
+    }
+
     const isManajemenOnly = MANAJEMEN_ROUTES.some((route) => pathname.startsWith(route));
     if (isManajemenOnly && token?.role !== 'Kabid' && token?.role !== 'Sekretaris') {
       const url = req.nextUrl.clone();
@@ -99,6 +108,7 @@ export const config = {
     '/kalender-libur/:path*',
     '/kelas/:path*',
     '/tim/:path*',
+    '/laporan',
     '/laporan/:path*',
     '/laporan-kirim/:path*',
     '/laporan-masuk/:path*',

@@ -101,6 +101,7 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
 
   const visibleMenus = menuItems.filter(item => {
     if (!item.roles || item.roles.length === 0) return true;
+    if (item.href === '/laporan' && (role === 'Sekretaris' || role === 'Kabid')) return true;
     if (!effectiveRole) return false;
     return item.roles.includes(effectiveRole);
   });

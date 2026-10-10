@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic';
 // src/app/api/laporan/tim/route.ts
-// GET: Laporan progres siswa per Tim_Quran (Kabid only)
+// GET: Laporan progres siswa per Tim_Quran (Kabid dan Sekretaris)
 // Query param: teacher_id (required)
 // Return: daftar siswa yang dibina beserta ringkasan progres
 //   - total setoran hafalan
@@ -12,6 +12,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
+import { attendancePercent } from '@/lib/laporan/student-progress';
 
 export async function GET(request: NextRequest) {
   // Verifikasi sesi
@@ -23,8 +24,7 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  // Hanya Kabid yang dapat mengakses
-  if (session.user.role !== 'Kabid') {
+  if (session.user.role !== 'Kabid' && session.user.role !== 'Sekretaris') {
     return NextResponse.json(
       { message: 'Akses tidak diizinkan.' },
       { status: 403 }
@@ -171,10 +171,7 @@ export async function GET(request: NextRequest) {
       const totalHafalan = hafalanCountMap[santri.id] ?? 0;
       const totalTahsin = tahsinCountMap[santri.id] ?? 0;
       const daysPresent = attendanceCountMap[santri.id]?.size ?? 0;
-      const persentaseKehadiran =
-        totalHariAktif > 0
-          ? parseFloat(((daysPresent / totalHariAktif) * 100).toFixed(2))
-          : 0;
+      const persentaseKehadiran = attendancePercent(daysPresent, Math.max(totalHariAktif, daysPresent));
 
       return {
         id: santri.id,
