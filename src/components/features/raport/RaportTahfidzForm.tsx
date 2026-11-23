@@ -125,8 +125,10 @@ const emptyRow = (): DetailSurah => ({
   nama_surah: '', makhroj: '', tajwid: '', lancar: '', wafa_buku: '', wafa_halaman: '',
 });
 
+const TEMPLATE_CATATAN = `Ayah bunda mohon untuk senantiasa memantau perkembangan pembelajaran Al-Qur'an ananda melalui tautan (link) yang telah dibagikan secara berkala. Kami juga mengharapkan kerja sama Ayah Bunda untuk terus mendampingi dan membiasakan ananda mengaji di rumah, karena dukungan serta keterlibatan orang tua sangat berperan dalam meningkatkan kemampuan membaca Al-Qur'an. Selain itu, mohon untuk tidak membiasakan ananda membaca Al-Qur'an menggunakan tulisan latin. Apabila ananda belum mampu membaca huruf hijaiyah secara mandiri, sebaiknya orang tua memperdengarkan audio murottal Al-Qur'an agar ananda terbiasa mendengar pelafalan ayat yang benar. Semoga melalui kerja sama yang baik antara guru dan orang tua, tumbuh generasi yang tidak hanya mampu membaca Al-Qur'an dengan baik dan benar, tetapi juga mencintai serta mengamalkan nilai-nilai Al-Qur'an dalam kehidupan sehari-hari.`;
+
 const EMPTY_FORM: RaportTahfidzFormData = {
-  student_id: '', periode: '', tahun_ajaran: '', juz: null, catatan: '', catatan_ai: '',
+  student_id: '', periode: '', tahun_ajaran: '', juz: null, catatan: TEMPLATE_CATATAN, catatan_ai: '',
   nama_guru_kelas: '', niy_guru_kelas: '',
   nama_kabid: '', niy_kabid: '',
   nama_kepala_sekolah: '', niy_kepala_sekolah: '',
@@ -196,7 +198,7 @@ export default function RaportTahfidzForm({
         periode: initialData.periode ?? '',
         tahun_ajaran: initialData.tahun_ajaran ?? '',
         juz: initialData.juz ?? null,
-        catatan: initialData.catatan ?? '',
+        catatan: initialData.catatan ?? TEMPLATE_CATATAN,
         catatan_ai: initialData.catatan_ai ?? '',
         nama_guru_kelas: initialData.nama_guru_kelas ?? '',
         niy_guru_kelas: initialData.niy_guru_kelas ?? '',
