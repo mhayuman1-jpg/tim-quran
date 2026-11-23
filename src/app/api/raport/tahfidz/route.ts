@@ -15,6 +15,7 @@ const HEADER_SELECT = `
   id, student_id, teacher_id, periode, tahun_ajaran, juz, catatan, catatan_ai,
   nama_guru_kelas, niy_guru_kelas, nama_kabid, niy_kabid, nama_kepala_sekolah, niy_kepala_sekolah,
   tahsin_metode, tahsin_buku, tahsin_halaman, tahsin_makhroj, tahsin_kelancaran, tahsin_adab, tahsin_catatan,
+  tanggal, lokasi,
   html_custom, pdf_path,
   created_at, updated_at,
   santri ( id, nama, nisn, classes ( id, name ) ),
@@ -99,6 +100,7 @@ export async function POST(request: NextRequest) {
             nama_guru_kelas, niy_guru_kelas, nama_kabid, niy_kabid,
             nama_kepala_sekolah, niy_kepala_sekolah,
             tahsin_metode, tahsin_buku, tahsin_halaman, tahsin_makhroj, tahsin_kelancaran, tahsin_adab, tahsin_catatan,
+            tanggal, lokasi,
             detail } = body;
 
     if (!student_id?.trim()) return NextResponse.json({ message: 'student_id wajib.' }, { status: 400 });
@@ -165,6 +167,8 @@ export async function POST(request: NextRequest) {
         tahsin_kelancaran: tahsin_kelancaran || null,
         tahsin_adab: tahsin_adab || null,
         tahsin_catatan: tahsin_catatan?.trim() || null,
+        tanggal: tanggal?.trim() || null,
+        lokasi: lokasi?.trim() || null,
       }])
       .select('id')
       .single();
@@ -218,6 +222,7 @@ export async function PUT(request: NextRequest) {
             nama_guru_kelas, niy_guru_kelas, nama_kabid, niy_kabid,
             nama_kepala_sekolah, niy_kepala_sekolah,
             tahsin_metode, tahsin_buku, tahsin_halaman, tahsin_makhroj, tahsin_kelancaran, tahsin_adab, tahsin_catatan,
+            tanggal, lokasi,
             html_custom, detail } = body;
 
     if (!id) return NextResponse.json({ message: 'id raport wajib.' }, { status: 400 });
@@ -266,6 +271,8 @@ export async function PUT(request: NextRequest) {
     if (tahsin_kelancaran !== undefined) updateHeader.tahsin_kelancaran = tahsin_kelancaran || null;
     if (tahsin_adab !== undefined) updateHeader.tahsin_adab = tahsin_adab || null;
     if (tahsin_catatan !== undefined) updateHeader.tahsin_catatan = tahsin_catatan?.trim() || null;
+    if (tanggal !== undefined) updateHeader.tanggal = tanggal?.trim() || null;
+    if (lokasi !== undefined) updateHeader.lokasi = lokasi?.trim() || null;
     if (html_custom !== undefined) updateHeader.html_custom = html_custom || null;
 
     // Cek duplikat — pastikan student_id + periode + juz baru tidak bentrok dengan record lain

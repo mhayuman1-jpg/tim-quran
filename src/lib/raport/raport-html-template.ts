@@ -49,8 +49,8 @@ export function buildRaportHtmlTemplate(
   const details = [...(raport.raport_tahfidz_detail ?? [])].sort((a, b) => a.urutan - b.urutan);
 
   const reportDate = raport.created_at ? new Date(raport.created_at) : new Date();
-  const tanggal = reportDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
-  const kota = /dompu/i.test(school) ? 'Dompu' : 'Dompu';
+  const tanggal = raport.tanggal || reportDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+  const kota = raport.lokasi || (/dompu/i.test(school) ? 'Dompu' : 'Dompu');
 
   const guru = raport.nama_guru_kelas || raport.users?.name || '';
   const kabid = raport.nama_kabid || '';

@@ -502,6 +502,46 @@ export default function RaportPage() {
     }
   };
 
+  // Atur tanggal penerimaan raport secara massal — untuk semua raport siswa
+  // yang sedang ditampilkan guru (hasil filter kelas/periode saat ini).
+  const [bulkTanggalOpen, setBulkTanggalOpen] = useState(false);
+  const [bulkTanggalValue, setBulkTanggalValue] = useState('');
+  const [bulkLokasiValue, setBulkLokasiValue] = useState('');
+  const [bulkTanggalLoading, setBulkTanggalLoading] = useState(false);
+
+  const handleBulkSetTanggal = async () => {
+    if (!bulkTanggalValue.trim() || raportList.length === 0) return;
+    setBulkTanggalLoading(true);
+    try {
+      const results = await Promise.all(raportList.map((row) =>
+        fetch('/api/raport/tahfidz', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', ...teacherViewHeaders() },
+          body: JSON.stringify({
+            id: row.id,
+            tanggal: bulkTanggalValue.trim(),
+            lokasi: bulkLokasiValue.trim() || undefined,
+          }),
+        }).then((r) => r.ok)
+      ));
+      const successCount = results.filter(Boolean).length;
+      setFormSuccess(`Tanggal penerimaan diterapkan ke ${successCount} dari ${raportList.length} raport.`);
+      setBulkTanggalOpen(false);
+      setBulkTanggalValue('');
+      setBulkLokasiValue('');
+      fetchRaport(selectedTeacherClassId ?? undefined);
+      if (selected) {
+        const r = await fetch(`/api/raport/tahfidz?id=${selected.id}`);
+        const j = await r.json();
+        if (r.ok) setSelected(j.data ?? selected);
+      }
+    } catch {
+      alert('Terjadi kesalahan saat menerapkan tanggal massal.');
+    } finally {
+      setBulkTanggalLoading(false);
+    }
+  };
+
   const currentPreviewRaport: RaportTahfidzData | null = selected ? {
     ...selected,
     ...inlineDraft,
@@ -908,6 +948,12 @@ export default function RaportPage() {
               {listError && <p className="text-xs text-red-600">{listError}</p>}
             </div>
 
+            {isTeacherMode && searched && raportList.length > 0 && (
+              <Button variant="secondary" className="w-full justify-center" onClick={() => setBulkTanggalOpen(true)}>
+                Atur Tanggal Massal ({raportList.length})
+              </Button>
+            )}
+
             {searched && (
               <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
                 {listLoading ? (
@@ -1081,6 +1127,49 @@ export default function RaportPage() {
         confirmLabel="Hapus"
         loading={deleteLoading}
       />
+
+      {/* Atur Tanggal Penerimaan Raport Massal (guru) */}
+      <Modal
+        open={bulkTanggalOpen}
+        onClose={() => { if (!bulkTanggalLoading) setBulkTanggalOpen(false); }}
+        title="Atur Tanggal Penerimaan Massal"
+        size="md"
+      >
+        <div className="space-y-3">
+          <p className="text-sm text-slate-600">
+            Tanggal (dan lokasi, opsional) ini akan diterapkan ke semua {raportList.length} raport yang sedang ditampilkan di daftar.
+          </p>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-slate-600 uppercase tracking-wide">Tanggal Penerimaan</label>
+            <input
+              type="text"
+              value={bulkTanggalValue}
+              onChange={(e) => setBulkTanggalValue(e.target.value)}
+              placeholder="Contoh: 7 Juni 2026"
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-slate-600 uppercase tracking-wide">Lokasi (opsional)</label>
+            <input
+              type="text"
+              value={bulkLokasiValue}
+              onChange={(e) => setBulkLokasiValue(e.target.value)}
+              placeholder="Contoh: Dompu"
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+            />
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => setBulkTanggalOpen(false)} disabled={bulkTanggalLoading}>
+              Batal
+            </Button>
+            <Button variant="primary" loading={bulkTanggalLoading} disabled={!bulkTanggalValue.trim()}
+              onClick={handleBulkSetTanggal}>
+              Terapkan ke Semua
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

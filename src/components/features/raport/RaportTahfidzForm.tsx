@@ -189,6 +189,41 @@ export default function RaportTahfidzForm({
     }
   }, [isEdit]);
 
+  // Pre-fill nama/NIY Kabid & Kepala Sekolah dari pengaturan tersimpan — cukup diisi sekali
+  // oleh guru mana pun, lalu otomatis terisi lagi di raport-raport berikutnya.
+  useEffect(() => {
+    if (isEdit) return;
+    fetch('/api/raport/signature-settings')
+      .then(r => r.ok ? r.json() : { data: null })
+      .then(j => {
+        const d = j.data;
+        if (!d) return;
+        setForm(p => ({
+          ...p,
+          nama_kabid: p.nama_kabid || d.nama_kabid || '',
+          niy_kabid: p.niy_kabid || d.niy_kabid || '',
+          nama_kepala_sekolah: p.nama_kepala_sekolah || d.nama_kepala_sekolah || '',
+          niy_kepala_sekolah: p.niy_kepala_sekolah || d.niy_kepala_sekolah || '',
+        }));
+      })
+      .catch(() => {});
+  }, [isEdit]);
+
+  // Simpan nama/NIY Kabid & Kepala Sekolah yang baru diisi, agar raport berikutnya otomatis terisi.
+  const persistSignatureSettings = (data: RaportTahfidzFormData) => {
+    if (!data.nama_kabid && !data.niy_kabid && !data.nama_kepala_sekolah && !data.niy_kepala_sekolah) return;
+    fetch('/api/raport/signature-settings', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        nama_kabid: data.nama_kabid,
+        niy_kabid: data.niy_kabid,
+        nama_kepala_sekolah: data.nama_kepala_sekolah,
+        niy_kepala_sekolah: data.niy_kepala_sekolah,
+      }),
+    }).catch(() => {});
+  };
+
   // Populate form saat edit
   useEffect(() => {
     if (initialData) {
@@ -356,6 +391,8 @@ export default function RaportTahfidzForm({
     if (totalDetailRows === 0) errs.detail = 'Minimal satu baris surah.';
     if (!hasMultiJuz && form.detail.some(d => !d.nama_surah.trim())) errs.detail = 'Nama surah tidak boleh kosong.';
     if (Object.values(errs).some(Boolean)) { setErrors(errs); return; }
+
+    persistSignatureSettings(form);
 
     // Multi-juz: combine all juz groups into ONE raport (juz = null)
     if (!isEdit && hasMultiJuz) {

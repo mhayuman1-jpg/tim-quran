@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import type { RaportTahfidzData, DetailSurahData, ProfilRaportData } from './raport-tahfidz-types';
 import { isJuz30Raport, isJuz1Raport, JUZ1_TEMPLATE } from '@/lib/raport/print-config';
 import { toImageUrl } from '@/lib/storage/urls';
@@ -114,6 +114,82 @@ const RaportTahfidzDocument = React.forwardRef<HTMLDivElement, RaportTahfidzDocu
     },
     ref,
   ) => {
+    // ── Blok-pilih & copy-paste seperti Excel pada tabel Penilaian Tahfidz (saat Edit Langsung) ──
+    const GRID_COLS: (keyof DetailSurahData)[] = ['nama_surah', 'makhroj', 'tajwid', 'lancar'];
+    const [gridAnchor, setGridAnchor] = useState<{ r: number; c: number } | null>(null);
+    const [gridFocus, setGridFocus] = useState<{ r: number; c: number } | null>(null);
+    const isDraggingRef = useRef(false);
+
+    useEffect(() => {
+      const onUp = () => { isDraggingRef.current = false; };
+      window.addEventListener('mouseup', onUp);
+      return () => window.removeEventListener('mouseup', onUp);
+    }, []);
+
+    const gridRange = () => {
+      if (!gridAnchor || !gridFocus) return null;
+      return {
+        r0: Math.min(gridAnchor.r, gridFocus.r), r1: Math.max(gridAnchor.r, gridFocus.r),
+        c0: Math.min(gridAnchor.c, gridFocus.c), c1: Math.max(gridAnchor.c, gridFocus.c),
+      };
+    };
+    const isCellSelected = (r: number, c: number) => {
+      const rg = gridRange();
+      return !!rg && r >= rg.r0 && r <= rg.r1 && c >= rg.c0 && c <= rg.c1;
+    };
+    const handleCellMouseDown = (r: number, c: number) => {
+      if (!inlineEdit) return;
+      isDraggingRef.current = true;
+      setGridAnchor({ r, c });
+      setGridFocus({ r, c });
+    };
+    const handleCellMouseEnter = (r: number, c: number) => {
+      if (!inlineEdit || !isDraggingRef.current) return;
+      setGridFocus({ r, c });
+    };
+    const handleGridKeyDown = (event: React.KeyboardEvent<HTMLTableElement>) => {
+      if (!inlineEdit) return;
+      const isMeta = event.ctrlKey || event.metaKey;
+      if (!isMeta) return;
+      const key = event.key.toLowerCase();
+      const rg = gridRange();
+
+      if (key === 'c') {
+        if (!rg || (rg.r0 === rg.r1 && rg.c0 === rg.c1)) return; // 1 sel: biarkan copy teks normal
+        event.preventDefault();
+        const lines: string[] = [];
+        for (let r = rg.r0; r <= rg.r1; r++) {
+          const row = detail[r];
+          const cols: string[] = [];
+          for (let c = rg.c0; c <= rg.c1; c++) {
+            cols.push(row ? String((row as any)[GRID_COLS[c]] ?? '') : '');
+          }
+          lines.push(cols.join('\t'));
+        }
+        navigator.clipboard?.writeText(lines.join('\n')).catch(() => {});
+      } else if (key === 'v') {
+        if (!gridAnchor) return; // belum pernah klik sel grid: biarkan paste teks normal
+        event.preventDefault();
+        const target = gridAnchor;
+        navigator.clipboard?.readText().then((text) => {
+          if (!text) return;
+          const rows = text.replace(/\r/g, '').split('\n');
+          while (rows.length > 1 && rows[rows.length - 1] === '') rows.pop();
+          rows.forEach((lineText, rOff) => {
+            const targetRow = target.r + rOff;
+            if (targetRow >= detail.length) onInlineAddRow?.();
+            lineText.split('\t').forEach((val, cOff) => {
+              const targetCol = target.c + cOff;
+              if (targetCol < 0 || targetCol >= GRID_COLS.length) return;
+              onInlineDetailChange?.(targetRow, GRID_COLS[targetCol], val || null);
+            });
+          });
+        }).catch(() => {});
+      }
+    };
+    const selectedCellStyle = (r: number, c: number): React.CSSProperties =>
+      isCellSelected(r, c) ? { background: '#bfdbfe', outline: '1px solid #2563eb', outlineOffset: '-1px' } : {};
+
     const siswa = raport.santri;
     const guru = raport.users;
     const detailRaw = (raport.raport_tahfidz_detail ?? [])
@@ -472,6 +548,7 @@ const RaportTahfidzDocument = React.forwardRef<HTMLDivElement, RaportTahfidzDocu
         <table
           className="raport-tahfidz-table"
           style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0, marginBottom: '4px', fontSize: '11px' }}
+          onKeyDown={inlineEdit ? handleGridKeyDown : undefined}
         >
           <thead>
             <tr>
@@ -508,7 +585,9 @@ const RaportTahfidzDocument = React.forwardRef<HTMLDivElement, RaportTahfidzDocu
               detail.map((row, i) => (
                 <tr key={row.id ?? i} style={{ background: i % 2 === 0 ? '#fff' : '#f8fafc' }}>
                   <td style={bodyCell({ textAlign: 'center' })}>{i + 1}</td>
-                  <td style={bodyCell({ textAlign: 'left' })}>
+                  <td style={bodyCell({ textAlign: 'left', ...selectedCellStyle(i, 0) })}
+                    onMouseDown={() => handleCellMouseDown(i, 0)}
+                    onMouseEnter={() => handleCellMouseEnter(i, 0)}>
                     {inlineEdit ? (
                       <input
                         type="text"
@@ -523,7 +602,9 @@ const RaportTahfidzDocument = React.forwardRef<HTMLDivElement, RaportTahfidzDocu
                       row.nama_surah
                     )}
                   </td>
-                  <td style={bodyCell({ textAlign: 'center', fontWeight: 700 })}>
+                  <td style={bodyCell({ textAlign: 'center', fontWeight: 700, ...selectedCellStyle(i, 1) })}
+                    onMouseDown={() => handleCellMouseDown(i, 1)}
+                    onMouseEnter={() => handleCellMouseEnter(i, 1)}>
                     {inlineEdit ? (
                       <input
                         type="text"
@@ -538,7 +619,9 @@ const RaportTahfidzDocument = React.forwardRef<HTMLDivElement, RaportTahfidzDocu
                       row.makhroj || ''
                     )}
                   </td>
-                  <td style={bodyCell({ textAlign: 'center', fontWeight: 700 })}>
+                  <td style={bodyCell({ textAlign: 'center', fontWeight: 700, ...selectedCellStyle(i, 2) })}
+                    onMouseDown={() => handleCellMouseDown(i, 2)}
+                    onMouseEnter={() => handleCellMouseEnter(i, 2)}>
                     {inlineEdit ? (
                       <input
                         type="text"
@@ -553,7 +636,9 @@ const RaportTahfidzDocument = React.forwardRef<HTMLDivElement, RaportTahfidzDocu
                       row.tajwid || ''
                     )}
                   </td>
-                  <td style={bodyCell({ textAlign: 'center', fontWeight: 700 })}>
+                  <td style={bodyCell({ textAlign: 'center', fontWeight: 700, ...selectedCellStyle(i, 3) })}
+                    onMouseDown={() => handleCellMouseDown(i, 3)}
+                    onMouseEnter={() => handleCellMouseEnter(i, 3)}>
                     {inlineEdit ? (
                       <input
                         type="text"
