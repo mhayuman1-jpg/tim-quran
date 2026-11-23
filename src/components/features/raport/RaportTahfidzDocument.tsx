@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useState, useRef, useEffect } from 'react';
 import type { RaportTahfidzData, DetailSurahData, ProfilRaportData } from './raport-tahfidz-types';
 import { isJuz30Raport, isJuz1Raport, JUZ1_TEMPLATE } from '@/lib/raport/print-config';
